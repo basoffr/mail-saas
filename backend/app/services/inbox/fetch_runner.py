@@ -14,61 +14,7 @@ class MailMessageStore:
     def __init__(self):
         self.messages: Dict[str, Dict[str, Any]] = {}
         self.runs: Dict[str, Dict[str, Any]] = {}
-        self._init_sample_data()
     
-    def _init_sample_data(self):
-        """Initialize with sample messages"""
-        sample_messages = [
-            {
-                'id': 'msg-001',
-                'account_id': 'acc-001',
-                'folder': 'INBOX',
-                'uid': 1001,
-                'message_id': 'reply-001@gmail.com',
-                'in_reply_to': 'campaign-msg-001@domain1.com',
-                'references': ['campaign-msg-001@domain1.com'],
-                'from_email': 'john.doe@gmail.com',
-                'from_name': 'John Doe',
-                'to_email': 'info@domain1.com',
-                'subject': 'Re: Welkom bij onze service!',
-                'snippet': 'Bedankt voor jullie bericht. Ik ben geïnteresseerd in meer informatie.',
-                'raw_size': 1024,
-                'received_at': datetime.utcnow() - timedelta(hours=2),
-                'is_read': False,
-                'linked_campaign_id': 'campaign-001',
-                'linked_lead_id': 'lead-001',
-                'linked_message_id': 'msg-out-001',
-                'weak_link': False,
-                'encoding_issue': False,
-                'created_at': datetime.utcnow()
-            },
-            {
-                'id': 'msg-002',
-                'account_id': 'acc-001',
-                'folder': 'INBOX',
-                'uid': 1002,
-                'message_id': 'reply-002@outlook.com',
-                'in_reply_to': None,
-                'references': None,
-                'from_email': 'sarah.smith@outlook.com',
-                'from_name': 'Sarah Smith',
-                'to_email': 'info@domain1.com',
-                'subject': 'Vraag over prijzen',
-                'snippet': 'Hallo, ik heb jullie website bekeken en ben benieuwd naar de prijzen.',
-                'raw_size': 512,
-                'received_at': datetime.utcnow() - timedelta(hours=5),
-                'is_read': True,
-                'linked_campaign_id': None,
-                'linked_lead_id': 'lead-002',
-                'linked_message_id': None,
-                'weak_link': True,
-                'encoding_issue': False,
-                'created_at': datetime.utcnow()
-            }
-        ]
-        
-        for msg in sample_messages:
-            self.messages[msg['id']] = msg
     
     def create_message(self, message_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create new message with unique constraint check"""

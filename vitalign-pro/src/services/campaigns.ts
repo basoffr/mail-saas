@@ -2,331 +2,143 @@ import {
   Campaign, 
   CampaignDetail, 
   CampaignCreatePayload, 
-  CampaignStatus, 
   CampaignMessage, 
-  MessageStatus, 
   DryRunResult 
 } from '@/types/campaign';
 
-// Mock data
-const mockCampaigns: Campaign[] = [
-  {
-    id: '1',
-    name: 'Q1 Product Launch Outreach',
-    status: CampaignStatus.RUNNING,
-    templateId: '1',
-    templateName: 'Product Demo Invitation',
-    targetCount: 500,
-    sentCount: 342,
-    openCount: 127,
-    clickCount: 23,
-    bounceCount: 8,
-    replyCount: 12,
-    startDate: new Date('2024-01-15T09:00:00'),
-    createdAt: new Date('2024-01-10T14:30:00'),
-    updatedAt: new Date('2024-01-18T16:45:00')
-  },
-  {
-    id: '2',
-    name: 'Welcome Series - New Leads',
-    status: CampaignStatus.PAUSED,
-    templateId: '2',
-    templateName: 'Welcome Email',
-    targetCount: 1200,
-    sentCount: 890,
-    openCount: 445,
-    clickCount: 89,
-    bounceCount: 15,
-    replyCount: 34,
-    startDate: new Date('2024-01-08T08:00:00'),
-    createdAt: new Date('2024-01-05T11:15:00'),
-    updatedAt: new Date('2024-01-17T10:20:00')
-  },
-  {
-    id: '3',
-    name: 'Enterprise Prospects Follow-up',
-    status: CampaignStatus.SCHEDULED,
-    templateId: '3',
-    templateName: 'Follow-up Sequence',
-    targetCount: 250,
-    sentCount: 0,
-    openCount: 0,
-    clickCount: 0,
-    bounceCount: 0,
-    replyCount: 0,
-    startDate: new Date('2024-01-25T09:30:00'),
-    createdAt: new Date('2024-01-18T16:00:00'),
-    updatedAt: new Date('2024-01-18T16:00:00')
-  },
-  {
-    id: '4',
-    name: 'Holiday Promotion Campaign',
-    status: CampaignStatus.COMPLETED,
-    templateId: '4',
-    templateName: 'Holiday Special Offer',
-    targetCount: 2000,
-    sentCount: 1987,
-    openCount: 892,
-    clickCount: 234,
-    bounceCount: 43,
-    replyCount: 67,
-    startDate: new Date('2023-12-01T10:00:00'),
-    endDate: new Date('2023-12-24T23:59:00'),
-    createdAt: new Date('2023-11-25T09:00:00'),
-    updatedAt: new Date('2023-12-24T23:59:00')
-  }
-];
+// API Configuration
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+const API_TIMEOUT = parseInt(import.meta.env.VITE_API_TIMEOUT || '30000');
 
-const mockMessages: CampaignMessage[] = [
-  {
-    id: '1',
-    campaignId: '1',
-    leadId: '1',
-    leadEmail: 'john.doe@acme.com',
-    leadCompany: 'Acme Corporation',
-    status: MessageStatus.OPENED,
-    sentAt: new Date('2024-01-15T09:15:00'),
-    deliveredAt: new Date('2024-01-15T09:16:00'),
-    openedAt: new Date('2024-01-15T14:30:00'),
-    attempts: 1,
-    isFollowUp: false,
-    templateSnapshot: 'Email content here...'
-  },
-  {
-    id: '2',
-    campaignId: '1',
-    leadId: '2',
-    leadEmail: 'jane.smith@techstart.io',
-    leadCompany: 'TechStart',
-    status: MessageStatus.BOUNCED,
-    sentAt: new Date('2024-01-15T09:20:00'),
-    bouncedAt: new Date('2024-01-15T09:21:00'),
-    attempts: 1,
-    isFollowUp: false,
-    templateSnapshot: 'Email content here...'
-  },
-  {
-    id: '3',
-    campaignId: '1',
-    leadId: '3',
-    leadEmail: 'michael@globalcorp.org',
-    leadCompany: 'Global Corp',
-    status: MessageStatus.REPLIED,
-    sentAt: new Date('2024-01-15T10:00:00'),
-    deliveredAt: new Date('2024-01-15T10:01:00'),
-    openedAt: new Date('2024-01-15T11:30:00'),
-    repliedAt: new Date('2024-01-15T15:45:00'),
-    attempts: 1,
-    isFollowUp: false,
-    templateSnapshot: 'Email content here...'
-  }
-];
-
-let mockCampaignDetails: Record<string, CampaignDetail> = {};
-
-// Initialize mock detail data
-mockCampaigns.forEach(campaign => {
-  mockCampaignDetails[campaign.id] = {
-    ...campaign,
-    settings: {
-      followUp: {
-        enabled: true,
-        days: 3,
-        attachmentRequired: false
-      },
-      dedupe: {
-        suppressBounced: true,
-        contactedLastDays: 14,
-        onePerDomain: false
-      },
-      domains: ['com', 'org', 'io'],
-      throttle: {
-        perHour: 50,
-        windowStart: '08:00',
-        windowEnd: '17:00',
-        weekdays: true
-      },
-      retry: {
-        maxAttempts: 3,
-        backoffHours: 24
-      }
-    },
-    stats: {
-      totalMessages: campaign.targetCount,
-      sentToday: Math.floor(Math.random() * 50),
-      scheduledCount: campaign.targetCount - campaign.sentCount,
-      followUpCount: Math.floor(campaign.sentCount * 0.1),
-      sentByDay: generateMockSentByDay(campaign.startDate, campaign.sentCount)
-    }
-  };
-});
-
-function generateMockSentByDay(startDate: Date, totalSent: number): { date: string; sent: number }[] {
-  const data = [];
-  const days = 14;
-  const avgPerDay = Math.floor(totalSent / days);
-  
-  for (let i = 0; i < days; i++) {
-    const date = new Date(startDate);
-    date.setDate(date.getDate() + i);
-    
-    // Add some randomness to make it look realistic
-    const variance = Math.floor(avgPerDay * 0.3);
-    const sent = Math.max(0, avgPerDay + Math.floor(Math.random() * variance * 2) - variance);
-    
-    data.push({
-      date: date.toISOString().split('T')[0],
-      sent
-    });
-  }
-  
-  return data;
+// API Response Type
+interface ApiResponse<T> {
+  data: T | null;
+  error: string | null;
 }
 
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+// API Helper Functions
+async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
+
+  try {
+    // Use Supabase anon key as auth token for production
+    const authToken = import.meta.env.VITE_SUPABASE_ANON_KEY || 'mock-jwt-token-for-development';
+    
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+        ...options.headers,
+      },
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const result: ApiResponse<T> = await response.json();
+    
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    return result.data!;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    
+    // Better error handling for AbortError
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        throw new Error(`Request timeout after ${API_TIMEOUT/1000} seconds`);
+      }
+      if (error.message.includes('Failed to fetch')) {
+        throw new Error(`Cannot connect to API at ${API_BASE_URL}. Is the backend running?`);
+      }
+    }
+    
+    throw error;
+  }
+}
+
+function buildQueryString(params: Record<string, any>): string {
+  const searchParams = new URLSearchParams();
+  
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      if (Array.isArray(value)) {
+        value.forEach(v => searchParams.append(key, String(v)));
+      } else {
+        searchParams.append(key, String(value));
+      }
+    }
+  });
+  
+  return searchParams.toString();
+}
 
 export const campaignsService = {
   async getCampaigns(): Promise<{ items: Campaign[]; total: number }> {
-    await delay(300);
-    return {
-      items: mockCampaigns,
-      total: mockCampaigns.length
-    };
+    return await apiCall<{ items: Campaign[]; total: number }>('/campaigns');
   },
 
   async createCampaign(payload: CampaignCreatePayload): Promise<{ id: string }> {
-    await delay(500);
-    const id = `campaign-${Date.now()}`;
-    
-    const newCampaign: Campaign = {
-      id,
-      name: payload.name,
-      status: payload.startType === 'now' ? CampaignStatus.RUNNING : CampaignStatus.SCHEDULED,
-      templateId: payload.templateId,
-      templateName: 'Template Name', // Would be fetched
-      targetCount: payload.leadIds?.length || 0,
-      sentCount: 0,
-      openCount: 0,
-      clickCount: 0,
-      bounceCount: 0,
-      replyCount: 0,
-      startDate: payload.scheduledStart || new Date(),
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    
-    mockCampaigns.unshift(newCampaign);
-    return { id };
+    return await apiCall<{ id: string }>('/campaigns', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   },
 
   async getCampaign(id: string): Promise<CampaignDetail | null> {
-    await delay(200);
-    return mockCampaignDetails[id] || null;
+    try {
+      return await apiCall<CampaignDetail>(`/campaigns/${id}`);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('404')) {
+        return null;
+      }
+      throw error;
+    }
   },
 
   async pauseCampaign(id: string): Promise<{ ok: boolean }> {
-    await delay(300);
-    const campaign = mockCampaigns.find(c => c.id === id);
-    if (campaign) {
-      campaign.status = CampaignStatus.PAUSED;
-      campaign.updatedAt = new Date();
-      if (mockCampaignDetails[id]) {
-        mockCampaignDetails[id].status = CampaignStatus.PAUSED;
-        mockCampaignDetails[id].updatedAt = new Date();
-      }
-    }
-    return { ok: true };
+    return await apiCall<{ ok: boolean }>(`/campaigns/${id}/pause`, {
+      method: 'POST',
+    });
   },
 
   async resumeCampaign(id: string): Promise<{ ok: boolean }> {
-    await delay(300);
-    const campaign = mockCampaigns.find(c => c.id === id);
-    if (campaign) {
-      campaign.status = CampaignStatus.RUNNING;
-      campaign.updatedAt = new Date();
-      if (mockCampaignDetails[id]) {
-        mockCampaignDetails[id].status = CampaignStatus.RUNNING;
-        mockCampaignDetails[id].updatedAt = new Date();
-      }
-    }
-    return { ok: true };
+    return await apiCall<{ ok: boolean }>(`/campaigns/${id}/resume`, {
+      method: 'POST',
+    });
   },
 
   async stopCampaign(id: string): Promise<{ ok: boolean }> {
-    await delay(300);
-    const campaign = mockCampaigns.find(c => c.id === id);
-    if (campaign) {
-      campaign.status = CampaignStatus.STOPPED;
-      campaign.endDate = new Date();
-      campaign.updatedAt = new Date();
-      if (mockCampaignDetails[id]) {
-        mockCampaignDetails[id].status = CampaignStatus.STOPPED;
-        mockCampaignDetails[id].endDate = new Date();
-        mockCampaignDetails[id].updatedAt = new Date();
-      }
-    }
-    return { ok: true };
+    return await apiCall<{ ok: boolean }>(`/campaigns/${id}/stop`, {
+      method: 'POST',
+    });
   },
 
   async duplicateCampaign(id: string): Promise<{ id: string }> {
-    await delay(400);
-    const original = mockCampaigns.find(c => c.id === id);
-    if (!original) throw new Error('Campaign not found');
-
-    const newId = `campaign-${Date.now()}`;
-    const duplicate: Campaign = {
-      ...original,
-      id: newId,
-      name: `${original.name} (Copy)`,
-      status: CampaignStatus.DRAFT,
-      sentCount: 0,
-      openCount: 0,
-      clickCount: 0,
-      bounceCount: 0,
-      replyCount: 0,
-      startDate: new Date(),
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-
-    mockCampaigns.unshift(duplicate);
-    return { id: newId };
+    return await apiCall<{ id: string }>(`/campaigns/${id}/duplicate`, {
+      method: 'POST',
+    });
   },
 
   async dryRunCampaign(id: string): Promise<DryRunResult> {
-    await delay(800);
-    const campaign = mockCampaignDetails[id];
-    if (!campaign) throw new Error('Campaign not found');
-
-    return {
-      totalPlanned: campaign.targetCount,
-      byDay: generateMockSentByDay(new Date(), campaign.targetCount).slice(0, 7).map(item => ({
-        date: item.date,
-        planned: item.sent
-      })),
-      warnings: [
-        'Lead john@example.com is missing firstName variable',
-        '3 leads have bounced emails in the last 30 days'
-      ]
-    };
+    return await apiCall<DryRunResult>(`/campaigns/${id}/dry-run`);
   },
 
   async getCampaignMessages(campaignId: string): Promise<CampaignMessage[]> {
-    await delay(300);
-    return mockMessages.filter(msg => msg.campaignId === campaignId);
+    return await apiCall<CampaignMessage[]>(`/campaigns/${campaignId}/messages`);
   },
 
   async resendMessage(messageId: string): Promise<{ ok: boolean }> {
-    await delay(400);
-    const message = mockMessages.find(m => m.id === messageId);
-    if (message) {
-      message.status = MessageStatus.PENDING;
-      message.attempts += 1;
-      message.sentAt = undefined;
-      message.deliveredAt = undefined;
-      message.bouncedAt = undefined;
-      message.failedAt = undefined;
-    }
-    return { ok: true };
+    return await apiCall<{ ok: boolean }>(`/messages/${messageId}/resend`, {
+      method: 'POST',
+    });
   }
 };

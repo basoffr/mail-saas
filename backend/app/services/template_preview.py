@@ -89,22 +89,24 @@ def render_preview(template_id: str, lead_id: str, store: LeadsStore) -> dict:
     if not lead:
         return {"html": "", "text": "", "warnings": ["Lead not found"]}
 
-    # Get template (mock for now - in production would fetch from template_store)
-    template = _get_mock_template(template_id)
+    # Get template from template store
+    from app.services.template_store import TemplateStore
+    template_store = TemplateStore()
+    template = template_store.get_by_id(template_id)
     if not template:
         return {"html": "", "text": "", "warnings": ["Template not found"]}
 
     # Extract variables from template
-    template_vars = extract_template_variables(template['bodyHtml'])
-    subject_vars = extract_template_variables(template['subject'])
+    template_vars = extract_template_variables(template.body_template)
+    subject_vars = extract_template_variables(template.subject_template)
     all_vars = template_vars.union(subject_vars)
 
     # Validate variables against lead data
     warnings = validate_lead_variables(lead, all_vars)
 
     # Render template with variable substitution
-    html = _substitute_variables(template['bodyHtml'], lead)
-    subject = _substitute_variables(template['subject'], lead)
+    html = _substitute_variables(template.body_template, lead)
+    subject = _substitute_variables(template.subject_template, lead)
     
     # Create text version
     text = re.sub(r'<[^>]+>', '', html)
@@ -120,25 +122,6 @@ def render_preview(template_id: str, lead_id: str, store: LeadsStore) -> dict:
     }
 
 
-def _get_mock_template(template_id: str) -> Dict[str, Any]:
-    """Mock template data - in production would use template_store"""
-    templates = {
-        "1": {
-            "id": "1",
-            "name": "Welcome Email",
-            "subject": "Welcome to {{companyName}}, {{firstName}}!",
-            "bodyHtml": """
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h1 style="color: #2563eb;">Hi {{firstName}},</h1>
-                <p>Welcome to {{companyName}}! We're excited to have you on board.</p>
-                <img src="{{image.cid 'hero'}}" alt="Welcome" style="width: 100%; max-width: 400px;" />
-                <p>As a company in the {{industry}} sector, we believe you'll find great value in our services.</p>
-                <p>Best regards,<br>The {{companyName}} Team</p>
-            </div>
-            """
-        }
-    }
-    return templates.get(template_id)
 
 
 def _substitute_variables(content: str, lead: Any) -> str:

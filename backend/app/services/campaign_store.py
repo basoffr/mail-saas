@@ -15,9 +15,6 @@ class CampaignStore:
         self.audiences: Dict[str, CampaignAudience] = {}
         self.messages: Dict[str, Message] = {}
         self.events: Dict[str, MessageEvent] = {}
-        
-        # Initialize with sample data
-        self._create_sample_data()
     
     def create_campaign(self, campaign: Campaign) -> Campaign:
         """Create a new campaign."""
@@ -221,46 +218,6 @@ class CampaignStore:
         
         return timeline
     
-    def _create_sample_data(self):
-        """Create sample campaigns for testing."""
-        # Sample campaign 1
-        campaign1 = Campaign(
-            id="campaign-001",
-            name="Welcome Campaign",
-            template_id="welcome-001",
-            start_at=datetime.utcnow() - timedelta(days=2),
-            status=CampaignStatus.running,
-            followup_enabled=True,
-            followup_days=3,
-            followup_attach_report=False
-        )
-        self.campaigns[campaign1.id] = campaign1
-        
-        # Sample campaign 2
-        campaign2 = Campaign(
-            id="campaign-002",
-            name="Follow-up Campaign",
-            template_id="followup-001",
-            start_at=datetime.utcnow() + timedelta(days=1),
-            status=CampaignStatus.draft,
-            followup_enabled=False,
-            followup_days=7,
-            followup_attach_report=True
-        )
-        self.campaigns[campaign2.id] = campaign2
-        
-        # Sample messages for campaign 1
-        for i in range(5):
-            message = Message(
-                id=f"message-{i+1:03d}",
-                campaign_id=campaign1.id,
-                lead_id=f"lead-{i+1:03d}",
-                domain_used=f"domain{(i % 4) + 1}.com",
-                scheduled_at=datetime.utcnow() - timedelta(hours=i*2),
-                sent_at=datetime.utcnow() - timedelta(hours=i*2) if i < 3 else None,
-                status=MessageStatus.sent if i < 2 else MessageStatus.opened if i == 2 else MessageStatus.queued
-            )
-            self.messages[message.id] = message
 
 
 # Global store instance

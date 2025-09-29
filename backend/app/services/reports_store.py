@@ -11,45 +11,7 @@ class ReportsStore:
     def __init__(self):
         self.reports: Dict[str, Report] = {}
         self.report_links: Dict[str, ReportLink] = {}
-        self._init_sample_data()
     
-    def _init_sample_data(self):
-        """Initialize with sample reports for testing."""
-        # Sample report 1 - linked to lead
-        report1 = Report(
-            id="report-001",
-            filename="company_analysis.pdf",
-            type=ReportType.pdf,
-            size_bytes=1024000,  # 1MB
-            storage_path="reports/report-001.pdf",
-            checksum="abc123def456",
-            created_at=datetime(2025, 9, 20, 10, 0, 0),
-            uploaded_by="user-001"
-        )
-        self.reports[report1.id] = report1
-        
-        # Link to lead
-        link1 = ReportLink(
-            id="link-001",
-            report_id=report1.id,
-            lead_id="lead-001",
-            campaign_id=None,
-            created_at=datetime(2025, 9, 20, 10, 1, 0)
-        )
-        self.report_links[link1.id] = link1
-        
-        # Sample report 2 - unlinked
-        report2 = Report(
-            id="report-002",
-            filename="market_research.xlsx",
-            type=ReportType.xlsx,
-            size_bytes=512000,  # 512KB
-            storage_path="reports/report-002.xlsx",
-            checksum="def456ghi789",
-            created_at=datetime(2025, 9, 21, 14, 30, 0),
-            uploaded_by="user-001"
-        )
-        self.reports[report2.id] = report2
     
     def create_report(self, report_data: Dict[str, Any]) -> Report:
         """Create a new report."""

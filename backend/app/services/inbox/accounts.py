@@ -10,43 +10,7 @@ class MailAccountsStore:
     
     def __init__(self):
         self.accounts: Dict[str, Dict[str, Any]] = {}
-        self._init_sample_data()
     
-    def _init_sample_data(self):
-        """Initialize with sample IMAP accounts"""
-        sample_accounts = [
-            {
-                'id': 'acc-001',
-                'label': 'info@domain1.com',
-                'imap_host': 'imap.domain1.com',
-                'imap_port': 993,
-                'use_ssl': True,
-                'username': 'info@domain1.com',
-                'secret_ref': 'secret_ref_001',  # Reference to secret store
-                'active': True,
-                'last_fetch_at': datetime.utcnow(),
-                'last_seen_uid': 1003,
-                'created_at': datetime.utcnow(),
-                'updated_at': datetime.utcnow()
-            },
-            {
-                'id': 'acc-002',
-                'label': 'support@domain2.com',
-                'imap_host': 'imap.domain2.com',
-                'imap_port': 993,
-                'use_ssl': True,
-                'username': 'support@domain2.com',
-                'secret_ref': 'secret_ref_002',
-                'active': True,
-                'last_fetch_at': datetime.utcnow(),
-                'last_seen_uid': 2001,
-                'created_at': datetime.utcnow(),
-                'updated_at': datetime.utcnow()
-            }
-        ]
-        
-        for account in sample_accounts:
-            self.accounts[account['id']] = account
     
     def get_all(self) -> List[Dict[str, Any]]:
         """Get all accounts"""
@@ -204,11 +168,8 @@ class MailAccountService:
             return {'ok': False, 'message': f'Connection failed: {str(e)}'}
     
     def _get_password_from_secret_store(self, secret_ref: str) -> Optional[str]:
-        """Get password from secret store (mock implementation)"""
+        """Get password from secret store"""
         # In production, this would connect to Render Secrets, Supabase Vault, etc.
-        # For MVP, return a mock password
-        mock_passwords = {
-            'secret_ref_001': 'mock_password_001',
-            'secret_ref_002': 'mock_password_002'
-        }
-        return mock_passwords.get(secret_ref)
+        # For MVP, passwords should be configured via environment variables
+        import os
+        return os.getenv(f"IMAP_PASSWORD_{secret_ref}")

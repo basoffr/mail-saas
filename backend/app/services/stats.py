@@ -16,65 +16,7 @@ class StatsService:
         # In-memory stores (MVP)
         self.messages: List[Message] = []
         self.campaigns: List[Campaign] = []
-        self._init_sample_data()
     
-    def _init_sample_data(self):
-        """Initialize with sample data for MVP"""
-        from datetime import timedelta
-        
-        # Sample campaigns
-        self.campaigns = [
-            Campaign(
-                id="campaign-001",
-                name="Welcome Campaign",
-                template_id="welcome-001",
-                status="completed",
-                created_at=datetime.utcnow() - timedelta(days=30)
-            ),
-            Campaign(
-                id="campaign-002", 
-                name="Follow-up Campaign",
-                template_id="followup-001",
-                status="running",
-                created_at=datetime.utcnow() - timedelta(days=15)
-            )
-        ]
-        
-        # Sample messages with realistic distribution
-        base_time = datetime.utcnow() - timedelta(days=30)
-        domains = ["gmail.com", "outlook.com", "company.com", "business.nl"]
-        
-        for i in range(150):  # Sample size for testing
-            days_offset = i // 5  # Spread over 30 days
-            message_time = base_time + timedelta(days=days_offset)
-            
-            # Determine status (80% sent, 10% bounced, 10% failed)
-            if i % 10 == 0:
-                status = MessageStatus.bounced
-                sent_at = None
-                open_at = None
-            elif i % 10 == 1:
-                status = MessageStatus.failed
-                sent_at = None
-                open_at = None
-            else:
-                status = MessageStatus.sent
-                sent_at = message_time
-                # 40% open rate
-                open_at = message_time + timedelta(hours=2) if i % 5 < 2 else None
-            
-            message = Message(
-                id=f"msg-{i:03d}",
-                campaign_id="campaign-001" if i < 100 else "campaign-002",
-                lead_id=f"lead-{i:03d}",
-                domain_used=domains[i % len(domains)],
-                scheduled_at=message_time,
-                sent_at=sent_at,
-                status=status,
-                open_at=open_at,
-                created_at=message_time
-            )
-            self.messages.append(message)
     
     def get_stats_summary(
         self, 

@@ -8,269 +8,215 @@ import type {
   BulkMapRow 
 } from '@/types/report';
 
-// Mock data
-const mockReports: ReportItem[] = [
-  {
-    id: '1',
-    filename: 'campaign_report_q1.pdf',
-    type: 'pdf',
-    sizeBytes: 2548000,
-    uploadedAt: '2024-03-15T14:30:00Z',
-    boundTo: { kind: 'campaign', id: 'camp1', label: 'Q1 Marketing Campaign' },
-    checksum: 'abc123',
-  },
-  {
-    id: '2',
-    filename: 'lead_analysis.xlsx',
-    type: 'xlsx',
-    sizeBytes: 1024000,
-    uploadedAt: '2024-03-14T09:15:00Z',
-    boundTo: { kind: 'lead', id: 'lead1', label: 'john@example.com' },
-    checksum: 'def456',
-  },
-  {
-    id: '3',
-    filename: 'product_hero.jpg',
-    type: 'jpg',
-    sizeBytes: 512000,
-    uploadedAt: '2024-03-13T16:45:00Z',
-    boundTo: null,
-    checksum: 'ghi789',
-  },
-  {
-    id: '4',
-    filename: 'monthly_stats.png',
-    type: 'png',
-    sizeBytes: 256000,
-    uploadedAt: '2024-03-12T11:20:00Z',
-    boundTo: { kind: 'campaign', id: 'camp2', label: 'Monthly Newsletter' },
-    checksum: 'jkl012',
-  },
-];
+// API Configuration
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+const API_TIMEOUT = parseInt(import.meta.env.VITE_API_TIMEOUT || '30000');
 
-// Mock leads and campaigns for binding
-const mockLeads = [
-  { id: 'lead1', email: 'john@example.com', company: 'ACME Corp' },
-  { id: 'lead2', email: 'jane@techstart.io', company: 'TechStart' },
-  { id: 'lead3', email: 'mike@innovate.com', company: 'Innovate Ltd' },
-];
+// API Response Type
+interface ApiResponse<T> {
+  data: T | null;
+  error: string | null;
+}
 
-const mockCampaigns = [
-  { id: 'camp1', name: 'Q1 Marketing Campaign' },
-  { id: 'camp2', name: 'Monthly Newsletter' },
-  { id: 'camp3', name: 'Product Launch 2024' },
-];
+// API Helper Functions
+async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
+
+  try {
+    // Use Supabase anon key as auth token for production
+    const authToken = import.meta.env.VITE_SUPABASE_ANON_KEY || 'mock-jwt-token-for-development';
+    
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        ...options.headers,
+      },
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const result: ApiResponse<T> = await response.json();
+    
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    return result.data!;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        throw new Error(`Request timeout after ${API_TIMEOUT/1000} seconds`);
+      }
+      if (error.message.includes('Failed to fetch')) {
+        throw new Error(`Cannot connect to API at ${API_BASE_URL}. Is the backend running?`);
+      }
+    }
+    
+    throw error;
+  }
+}
+
+function buildQueryString(params: Record<string, any>): string {
+  const searchParams = new URLSearchParams();
+  
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      if (Array.isArray(value)) {
+        value.forEach(v => searchParams.append(key, String(v)));
+      } else {
+        searchParams.append(key, String(value));
+      }
+    }
+  });
+  
+  return searchParams.toString();
+}
 
 export const reportsService = {
   async getReports(query: ReportsQuery): Promise<{ items: ReportItem[]; total: number }> {
-    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
-    
-    let filtered = [...mockReports];
+    const queryString = buildQueryString({
+      page: query.page,
+      page_size: query.pageSize,
+      search: query.search,
+      types: query.types,
+      bound_filter: query.boundFilter,
+      bound_kind: query.boundKind,
+      bound_id: query.boundId,
+    });
 
-    // Apply filters
-    if (query.search) {
-      const search = query.search.toLowerCase();
-      filtered = filtered.filter(r => 
-        r.filename.toLowerCase().includes(search)
-      );
-    }
-
-    if (query.types?.length) {
-      filtered = filtered.filter(r => query.types!.includes(r.type));
-    }
-
-    if (query.boundFilter === 'bound') {
-      filtered = filtered.filter(r => r.boundTo);
-    } else if (query.boundFilter === 'unbound') {
-      filtered = filtered.filter(r => !r.boundTo);
-    }
-
-    if (query.boundKind) {
-      filtered = filtered.filter(r => r.boundTo?.kind === query.boundKind);
-    }
-
-    if (query.boundId) {
-      filtered = filtered.filter(r => r.boundTo?.id === query.boundId);
-    }
-
-    // Apply pagination
-    const start = (query.page - 1) * query.pageSize;
-    const items = filtered.slice(start, start + query.pageSize);
-
-    return { items, total: filtered.length };
+    const endpoint = `/reports${queryString ? `?${queryString}` : ''}`;
+    return await apiCall<{ items: ReportItem[]; total: number }>(endpoint);
   },
 
   async uploadReport(payload: ReportUploadPayload): Promise<ReportItem> {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const report: ReportItem = {
-      id: `report_${Date.now()}`,
-      filename: payload.file.name,
-      type: payload.file.name.split('.').pop()?.toLowerCase() as any,
-      sizeBytes: payload.file.size,
-      uploadedAt: new Date().toISOString(),
-      boundTo: payload.leadId 
-        ? { kind: 'lead', id: payload.leadId, label: mockLeads.find(l => l.id === payload.leadId)?.email }
-        : payload.campaignId
-        ? { kind: 'campaign', id: payload.campaignId, label: mockCampaigns.find(c => c.id === payload.campaignId)?.name }
-        : null,
-      checksum: Math.random().toString(36).substring(7),
-    };
+    const formData = new FormData();
+    formData.append('file', payload.file);
+    if (payload.leadId) formData.append('lead_id', payload.leadId);
+    if (payload.campaignId) formData.append('campaign_id', payload.campaignId);
 
-    mockReports.unshift(report);
-    return report;
+    const authToken = import.meta.env.VITE_SUPABASE_ANON_KEY || 'mock-jwt-token-for-development';
+
+    const response = await fetch(`${API_BASE_URL}/reports/upload`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const result: ApiResponse<ReportItem> = await response.json();
+    
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    return result.data!;
   },
 
   async bulkUpload(zipFile: File, mode: BulkMode): Promise<BulkUploadResult> {
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    const formData = new FormData();
+    formData.append('zip_file', zipFile);
+    formData.append('mode', mode);
 
-    // Mock parsing ZIP contents
-    const mockFiles = [
-      'hero_image.jpg',
-      'john@example.com_report.pdf',
-      'campaign_stats.xlsx',
-      'product_banner.png',
-      'jane@techstart.io_analysis.pdf',
-    ];
+    const authToken = import.meta.env.VITE_SUPABASE_ANON_KEY || 'mock-jwt-token-for-development';
 
-    const mappings = mockFiles.map(fileName => {
-      const baseKey = fileName.replace(/\.(jpg|png|pdf|xlsx)$/i, '');
-      
-      if (mode === 'by_email') {
-        const emailMatch = baseKey.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
-        if (emailMatch) {
-          const lead = mockLeads.find(l => l.email === emailMatch[1]);
-          return {
-            fileName,
-            to: lead ? { kind: 'lead' as const, id: lead.id } : undefined,
-            status: lead ? 'ok' as const : 'failed' as const,
-            error: lead ? undefined : 'No matching lead found',
-          };
-        }
-      } else if (mode === 'by_image_key') {
-        // Mock image key matching
-        return {
-          fileName,
-          to: { kind: 'image_key' as const },
-          status: Math.random() > 0.2 ? 'ok' as const : 'failed' as const,
-          error: Math.random() > 0.2 ? undefined : 'Invalid image key format',
-        };
-      }
-
-      return {
-        fileName,
-        status: 'failed' as const,
-        error: 'No matching target found',
-      };
+    const response = await fetch(`${API_BASE_URL}/reports/bulk-upload`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: formData,
     });
 
-    const uploaded = mappings.filter(m => m.status === 'ok').length;
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
 
-    return {
-      total: mockFiles.length,
-      uploaded,
-      failed: mockFiles.length - uploaded,
-      mappings,
-    };
+    const result: ApiResponse<BulkUploadResult> = await response.json();
+    
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    return result.data!;
   },
 
   async generateBulkMapping(zipFile: File, mode: BulkMode): Promise<BulkMapRow[]> {
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const formData = new FormData();
+    formData.append('zip_file', zipFile);
+    formData.append('mode', mode);
 
-    const mockFiles = [
-      'hero_image.jpg',
-      'john@example.com_report.pdf',
-      'campaign_stats.xlsx',
-      'product_banner.png',
-      'jane@techstart.io_analysis.pdf',
-      'unknown_file.jpg',
-    ];
+    const authToken = import.meta.env.VITE_SUPABASE_ANON_KEY || 'mock-jwt-token-for-development';
 
-    return mockFiles.map(fileName => {
-      const baseKey = fileName.replace(/\.(jpg|png|pdf|xlsx)$/i, '');
-      
-      if (mode === 'by_email') {
-        const emailMatch = baseKey.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
-        if (emailMatch) {
-          const lead = mockLeads.find(l => l.email === emailMatch[1]);
-          return {
-            fileName,
-            baseKey,
-            target: lead ? { kind: 'lead' as const, id: lead.id, email: lead.email } : undefined,
-            status: lead ? 'matched' as const : 'unmatched' as const,
-            reason: lead ? undefined : 'No matching lead found for email',
-          };
-        }
-      } else if (mode === 'by_image_key') {
-        return {
-          fileName,
-          baseKey,
-          target: { kind: 'image_key' as const },
-          status: Math.random() > 0.3 ? 'matched' as const : 'unmatched' as const,
-          reason: Math.random() > 0.3 ? undefined : 'Invalid image key format',
-        };
-      }
-
-      return {
-        fileName,
-        baseKey,
-        status: 'unmatched' as const,
-        reason: 'No matching pattern found',
-      };
+    const response = await fetch(`${API_BASE_URL}/reports/bulk-mapping`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: formData,
     });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const result: ApiResponse<BulkMapRow[]> = await response.json();
+    
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    return result.data!;
   },
 
   async bindReport(payload: ReportBindPayload): Promise<{ ok: true }> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    const report = mockReports.find(r => r.id === payload.reportId);
-    if (report) {
-      if (payload.leadId) {
-        const lead = mockLeads.find(l => l.id === payload.leadId);
-        report.boundTo = { kind: 'lead', id: payload.leadId, label: lead?.email };
-      } else if (payload.campaignId) {
-        const campaign = mockCampaigns.find(c => c.id === payload.campaignId);
-        report.boundTo = { kind: 'campaign', id: payload.campaignId, label: campaign?.name };
-      }
-    }
-    
-    return { ok: true };
+    return await apiCall<{ ok: true }>(`/reports/${payload.reportId}/bind`, {
+      method: 'POST',
+      body: JSON.stringify({
+        lead_id: payload.leadId,
+        campaign_id: payload.campaignId,
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
   },
 
   async unbindReport(reportId: string): Promise<{ ok: true }> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    const report = mockReports.find(r => r.id === reportId);
-    if (report) {
-      report.boundTo = null;
-    }
-    
-    return { ok: true };
+    return await apiCall<{ ok: true }>(`/reports/${reportId}/unbind`, {
+      method: 'POST',
+    });
   },
 
   async getDownloadUrl(reportId: string): Promise<string> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    // Mock download URL
-    return `https://api.example.com/reports/${reportId}/download`;
+    return await apiCall<string>(`/reports/${reportId}/download-url`);
   },
 
   // Helper methods for binding
   async searchLeads(query: string): Promise<Array<{ id: string; email: string; company?: string }>> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    const search = query.toLowerCase();
-    return mockLeads.filter(l => 
-      l.email.toLowerCase().includes(search) || 
-      l.company?.toLowerCase().includes(search)
-    );
+    const queryString = buildQueryString({ search: query, limit: 10 });
+    const endpoint = `/leads${queryString ? `?${queryString}` : ''}`;
+    const result = await apiCall<{ items: Array<{ id: string; email: string; company?: string }>; total: number }>(endpoint);
+    return result.items;
   },
 
   async searchCampaigns(query: string): Promise<Array<{ id: string; name: string }>> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    const search = query.toLowerCase();
-    return mockCampaigns.filter(c => 
-      c.name.toLowerCase().includes(search)
-    );
+    const queryString = buildQueryString({ search: query, limit: 10 });
+    const endpoint = `/campaigns${queryString ? `?${queryString}` : ''}`;
+    const result = await apiCall<{ items: Array<{ id: string; name: string }>; total: number }>(endpoint);
+    return result.items;
   },
 };

@@ -1,78 +1,73 @@
 import { Settings, SettingsUpdateRequest, SettingsResponse } from '@/types/settings';
 
-// Mock settings data
-const mockSettings: Settings = {
-  timezone: 'Europe/Amsterdam',
-  window: {
-    days: ['ma', 'di', 'wo', 'do', 'vr'],
-    from: '08:00',
-    to: '17:00'
-  },
-  throttle: {
-    emailsPer: 1,
-    minutes: 20
-  },
-  domains: [
-    'punthelder.nl',
-    'vitalign.nl',
-    'innovate-solutions.com',
-    'techpartners.eu'
-  ],
-  unsubscribeText: 'Uitschrijven',
-  unsubscribeUrl: 'https://mail.punthelder.nl/unsubscribe?token=abc123def456',
-  trackingPixelEnabled: true,
-  emailInfra: {
-    current: 'SMTP',
-    provider: null,
-    providerEnabled: false,
-    dns: {
-      spf: true,
-      dkim: true,
-      dmarc: false
-    }
-  }
-};
+// API Configuration
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+const API_TIMEOUT = parseInt(import.meta.env.VITE_API_TIMEOUT || '30000');
 
-// Simulate API delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+// API Response Type
+interface ApiResponse<T> {
+  data: T | null;
+  error: string | null;
+}
+
+// API Helper Functions
+async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
+
+  try {
+    // Use Supabase anon key as auth token for production
+    const authToken = import.meta.env.VITE_SUPABASE_ANON_KEY || 'mock-jwt-token-for-development';
+    
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+        ...options.headers,
+      },
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const result: ApiResponse<T> = await response.json();
+    
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    return result.data!;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        throw new Error(`Request timeout after ${API_TIMEOUT/1000} seconds`);
+      }
+      if (error.message.includes('Failed to fetch')) {
+        throw new Error(`Cannot connect to API at ${API_BASE_URL}. Is the backend running?`);
+      }
+    }
+    
+    throw error;
+  }
+}
 
 class SettingsService {
-  private settings: Settings = { ...mockSettings };
-
   async getSettings(): Promise<Settings> {
-    await delay(200); // Simulate API call
-    return { ...this.settings };
+    return await apiCall<Settings>('/settings');
   }
 
   async updateSettings(updates: SettingsUpdateRequest): Promise<SettingsResponse> {
-    await delay(300); // Simulate API call
-    
-    try {
-      // Validate updates
-      if (updates.unsubscribeText !== undefined) {
-        if (updates.unsubscribeText.length < 1 || updates.unsubscribeText.length > 50) {
-          return {
-            ok: false,
-            message: 'Unsubscribe tekst moet tussen 1 en 50 karakters zijn'
-          };
-        }
-        this.settings.unsubscribeText = updates.unsubscribeText;
-      }
-
-      if (updates.trackingPixelEnabled !== undefined) {
-        this.settings.trackingPixelEnabled = updates.trackingPixelEnabled;
-      }
-
-      return {
-        ok: true,
-        message: 'Instellingen succesvol opgeslagen'
-      };
-    } catch (error) {
-      return {
-        ok: false,
-        message: 'Er is een fout opgetreden bij het opslaan van de instellingen'
-      };
-    }
+    return await apiCall<SettingsResponse>('/settings', {
+      method: 'POST',
+      body: JSON.stringify(updates),
+    });
   }
 
   // Helper method to copy URL to clipboard
@@ -108,22 +103,22 @@ class SettingsService {
   }
 
   // Get provider status
-  getProviderStatus(): { label: string; variant: 'default' | 'secondary' } {
+  getProviderStatus(settings: Settings): { label: string; variant: 'default' | 'secondary' } {
     return {
-      label: this.settings.emailInfra.current,
+      label: settings.emailInfra.current,
       variant: 'default'
     };
   }
 
   // Format sending window for display
-  formatSendingWindow(): string {
-    const { days, from, to } = this.settings.window;
+  formatSendingWindow(settings: Settings): string {
+    const { days, from, to } = settings.window;
     return `${days.join('–')}, ${from}–${to}`;
   }
 
   // Format throttle for display
-  formatThrottle(): string {
-    const { emailsPer, minutes } = this.settings.throttle;
+  formatThrottle(settings: Settings): string {
+    const { emailsPer, minutes } = settings.throttle;
     return `${emailsPer} email / ${minutes} min / per domein`;
   }
 }

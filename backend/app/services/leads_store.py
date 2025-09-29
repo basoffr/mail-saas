@@ -53,30 +53,6 @@ class _LeadRec:
 class LeadsStore:
     def __init__(self) -> None:
         self._leads: List[_LeadRec] = []
-        # seed a few records with fixed IDs for testing
-        self._leads.append(_LeadRec(
-            id="lead-001",
-            email="john.doe@acme.com",
-            company="Acme Corporation",
-            url="https://acme.com",
-            domain="acme.com",
-            status=LeadStatus.active,
-            tags=["enterprise", "saas"],
-            image_key="acme-logo",
-            vars={"industry": "Technology", "employees": 500},
-            last_emailed_at=datetime(2024, 1, 15),
-            last_open_at=datetime(2024, 1, 16),
-        ))
-        self._leads.append(_LeadRec(
-            id="lead-002",
-            email="jane.smith@techstart.io",
-            company="TechStart",
-            url="https://techstart.io",
-            domain="techstart.io",
-            status=LeadStatus.active,
-            tags=["startup", "fintech"],
-            vars={"industry": "Fintech", "employees": 25},
-        ))
 
     def _find_index_by_email(self, email: str) -> Optional[int]:
         for i, rec in enumerate(self._leads):
