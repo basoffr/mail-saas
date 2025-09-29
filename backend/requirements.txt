@@ -9,5 +9,9 @@ python-dateutil==2.9.0.post0
 httpx==0.27.2
 pytest==8.3.3
 loguru==0.7.2
+# Supabase client for database and storage
+supabase==2.7.4
+# PostgreSQL driver for SQLModel
+psycopg2-binary==2.9.9
 # IMAP dependencies for inbox functionality
 secure-smtplib==0.1.1
