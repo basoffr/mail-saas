@@ -391,7 +391,7 @@ export default function Leads() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {Object.keys(lead.vars).length > 0 && (
+                      {lead.vars && Object.keys(lead.vars).length > 0 && (
                         <Badge variant="outline">
                           {Object.keys(lead.vars).length}
                         </Badge>

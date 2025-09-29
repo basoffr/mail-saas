@@ -40,14 +40,14 @@ class _LeadRec:
             image_key=self.image_key,
             last_emailed_at=self.last_emailed_at,
             last_open_at=self.last_open_at,
+            vars=self.vars,
             created_at=self.created_at,
             updated_at=self.updated_at,
         )
 
     def to_detail(self) -> LeadDetail:
-        base = self.to_out().model_dump()
-        base["vars"] = self.vars
-        return LeadDetail(**base)
+        # LeadDetail now inherits vars from LeadOut
+        return LeadDetail(**self.to_out().model_dump())
 
 
 class LeadsStore:

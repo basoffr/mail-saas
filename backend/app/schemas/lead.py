@@ -22,12 +22,13 @@ class LeadOut(BaseModel):
     image_key: Optional[str] = None
     last_emailed_at: Optional[datetime] = None
     last_open_at: Optional[datetime] = None
+    vars: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
 
 
 class LeadDetail(LeadOut):
-    vars: Dict[str, Any] = Field(default_factory=dict)
+    pass  # vars is now inherited from LeadOut
 
 
 class LeadsListResponse(BaseModel):
