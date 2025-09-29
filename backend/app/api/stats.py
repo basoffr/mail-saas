@@ -11,6 +11,8 @@ from app.services.stats import stats_service
 router = APIRouter()
 
 
+
+
 @router.get("/summary", response_model=DataResponse[StatsSummary])
 async def get_stats_summary(
     from_date: Optional[str] = Query(None, alias="from"),

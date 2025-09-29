@@ -31,8 +31,10 @@ class TestInboxAPI:
     
     def test_health_check(self):
         """Test basic health check"""
-        response = client.get("/health")
+        response = client.get("/api/v1/health")
         assert response.status_code == 200
+        body = response.json()
+        assert body["data"]["status"] == "ok"
     
     def test_fetch_requires_auth(self):
         """Test that fetch endpoint requires authentication"""

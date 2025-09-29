@@ -18,6 +18,7 @@ router = APIRouter(dependencies=[Depends(require_auth)])
 store = LeadsStore()
 
 
+
 @router.get("/leads", response_model=DataResponse[LeadsListResponse])
 async def list_leads(
     page: int = Query(1, ge=1),

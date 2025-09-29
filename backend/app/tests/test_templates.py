@@ -10,11 +10,11 @@ AUTH_HEADERS = {"Authorization": "Bearer test-token"}
 
 def test_health():
     """Test health endpoint"""
-    response = client.get("/health")
+    response = client.get("/api/v1/health")
     assert response.status_code == 200
-    data = response.json()
-    assert data["data"]["ok"] is True
-    assert data["error"] is None
+    body = response.json()
+    assert body["data"]["status"] == "ok"
+    assert body["error"] is None
 
 
 def test_list_templates_requires_auth():

@@ -45,8 +45,8 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
 
   try {
-    // For development, use a mock auth token
-    const authToken = 'mock-jwt-token-for-development';
+    // Use Supabase anon key as auth token for production
+    const authToken = import.meta.env.VITE_SUPABASE_ANON_KEY || 'mock-jwt-token-for-development';
     
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
@@ -139,8 +139,14 @@ export const leadsService = {
     formData.append('file', file);
     formData.append('mapping', JSON.stringify(mapping));
 
+    // Use Supabase anon key as auth token for production
+    const authToken = import.meta.env.VITE_SUPABASE_ANON_KEY || 'mock-jwt-token-for-development';
+
     const response = await fetch(`${API_BASE_URL}/import/leads`, {
       method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+      },
       body: formData,
     });
 
@@ -172,8 +178,14 @@ export const leadsService = {
     const formData = new FormData();
     formData.append('file', file);
 
+    // Use Supabase anon key as auth token for production
+    const authToken = import.meta.env.VITE_SUPABASE_ANON_KEY || 'mock-jwt-token-for-development';
+
     const response = await fetch(`${API_BASE_URL}/import/preview`, {
       method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+      },
       body: formData,
     });
 

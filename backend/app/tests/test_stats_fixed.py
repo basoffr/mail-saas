@@ -18,8 +18,10 @@ client = TestClient(app)
 
 def test_health():
     """Test health endpoint is accessible"""
-    response = client.get("/health")
+    response = client.get("/api/v1/health")
     assert response.status_code == 200
+    body = response.json()
+    assert body["data"]["status"] == "ok"
 
 
 def test_stats_summary_requires_auth():

@@ -1,5 +1,5 @@
 from typing import Generic, Optional, TypeVar
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 T = TypeVar("T")
 
@@ -7,6 +7,4 @@ class DataResponse(BaseModel, Generic[T]):
     data: Optional[T] = None
     error: Optional[str] = None
     
-    class Config:
-        # Ensure required fields are present
-        validate_assignment = True
+    model_config = ConfigDict(validate_assignment=True)

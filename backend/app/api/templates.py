@@ -18,6 +18,8 @@ router = APIRouter(prefix="/templates", tags=["templates"])
 logger = logging.getLogger(__name__)
 
 
+
+
 @router.get("", response_model=DataResponse[TemplatesResponse])
 async def list_templates(
     user: Dict[str, Any] = Depends(require_auth)

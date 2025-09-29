@@ -48,9 +48,10 @@ class TestCampaignAPI:
     
     def test_health_check(self):
         """Test health endpoint."""
-        response = client.get("/health")
+        response = client.get("/api/v1/health")
         assert response.status_code == 200
-        assert response.json()["data"]["ok"] is True
+        body = response.json()
+        assert body["data"]["status"] == "ok"
     
     def test_list_campaigns_ok(self):
         """Test successful campaign listing."""

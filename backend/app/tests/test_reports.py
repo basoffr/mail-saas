@@ -12,9 +12,10 @@ AUTH_HEADER = {"Authorization": "Bearer mock-jwt-token"}
 
 def test_health():
     """Test health endpoint."""
-    response = client.get("/health")
+    response = client.get("/api/v1/health")
     assert response.status_code == 200
-    assert response.json() == {"data": {"ok": True}, "error": None}
+    body = response.json()
+    assert body["data"]["status"] == "ok"
 
 
 def test_list_reports_requires_auth():

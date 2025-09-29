@@ -1,5 +1,5 @@
 from typing import List, Dict, Any
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from app.models.settings import DNSStatus, DomainConfig, DomainAlias
 
 
@@ -8,16 +8,14 @@ class SendingWindow(BaseModel):
     from_time: str = Field(alias="from")
     to: str
     
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class ThrottleInfo(BaseModel):
     emails_per: int = Field(alias="emailsPer")
     minutes: int
     
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class DomainAliasOut(BaseModel):
@@ -26,8 +24,7 @@ class DomainAliasOut(BaseModel):
     name: str
     active: bool
     
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class DomainConfigOut(BaseModel):
@@ -44,8 +41,7 @@ class DomainConfigOut(BaseModel):
     reputation_score: str = Field(alias="reputationScore")
     active: bool
     
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class EmailInfra(BaseModel):
@@ -54,8 +50,7 @@ class EmailInfra(BaseModel):
     provider_enabled: bool = Field(alias="providerEnabled")
     dns: Dict[str, bool]
     
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class SettingsOut(BaseModel):
@@ -69,16 +64,14 @@ class SettingsOut(BaseModel):
     tracking_pixel_enabled: bool = Field(alias="trackingPixelEnabled")
     email_infra: EmailInfra = Field(alias="emailInfra")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class SettingsUpdate(BaseModel):
     unsubscribe_text: str | None = Field(None, min_length=1, max_length=50, alias="unsubscribeText")
     tracking_pixel_enabled: bool | None = Field(None, alias="trackingPixelEnabled")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
     @field_validator('unsubscribe_text')
     def validate_unsubscribe_text(cls, v):

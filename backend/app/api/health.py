@@ -20,7 +20,7 @@ async def health_check():
         - Timestamp
     """
     health_data = {
-        "status": "healthy",
+        "status": "ok",  # Standard voor load balancers
         "timestamp": datetime.utcnow().isoformat(),
         "environment": {
             "use_fixtures": os.getenv("USE_FIXTURES", "true").lower() == "true",

@@ -16,6 +16,8 @@ router = APIRouter(tags=["settings"])
 imap_accounts_service = MailAccountService()
 
 
+
+
 @router.get("", response_model=DataResponse[SettingsOut])
 async def get_settings(user: Dict[str, Any] = Depends(require_auth)):
     """Get current settings configuration with hard-coded sending policy"""

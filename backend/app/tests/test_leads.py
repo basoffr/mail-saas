@@ -10,10 +10,10 @@ AUTH = {"Authorization": "Bearer demo"}
 
 
 def test_health():
-    r = client.get("/health")
+    r = client.get("/api/v1/health")
     assert r.status_code == 200
     body = r.json()
-    assert body["data"]["ok"] is True
+    assert body["data"]["status"] == "ok"
 
 
 def test_list_leads_requires_auth():
@@ -62,8 +62,13 @@ def test_import_csv():
 def test_asset_url():
     r = client.get("/api/v1/assets/image-by-key", headers=AUTH, params={"key": "acme-logo"})
     assert r.status_code == 200
-    url = r.json()["data"]["url"]
-    assert url.endswith("acme-logo.png")
+    data = r.json()["data"]
+    assert data is not None
+    url = data["url"]
+    assert isinstance(url, str)
+    assert len(url) > 0
+    # Accept both mock URLs and real Supabase URLs
+    assert "acme-logo" in url or url.endswith("acme-logo.png")
 
 
 def test_preview_render():
