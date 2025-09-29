@@ -3,10 +3,11 @@ from typing import Optional, Dict, Any
 import logging
 
 from app.core.auth import require_auth
+from app.core.templates_store import get_all_templates, get_template, get_templates_summary
 from app.schemas.common import DataResponse
 from app.schemas.template import (
     TemplateOut, TemplateDetail, TemplatePreviewResponse, 
-    TestsendPayload, TemplatesResponse
+    TestsendPayload, TemplatesResponse, TemplateVarItem
 )
 from app.services.template_store import template_store
 from app.services.template_renderer import render_template_with_lead
@@ -21,22 +22,22 @@ logger = logging.getLogger(__name__)
 async def list_templates(
     user: Dict[str, Any] = Depends(require_auth)
 ):
-    """Get list of all templates"""
+    """Get list of all hard-coded templates (read-only)"""
     try:
-        templates = template_store.get_all()
+        templates = get_all_templates()
         
         template_outs = [
             TemplateOut(
                 id=t.id,
-                name=t.name,
-                subject_template=t.subject_template,
-                updated_at=t.updated_at,
-                required_vars=t.required_vars
+                name=f"V{t.version} Mail {t.mail_number}",
+                subject_template=t.subject,
+                updated_at="2025-09-26T00:00:00Z",  # Hard-coded timestamp
+                required_vars=t.placeholders
             )
-            for t in templates
+            for t in templates.values()
         ]
         
-        logger.info("template_list_requested", extra={"user": user.get("sub"), "count": len(templates)})
+        logger.info("hard_coded_templates_listed", extra={"user": user.get("sub"), "count": len(templates)})
         
         return DataResponse(
             data=TemplatesResponse(items=template_outs, total=len(templates)),
@@ -44,7 +45,7 @@ async def list_templates(
         )
         
     except Exception as e:
-        logger.error(f"Error listing templates: {str(e)}")
+        logger.error(f"Error listing hard-coded templates: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -53,31 +54,47 @@ async def get_template_detail(
     template_id: str,
     user: Dict[str, Any] = Depends(require_auth)
 ):
-    """Get detailed template information"""
+    """Get detailed hard-coded template information (read-only)"""
     try:
-        template = template_store.get_by_id(template_id)
+        template = get_template(template_id)
         if not template:
             raise HTTPException(status_code=404, detail="Template not found")
         
-        # Extract variables from template
-        variables = template_store.extract_variables(template)
+        # Hard-coded assets (dashboard image)
+        assets = [{"key": "dashboard", "type": "image"}]
         
-        # Convert assets
-        assets = []
-        if template.assets:
-            for asset in template.assets:
-                assets.append({
-                    "key": asset["key"],
-                    "type": asset["type"]
-                })
+        # Extract variables from template placeholders and convert to TemplateVarItem
+        placeholder_strings = template.get_placeholders()
+        variables = []
+        for placeholder in placeholder_strings:
+            # Determine source based on prefix
+            if placeholder.startswith('lead.'):
+                source = 'lead'
+                example = 'Example Company' if 'company' in placeholder else 'https://example.com'
+            elif placeholder.startswith('vars.'):
+                source = 'vars'
+                example = 'example value'
+            elif placeholder.startswith('image.'):
+                source = 'image'
+                example = 'cid:image123'
+            else:
+                source = 'campaign'
+                example = 'example'
+            
+            variables.append(TemplateVarItem(
+                key=placeholder,
+                required=True,
+                source=source,
+                example=example
+            ))
         
         detail = TemplateDetail(
             id=template.id,
-            name=template.name,
-            subject_template=template.subject_template,
-            body_template=template.body_template,
-            updated_at=template.updated_at,
-            required_vars=template.required_vars,
+            name=f"V{template.version} Mail {template.mail_number}",
+            subject_template=template.subject,
+            body_template=template.body,
+            updated_at="2025-09-26T00:00:00Z",  # Hard-coded timestamp
+            required_vars=template.placeholders,
             assets=assets,
             variables=variables
         )
@@ -280,3 +297,40 @@ async def send_test_email(
     except Exception as e:
         logger.error(f"Error sending test email: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# Block editing endpoints - templates are hard-coded
+@router.post("")
+async def create_template_forbidden():
+    """POST method not allowed - templates are hard-coded"""
+    raise HTTPException(
+        status_code=405,
+        detail={"error": "templates_hard_coded"}
+    )
+
+
+@router.put("/{template_id}")
+async def update_template_forbidden(template_id: str):
+    """PUT method not allowed - templates are hard-coded"""
+    raise HTTPException(
+        status_code=405,
+        detail={"error": "templates_hard_coded"}
+    )
+
+
+@router.patch("/{template_id}")
+async def patch_template_forbidden(template_id: str):
+    """PATCH method not allowed - templates are hard-coded"""
+    raise HTTPException(
+        status_code=405,
+        detail={"error": "templates_hard_coded"}
+    )
+
+
+@router.delete("/{template_id}")
+async def delete_template_forbidden(template_id: str):
+    """DELETE method not allowed - templates are hard-coded"""
+    raise HTTPException(
+        status_code=405,
+        detail={"error": "templates_hard_coded"}
+    )

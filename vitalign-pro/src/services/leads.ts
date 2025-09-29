@@ -1,5 +1,15 @@
 import { Lead, LeadsQuery, LeadsResponse, LeadStatus, ImportJobStatus, ImportPreview, ImportMapping } from '@/types/lead';
 
+// API Configuration
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+const API_TIMEOUT = parseInt(import.meta.env.VITE_API_TIMEOUT || '30000');
+
+// API Response Type
+interface ApiResponse<T> {
+  data: T | null;
+  error: string | null;
+}
+
 // Backend -> UI status mapping (centralized)
 export type BackendLeadStatus = 'active' | 'suppressed' | 'bounced';
 
@@ -29,247 +39,159 @@ export const toneToBadgeClass = (tone: 'success' | 'warning' | 'destructive' | '
   }
 };
 
-// Mock data
-const mockLeads: Lead[] = [
-  {
-    id: '1',
-    email: 'john.doe@acme.com',
-    companyName: 'Acme Corporation',
-    domain: 'acme.com',
-    url: 'https://acme.com',
-    tags: ['enterprise', 'saas'],
-    status: LeadStatus.QUALIFIED,
-    lastMailed: new Date('2024-01-15'),
-    lastOpened: new Date('2024-01-16'),
-    imageKey: 'acme-logo',
-    vars: { industry: 'Technology', employees: 500, revenue: 10000000 },
-    createdAt: new Date('2024-01-10'),
-    updatedAt: new Date('2024-01-16')
-  },
-  {
-    id: '2', 
-    email: 'jane.smith@techstart.io',
-    companyName: 'TechStart',
-    domain: 'techstart.io',
-    url: 'https://techstart.io',
-    tags: ['startup', 'fintech'],
-    status: LeadStatus.NEW,
-    vars: { industry: 'Fintech', employees: 25 },
-    createdAt: new Date('2024-01-12'),
-    updatedAt: new Date('2024-01-12')
-  },
-  {
-    id: '3',
-    email: 'michael@globalcorp.org',
-    companyName: 'Global Corp',
-    domain: 'globalcorp.org',
-    url: 'https://globalcorp.org',
-    tags: ['enterprise', 'manufacturing'],
-    status: LeadStatus.CONTACTED,
-    lastMailed: new Date('2024-01-14'),
-    imageKey: 'global-logo',
-    vars: { industry: 'Manufacturing', employees: 1200, location: 'Germany' },
-    createdAt: new Date('2024-01-08'),
-    updatedAt: new Date('2024-01-14')
-  },
-  {
-    id: '4',
-    email: 'sarah.jones@innovate.co.uk',
-    companyName: 'Innovate Ltd',
-    domain: 'innovate.co.uk',
-    url: 'https://innovate.co.uk',
-    tags: ['startup', 'ai'],
-    status: LeadStatus.RESPONDED,
-    lastMailed: new Date('2024-01-13'),
-    lastOpened: new Date('2024-01-17'),
-    vars: { industry: 'AI/ML', employees: 50, funding: 'Series A' },
-    createdAt: new Date('2024-01-09'),
-    updatedAt: new Date('2024-01-17')
-  },
-  {
-    id: '5',
-    email: 'info@startup.com',
-    companyName: 'Startup Inc',
-    domain: 'startup.com',
-    status: LeadStatus.BOUNCED,
-    tags: ['startup'],
-    vars: { industry: 'E-commerce' },
-    createdAt: new Date('2024-01-11'),
-    updatedAt: new Date('2024-01-11')
+// API Helper Functions
+async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
+
+  try {
+    // For development, use a mock auth token
+    const authToken = 'mock-jwt-token-for-development';
+    
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+        ...options.headers,
+      },
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const result: ApiResponse<T> = await response.json();
+    
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    return result.data!;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    
+    // Better error handling for AbortError
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        throw new Error(`Request timeout after ${API_TIMEOUT/1000} seconds`);
+      }
+      if (error.message.includes('Failed to fetch')) {
+        throw new Error(`Cannot connect to API at ${API_BASE_URL}. Is the backend running?`);
+      }
+    }
+    
+    throw error;
   }
-];
+}
 
-let mockImportJobs: ImportJobStatus[] = [];
-
-// Simulate API delays
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+function buildQueryString(params: Record<string, any>): string {
+  const searchParams = new URLSearchParams();
+  
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      if (Array.isArray(value)) {
+        value.forEach(v => searchParams.append(key, String(v)));
+      } else {
+        searchParams.append(key, String(value));
+      }
+    }
+  });
+  
+  return searchParams.toString();
+}
 
 export const leadsService = {
   async getLeads(query: LeadsQuery = {}): Promise<LeadsResponse> {
-    await delay(300);
-    
-    let filtered = [...mockLeads];
-    
-    // Apply filters
-    if (query.search) {
-      const search = query.search.toLowerCase();
-      filtered = filtered.filter(lead => 
-        lead.email.toLowerCase().includes(search) ||
-        lead.companyName?.toLowerCase().includes(search) ||
-        lead.domain?.toLowerCase().includes(search)
-      );
-    }
-    
-    if (query.status?.length) {
-      filtered = filtered.filter(lead => query.status!.includes(lead.status));
-    }
-    
-    if (query.tags?.length) {
-      filtered = filtered.filter(lead => 
-        query.tags!.some(tag => lead.tags.includes(tag))
-      );
-    }
-    
-    if (query.hasImage !== undefined) {
-      filtered = filtered.filter(lead => 
-        query.hasImage ? !!lead.imageKey : !lead.imageKey
-      );
-    }
-    
-    if (query.hasVars !== undefined) {
-      filtered = filtered.filter(lead => 
-        query.hasVars ? Object.keys(lead.vars).length > 0 : Object.keys(lead.vars).length === 0
-      );
-    }
-    
-    if (query.tld?.length) {
-      filtered = filtered.filter(lead => {
-        if (!lead.domain) return false;
-        return query.tld!.some(tld => lead.domain!.endsWith(tld));
-      });
-    }
-    
-    // Apply sorting
-    if (query.sortBy) {
-      filtered.sort((a, b) => {
-        let aVal, bVal;
-        
-        switch (query.sortBy) {
-          case 'email':
-            aVal = a.email;
-            bVal = b.email;
-            break;
-          case 'companyName':
-            aVal = a.companyName || '';
-            bVal = b.companyName || '';
-            break;
-          case 'lastMailed':
-            aVal = a.lastMailed?.getTime() || 0;
-            bVal = b.lastMailed?.getTime() || 0;
-            break;
-          case 'lastOpened':
-            aVal = a.lastOpened?.getTime() || 0;
-            bVal = b.lastOpened?.getTime() || 0;
-            break;
-          case 'createdAt':
-            aVal = a.createdAt.getTime();
-            bVal = b.createdAt.getTime();
-            break;
-          default:
-            aVal = a.email;
-            bVal = b.email;
-        }
-        
-        if (query.sortOrder === 'desc') {
-          return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
-        }
-        return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
-      });
-    }
-    
-    // Apply pagination
-    const page = query.page || 1;
-    const limit = query.limit || 25;
-    const startIndex = (page - 1) * limit;
-    const paginatedItems = filtered.slice(startIndex, startIndex + limit);
-    
-    return {
-      items: paginatedItems,
-      total: filtered.length
-    };
+    const queryString = buildQueryString({
+      page: query.page || 1,
+      page_size: query.limit || 25,
+      search: query.search,
+      status: query.status,
+      tags: query.tags,
+      has_image: query.hasImage,
+      has_vars: query.hasVars,
+      tld: query.tld,
+      sort_by: query.sortBy,
+      sort_order: query.sortOrder,
+    });
+
+    const endpoint = `/leads${queryString ? `?${queryString}` : ''}`;
+    return await apiCall<LeadsResponse>(endpoint);
   },
 
   async getLead(id: string): Promise<Lead | null> {
-    await delay(200);
-    return mockLeads.find(lead => lead.id === id) || null;
+    try {
+      return await apiCall<Lead>(`/leads/${id}`);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('404')) {
+        return null;
+      }
+      throw error;
+    }
   },
 
   async importLeads(file: File, mapping: ImportMapping): Promise<ImportJobStatus> {
-    await delay(500);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('mapping', JSON.stringify(mapping));
+
+    const response = await fetch(`${API_BASE_URL}/import/leads`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const result: ApiResponse<ImportJobStatus> = await response.json();
     
-    const jobId = `import-${Date.now()}`;
-    const job: ImportJobStatus = {
-      id: jobId,
-      status: 'pending',
-      progress: 0,
-      inserted: 0,
-      updated: 0,
-      skipped: 0,
-      errors: [],
-      createdAt: new Date()
-    };
-    
-    mockImportJobs.push(job);
-    
-    // Simulate processing
-    setTimeout(() => {
-      const jobIndex = mockImportJobs.findIndex(j => j.id === jobId);
-      if (jobIndex !== -1) {
-        mockImportJobs[jobIndex] = {
-          ...job,
-          status: 'completed',
-          progress: 100,
-          inserted: 15,
-          updated: 3,
-          skipped: 2,
-          completedAt: new Date()
-        };
-      }
-    }, 3000);
-    
-    return job;
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    return result.data!;
   },
 
   async getImportJob(jobId: string): Promise<ImportJobStatus | null> {
-    await delay(100);
-    return mockImportJobs.find(job => job.id === jobId) || null;
+    try {
+      return await apiCall<ImportJobStatus>(`/import/jobs/${jobId}`);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('404')) {
+        return null;
+      }
+      throw error;
+    }
   },
 
   async previewImport(file: File): Promise<ImportPreview> {
-    await delay(400);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_BASE_URL}/import/preview`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const result: ApiResponse<ImportPreview> = await response.json();
     
-    // Mock CSV preview
-    return {
-      headers: ['email', 'company_name', 'domain', 'industry', 'employees'],
-      rows: [
-        ['test1@example.com', 'Test Company 1', 'example.com', 'Technology', '100'],
-        ['test2@example.com', 'Test Company 2', 'test.org', 'Healthcare', '50'],
-        ['test3@example.com', 'Test Company 3', 'demo.io', 'Finance', '200'],
-        ['john.doe@acme.com', 'Acme Corporation', 'acme.com', 'Technology', '500'], // Duplicate
-        ['test4@example.com', 'Test Company 4', 'sample.net', 'Education', '75']
-      ],
-      duplicates: [3] // Row index 3 is a duplicate
-    };
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    return result.data!;
   },
 
   async getImageUrl(imageKey: string): Promise<string> {
-    await delay(100);
-    // Return mock image URLs
-    const mockImages: Record<string, string> = {
-      'acme-logo': 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200&h=200&fit=crop',
-      'global-logo': 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=200&h=200&fit=crop'
-    };
-    
-    return mockImages[imageKey] || 'https://images.unsplash.com/photo-1560472355-536de3962603?w=200&h=200&fit=crop';
+    const queryString = buildQueryString({ key: imageKey });
+    return await apiCall<string>(`/assets/image-by-key?${queryString}`);
   }
 };

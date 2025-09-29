@@ -24,6 +24,7 @@ class _LeadRec:
     last_emailed_at: Optional[datetime] = None
     last_open_at: Optional[datetime] = None
     vars: dict = field(default_factory=dict)
+    stopped: bool = False
     created_at: datetime = field(default_factory=_now)
     updated_at: datetime = field(default_factory=_now)
 
@@ -190,6 +191,24 @@ class LeadsStore:
         start = (page - 1) * page_size
         end = start + page_size
         return [r.to_out() for r in data[start:end]], total
+
+    def stop_lead(self, lead_id: str) -> int:
+        """Stop a lead and cancel all future messages. Returns count of canceled messages."""
+        for rec in self._leads:
+            if rec.id == lead_id:
+                rec.stopped = True
+                rec.updated_at = _now()
+                # TODO: Cancel queued messages in campaign scheduler
+                # For now, return 0 as we don't have message queue implemented yet
+                return 0
+        return 0
+
+    def is_stopped(self, lead_id: str) -> bool:
+        """Check if a lead is stopped."""
+        for rec in self._leads:
+            if rec.id == lead_id:
+                return rec.stopped
+        return False
 
 
 # Global instance

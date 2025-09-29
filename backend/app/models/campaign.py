@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from enum import Enum
 from sqlmodel import SQLModel, Field, Column, JSON, Text
-from sqlalchemy import DateTime, String, ForeignKey
+from sqlalchemy import DateTime, String, Integer, ForeignKey
 
 
 class CampaignStatus(str, Enum):
@@ -36,6 +36,7 @@ class Campaign(SQLModel, table=True):
     id: str = Field(primary_key=True)
     name: str = Field(sa_column=Column(Text, index=True))
     template_id: str = Field(sa_column=Column(String, ForeignKey("templates.id")))
+    domain: Optional[str] = Field(default=None, sa_column=Column(String, index=True))  # Optional for backward compatibility
     start_at: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True)))
     status: CampaignStatus = Field(default=CampaignStatus.draft, sa_column=Column(String, index=True))
     
@@ -78,6 +79,12 @@ class Message(SQLModel, table=True):
     scheduled_at: datetime = Field(sa_column=Column(DateTime(timezone=True), index=True))
     sent_at: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True)))
     
+    # Flow-based fields (optional for backward compatibility)
+    mail_number: int = Field(default=1, sa_column=Column(Integer, index=True))  # 1-4 in flow
+    alias: str = Field(default="christian", sa_column=Column(String))  # christian or victor
+    from_email: Optional[str] = Field(default=None, sa_column=Column(String))
+    reply_to_email: Optional[str] = Field(default=None, sa_column=Column(String))
+    
     # Status tracking
     status: MessageStatus = Field(default=MessageStatus.queued, sa_column=Column(String, index=True))
     last_error: Optional[str] = Field(sa_column=Column(Text))
@@ -89,6 +96,14 @@ class Message(SQLModel, table=True):
     
     # Retry tracking
     retry_count: int = Field(default=0)
+    
+    # SMTP tracking for inbox linking
+    smtp_message_id: Optional[str] = Field(default=None, sa_column=Column(String, unique=True, index=True))
+    x_campaign_message_id: Optional[str] = Field(default=None, sa_column=Column(String, index=True))
+    
+    # Asset logging (implementation plan requirement)
+    with_image: bool = Field(default=False)
+    with_report: bool = Field(default=False)
     
     created_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(DateTime(timezone=True)))
 

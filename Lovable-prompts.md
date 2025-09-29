@@ -836,4 +836,226 @@ Fixtures + env-flag voor backend switch.
 Acceptance
 
 
+---------------------------------------------------------------------------------------------------------------------------------
 
+
+Lovable Prompt — Tab 7: Inbox / Replies
+
+Context
+
+Bouw een React (TypeScript) frontend met Tailwind + shadcn/ui en icons via lucide-react.
+
+Voeg een nieuw tabblad “Inbox” toe aan de bestaande app-navigatie.
+
+Tijdzone: Europe/Amsterdam voor alle datums/tijden.
+
+Toepasbare backend-contracten (mocken in services als backend nog niet live).
+
+Doel
+
+Teamleden kunnen replies (inkomende mails) ophalen via “Ophalen”, bekijken in een lijst, filteren/zoeken, markeren als gelezen (app-lokaal), en gelinkte Lead / Campagne / Outbound message zien.
+
+Zelfde lijst kan ook als Replies-paneel op de Campagne-detailpagina worden getoond (gefilterd op campaign_id).
+
+Routes
+
+/inbox → volledige inboxlijst + detaildrawer.
+
+(Re-use) /campaigns/:id → tab/pane Replies met dezelfde tabel, maar vast campaign_id.
+
+API (frontend service-laag; mocken met identieke shapes)
+
+POST /inbox/fetch → { ok: true, run_id: string } → start fetch-job(s).
+
+GET /inbox/messages?account_id?&campaign_id?&unread?&q?&from?&to?&page=&page_size=
+→ { items: InboxMessageOut[], total: number } (sort default: received_at desc).
+
+POST /inbox/messages/{id}/mark-read → { ok: true } (idempotent).
+
+(Optioneel UI-link) GET /inbox/runs?account_id?&page=&page_size= → { items: InboxRunOut[], total }.
+
+Settings (IMAP-accounts) — alleen linken vanaf Inbox (bouwen bij Settings):
+
+GET /settings/inbox/accounts → { items: MailAccountOut[] }
+
+POST /settings/inbox/accounts/{id}/test → { ok: boolean, message: string }
+
+POST /settings/inbox/accounts/{id}/toggle → { ok: true }
+
+Types (frontend)
+type WeakLinkFlag = boolean;
+
+interface InboxMessageOut {
+  id: string;
+  accountId: string;
+  accountLabel: string;
+  folder: 'INBOX';
+  uid: number;
+  messageId?: string | null;
+  inReplyTo?: string | null;
+  references?: string[] | null;
+  fromEmail: string;
+  fromName?: string | null;
+  toEmail?: string | null;
+  subject: string;
+  snippet: string;             // max ~20kB
+  rawSize?: number;
+  receivedAt: string;          // ISO
+  isRead: boolean;             // app-lokaal
+  linkedCampaignId?: string | null;
+  linkedCampaignName?: string | null;
+  linkedLeadId?: string | null;
+  linkedLeadEmail?: string | null;
+  linkedMessageId?: string | null;
+  weakLink?: WeakLinkFlag;     // onzekere koppeling → badge
+  encodingIssue?: boolean;     // best-effort decode
+}
+
+interface InboxListResponse { items: InboxMessageOut[]; total: number; }
+
+interface FetchStartResponse { ok: boolean; run_id: string; }
+
+interface MarkReadResponse { ok: boolean; }
+
+interface MailAccountOut {
+  id: string;
+  label: string;
+  imapHost: string;
+  imapPort: number;            // default 993
+  useSsl: boolean;             // true
+  usernameMasked: string;      // nooit plaintext
+  active: boolean;
+  lastFetchAt?: string | null;
+  lastSeenUid?: number | null;
+}
+
+interface InboxRunOut {
+  id: string;
+  accountId: string;
+  startedAt: string;
+  finishedAt?: string | null;
+  newCount?: number;
+  error?: string | null;
+}
+
+UI-eisen
+1) Inbox lijst (pagina /inbox)
+
+Kolommen:
+Datum (receivedAt), Van (fromName / fromEmail), Onderwerp, Campagne (badge + link), Lead (badge + link), Status (Nieuw/Gelezen), Account (label).
+
+Toolbar:
+
+Ophalen (primary). Disable terwijl een run bezig is of binnen min. interval guard; toon toast “X nieuwe berichten”.
+
+Markeer als gelezen (bulk, op selectie).
+
+Filters: Ongelezen (toggle), Account (dropdown), Campagne (dropdown), Datumrange (from/to).
+
+Zoek (prefix search over afzender/onderwerp; geen full-text).
+
+Rij-states & badges:
+
+weakLink → badge “onzeker”.
+
+encodingIssue → badge “encoding issue”.
+
+isRead=false → duidelijke “Nieuw” indicatie + bold subject.
+
+Interactions:
+
+Row-click → Detail drawer (zie hieronder).
+
+Bulk select → Markeer als gelezen.
+
+Empty state (geen data of geen accounts): uitleg + knop Configureer IMAP-account (link naar /settings IMAP-sectie).
+
+2) Detail drawer (vanuit lijst)
+
+Header: Van, Onderwerp, Datum; knoppen Open Lead, Open Campagne (indien gelinkt).
+
+Tabs:
+
+Headers: From, To, Message-ID, In-Reply-To, References (scrollable).
+
+Snippet: eerste 10–20kB van body (read-only).
+
+Footer: Markeer als gelezen (togglable), Naar campagne/lead.
+
+Badges: weakLink, encodingIssue.
+
+3) Replies in Campagne-detail
+
+In /campaigns/:id een Replies-paneel met dezelfde tabelcomponent; account filter verbergen; campaign_id gefixeerd. Ophalen-knop blijft beschikbaar.
+
+4) Link naar Settings (IMAP-accounts)
+
+Info-callout bovenaan Inbox indien geen actieve accounts of recente errors.
+
+Link naar Settings → Inbox (IMAP) met lijst Accounts (label/host/port/usernameMasked/active/lastFetchAt/lastSeenUid) en acties Test/Toggle.
+
+Gedrag & validatie
+
+Ophalen:
+
+Klik start POST /inbox/fetch; disable knop tijdens run; na succes refresh lijst + toast “X nieuwe berichten”.
+
+Houd rekening met minimale interval (server guard); toon duidelijke melding bij te snel opnieuw klikken.
+
+Markeer als gelezen (bulk/row):
+
+Call POST /inbox/messages/{id}/mark-read; idempotent; update rij-state en counters.
+
+Filters & zoek: client-UI → server-query; debounce 250ms; paginatie 25/50.
+
+Sortering: default received_at desc.
+
+Loading/Errors: skeletons; error-alert met “Probeer opnieuw”.
+
+Privacy: toon alleen headers + snippet; geen volledige body of bijlagen (MVP).
+
+A11y: toetsenbordnavigatie, focus states, aria-labels; detaildrawer met focus trap.
+
+Componenten & structuur
+
+pages/inbox/InboxPage.tsx — page wrapper, toolbar, fetch/status handling.
+
+components/inbox/InboxTable.tsx — tabel + selectie + filters/zoek/paginatie.
+
+components/inbox/InboxDetailDrawer.tsx — detailweergave (headers/snippet/links/badges).
+
+services/inbox.ts — service-laag met bovengenoemde endpoints (mockable).
+
+Re-use: bestaande Badge, Table, Drawer, Toast, DateRangePicker, Dropdown uit shadcn/ui.
+
+Icons (lucide-react): Mail, RefreshCw, CheckCheck, AlertTriangle, Search, Filter.
+
+Acceptance criteria (MVP)
+
+/inbox toont lijst met kolommen en filters; standaard sort op datum aflopend.
+
+Ophalen start fetch; knop is disabled tijdens run; na afloop ververst de UI met “X nieuwe berichten”.
+
+Markeer als gelezen werkt (row + bulk) en blijft persistent in isRead.
+
+Weak/encoding badges verschijnen correct.
+
+Empty state met Configureer IMAP-account link wanneer geen accounts.
+
+In Campagne-detail is een Replies-paneel met dezelfde lijst gefilterd op campaign_id.
+
+Testplan (frontend)
+
+Ophalen: happy path + “te snel opnieuw” melding (interval guard).
+
+Filters: unread/account/campaign/date/q + combinatie met paginatie.
+
+Mark-as-read: idempotent gedrag; UI refresht zonder dubbele rijen.
+
+Detaildrawer: headers/snippet zichtbaar; knoppen naar Lead/Campagne.
+
+Empty/error states: geen accounts, API-fout, 0 resultaten.
+
+Notities voor Settings (kort, voor integratie)
+
+Voeg onder /settings een sectie Inbox (IMAP) met tabel Accounts (label, host, port=993, SSL=true, username masked, active, lastFetchAt, lastSeenUid) en acties Test, Toggle. Wachtwoorden nooit tonen; alleen secret_ref flows server-side.

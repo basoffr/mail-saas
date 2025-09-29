@@ -82,11 +82,22 @@ export default function Templates() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Templates</h1>
-          <p className="text-muted-foreground">Beheer je email templates</p>
+          <p className="text-muted-foreground">Bekijk alle 16 hard-coded email templates (read-only)</p>
         </div>
       </div>
 
       <Card className="rounded-2xl shadow-soft p-6">
+        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-6">
+          <div className="flex items-center gap-2 mb-2">
+            <FileText className="h-4 w-4 text-blue-600" />
+            <span className="text-sm font-medium text-blue-900">Hard-coded Templates</span>
+          </div>
+          <p className="text-sm text-blue-700">
+            Alle 16 templates (v1-v4 × mail 1-4) zijn hard-coded in de backend. 
+            Je kunt ze bekijken, preview en testen, maar niet bewerken.
+          </p>
+        </div>
+        
         <div className="flex gap-4 mb-6">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />

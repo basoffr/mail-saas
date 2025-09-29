@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, UploadFile, File, Query
+from fastapi import APIRouter, Depends, UploadFile, File, Query, HTTPException
 from typing import Optional, List
 from pydantic import BaseModel
 from datetime import datetime
@@ -10,6 +10,7 @@ from app.services.leads_import import process_import_file
 from app.services.template_preview import render_preview
 from app.schemas.common import DataResponse
 from app.services.import_jobs import import_job_store
+from app.services.supabase_storage import supabase_storage
 
 router = APIRouter(dependencies=[Depends(require_auth)])
 
@@ -66,9 +67,21 @@ class AssetUrl(BaseModel):
 
 @router.get("/assets/image-by-key", response_model=DataResponse[AssetUrl])
 async def get_asset_url(key: str):
-    # Stub: generate a fake signed URL
-    url = f"https://example.com/assets/{key}.png"
-    return {"data": {"url": url}, "error": None}
+    """
+    Get signed URL for image by key
+    
+    Args:
+        key: Image key (e.g., "acme_picture")
+    
+    Returns:
+        Signed URL with 1 hour expiration
+    """
+    signed_url = supabase_storage.get_signed_url(key, expires_in=3600)
+    
+    if not signed_url:
+        return {"data": None, "error": f"Image not found for key: {key}"}
+    
+    return {"data": {"url": signed_url}, "error": None}
 
 
 class PreviewRequest(BaseModel):
@@ -127,4 +140,32 @@ async def get_import_job(job_id: str):
             "finishedAt": rec.finishedAt,
         },
         "error": None,
+    }
+
+
+class LeadStopResponse(BaseModel):
+    ok: bool
+    lead_id: str
+    stopped: bool
+    canceled: int
+
+
+@router.post("/leads/{lead_id}/stop", response_model=DataResponse[LeadStopResponse])
+async def stop_lead(lead_id: str):
+    """Stop all future emails to this lead."""
+    lead = store.get(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="lead_not_found")
+    
+    # Stop the lead
+    canceled_count = store.stop_lead(lead_id)
+    
+    return {
+        "data": {
+            "ok": True,
+            "lead_id": lead_id,
+            "stopped": True,
+            "canceled": canceled_count
+        },
+        "error": None
     }

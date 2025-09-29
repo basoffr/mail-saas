@@ -9,6 +9,7 @@ class CampaignOut(BaseModel):
     id: str
     name: str
     template_id: str
+    domain: str
     start_at: Optional[datetime]
     status: CampaignStatus
     followup_enabled: bool

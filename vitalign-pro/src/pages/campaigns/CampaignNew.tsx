@@ -567,13 +567,12 @@ export default function CampaignNew() {
       </div>
     </Card>
   );
-
   const renderRulesStep = () => (
     <Card className="p-6 shadow-card rounded-2xl">
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold mb-2">Sending Rules</h2>
-          <p className="text-muted-foreground">Configure how emails will be sent</p>
+          <h2 className="text-2xl font-bold mb-2">Verzendregels</h2>
+          <p className="text-muted-foreground">Overzicht van hard-coded verzendregels (read-only)</p>
         </div>
 
         <div className="space-y-6">

@@ -55,7 +55,7 @@ import {
   ResponsiveContainer 
 } from 'recharts';
 import { 
-  type CampaignDetail as CampaignDetailType, 
+  type CampaignDetail as CampaignDetailType,
   CampaignMessage, 
   CampaignStatus, 
   MessageStatus 
@@ -64,6 +64,7 @@ import { campaignsService } from '@/services/campaigns';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
+import { RepliesPanel } from '@/components/inbox/RepliesPanel';
 
 const statusColors = {
   [CampaignStatus.DRAFT]: 'bg-gray-100 text-gray-800',
@@ -593,6 +594,9 @@ export default function CampaignDetail() {
             </div>
           </Card>
         </div>
+
+        {/* Replies Panel - Full Width */}
+        <RepliesPanel campaignId={campaign.id} campaignName={campaign.name} />
       </div>
     </div>
   );

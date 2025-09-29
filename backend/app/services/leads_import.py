@@ -40,6 +40,29 @@ def _domain_from_url(url: str | None) -> str | None:
         return None
 
 
+def _extract_root_domain(domain: str | None) -> str | None:
+    """Extract root domain for image_key generation"""
+    if not domain:
+        return None
+    try:
+        # Remove www prefix if present
+        if domain.startswith("www."):
+            domain = domain[4:]
+        
+        # Extract root (first part before TLD)
+        parts = domain.split(".")
+        if len(parts) >= 2:
+            root = parts[0]
+            # Normalize: lowercase, replace underscores with hyphens
+            root = root.lower().replace("_", "-")
+            # Collapse multiple hyphens
+            root = re.sub(r"-+", "-", root)
+            return root
+        return domain.lower()
+    except Exception:
+        return None
+
+
 async def process_import_file(file: UploadFile, store: LeadsStore) -> ImportResult:
     if not file.filename:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing filename")
@@ -89,8 +112,13 @@ async def process_import_file(file: UploadFile, store: LeadsStore) -> ImportResu
         url = row.get("url") or row.get("website") or None
         url = str(url).strip() if isinstance(url, str) else url
         domain = _domain_from_url(url)
-        image_key = row.get("image_key")
-        image_key = str(image_key).strip() if isinstance(image_key, str) and image_key else None
+        
+        # Auto-generate image_key based on root domain
+        image_key = None
+        if domain:
+            root_domain = _extract_root_domain(domain)
+            if root_domain:
+                image_key = f"{root_domain}_picture"
 
         # Collect extra vars (exclude known columns)
         known = {"email", "company", "company_name", "url", "website", "image_key"}

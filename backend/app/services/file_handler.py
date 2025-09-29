@@ -201,9 +201,80 @@ class FileHandler:
         
         return type_map.get(extension)
     
+    def _normalize_pdf_filename(self, filename: str) -> str:
+        """
+        Normalize PDF filename according to implementation plan:
+        - Convert to lowercase
+        - Replace spaces with underscores
+        - Replace multiple underscores with single
+        - Ensure format: {root}_nl_report.pdf
+        """
+        import re
+        
+        # Remove extension and convert to lowercase
+        base_name = os.path.splitext(filename)[0].lower()
+        
+        # Replace spaces and normalize underscores
+        normalized = re.sub(r'\s+', '_', base_name)
+        normalized = re.sub(r'_+', '_', normalized)
+        normalized = normalized.strip('_')
+        
+        # Check if already in correct format
+        if re.match(r'^[a-z0-9._-]+_nl_report$', normalized):
+            return normalized
+        
+        # If not, try to extract root and format correctly
+        # Remove common suffixes but preserve the base name structure
+        suffixes_to_remove = ['_rapport', '_document', '_doc']
+        for suffix in suffixes_to_remove:
+            if normalized.endswith(suffix):
+                normalized = normalized[:-len(suffix)]
+                break
+        
+        # Don't remove '_report' or '_nl' if they're part of the actual name
+        # Only remove if they appear to be suffixes
+        if normalized.endswith('_report') and not normalized.endswith('_nl_report'):
+            # Keep the report part, just ensure proper format
+            pass
+        
+        # Ensure it ends with _nl_report
+        if not normalized.endswith('_nl_report'):
+            normalized = f"{normalized}_nl_report"
+        
+        return normalized
+
     def _map_file(self, file_name: str, mode: str, leads_data: List[Dict] = None) -> Dict[str, Any]:
         """Map file to lead/campaign based on mode."""
         base_name = os.path.splitext(file_name)[0].lower()
+        
+        # Special handling for PDF files - normalize filename
+        file_extension = self._get_file_extension(file_name).lower()
+        if file_extension == '.pdf':
+            normalized_name = self._normalize_pdf_filename(file_name)
+            
+            # For PDF files, try to match with normalized name first
+            if mode == "by_image_key" and leads_data:
+                for lead in leads_data:
+                    image_key = lead.get("image_key", "").lower()
+                    if image_key:
+                        # Try exact match first
+                        if image_key == base_name or image_key == normalized_name:
+                            return {
+                                "status": "matched",
+                                "target": {"kind": "lead", "id": lead["id"]},
+                                "normalized_filename": f"{normalized_name}.pdf"
+                            }
+                        
+                        # Try partial match (extract root from image_key)
+                        if image_key.endswith('_picture'):
+                            root_key = image_key[:-8]  # Remove '_picture'
+                            expected_pdf = f"{root_key}_nl_report"
+                            if expected_pdf == normalized_name:
+                                return {
+                                    "status": "matched", 
+                                    "target": {"kind": "lead", "id": lead["id"]},
+                                    "normalized_filename": f"{normalized_name}.pdf"
+                                }
         
         if mode == "by_image_key":
             # Match filename to lead image_key

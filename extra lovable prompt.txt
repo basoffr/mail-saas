@@ -1,0 +1,187 @@
+Lovable Prompt — App Sidebar (Navigation)
+
+Context
+
+Bouw een persistente app-sidebar voor een React (TypeScript) app met Tailwind + shadcn/ui, icons via lucide-react.
+
+De sidebar ondersteunt expanded (breed) en collapsed (smal, met tooltips), dark mode, mobile overlay en keyboard-toegankelijkheid.
+
+Routes die moeten linken en actief kunnen zijn:
+
+/leads
+
+/campaigns (incl. /campaigns/new, /campaigns/:id)
+
+/templates
+
+/reports (incl. /reports/upload, /reports/bulk)
+
+/stats
+
+/settings
+
+Doel
+
+Consistente, duidelijke navigatie door het hele dashboard met:
+
+Actieve route highlighting (ook bij child routes).
+
+Collapsible behavior met persistente voorkeur (localStorage).
+
+Snelknoppen (bijv. “Nieuwe campagne”) in de header-/footer zone.
+
+Extra statusbadges (optioneel): “Throttling 1/20m”, “Ma–Vr 08:00–17:00”, “TZ: Europe/Amsterdam”.
+
+UX & UI-eisen
+
+Layout & states
+
+Variants: expanded (>= 240px) en collapsed (72–80px).
+
+Mobile (<= md): sidebar als overlay drawer met backdrop; open/close via burgerbutton in topbar.
+
+Topbar (app-header) inbegrepen met: burgerbutton, app-titel/logo, globale zoek input (placeholder), en User menu (avatar met dropdown).
+
+Nav-items
+
+Volgorde: Leads, Campaigns, Templates, Reports, Stats, Settings.
+
+Elk item: icon + label; active style bij match van begin van pad (bv. /campaigns/:id markeert Campaigns actief).
+
+Collapsed: toon alleen icons; labels via Tooltip rechts.
+
+Footer-zone in sidebar
+
+New Campaign (primary, mini) → link naar /campaigns/new.
+
+Env/versie badge rechts onder (bijv. “MVP v0.1”).
+
+Accessibility
+
+Volledige keyboard-nav: Tab/Shift+Tab, Arrow Up/Down tussen items, Enter/Space activeert.
+
+WAI-ARIA roles: nav, aria-current="page" voor actief item, correcte labels voor toggles.
+
+Persistente voorkeuren
+
+Collapsed/expanded state in localStorage (ui.sidebar.collapsed).
+
+Dark mode respecteert class="dark" op <html> (geen theminglogica bouwen).
+
+Responsiveness
+
+Desktop: sticky left rail, scrollbaar bij overflow.
+
+Mobile: drawer animaties (shadcn/ui Sheet), focus trap, ESC sluit.
+
+Badges & hints (optioneel tonen)
+
+Tekstbadges (muted) met venster (“Ma–Vr 08–17”) en throttle (“1/20m / domein”), TZ (“Europe/Amsterdam”).
+
+Empty/error safe
+
+Als routes mismatchen, geen crash; items blijven renderen.
+
+Active matching regels
+
+Exact of prefix match:
+
+/campaigns, /campaigns/new, /campaigns/:id → Campaigns actief.
+
+/reports/upload, /reports/bulk → Reports actief.
+
+Componenten & structuur
+
+Plaats code onder:
+
+components/layout/AppSidebar.tsx
+
+components/layout/AppTopbar.tsx
+
+components/layout/SidebarItem.tsx
+
+components/layout/SidebarFooter.tsx
+
+Gebruik shadcn/ui: Button, Tooltip, Sheet (voor mobile), DropdownMenu (user menu), Separator, ScrollArea, Badge.
+
+Icons (lucide-react):
+
+Leads → Contact2
+
+Campaigns → Send
+
+Templates → FileCode2
+
+Reports → FolderUp
+
+Stats → BarChart3
+
+Settings → Settings
+
+Collapse toggle → ChevronsLeft / ChevronsRight
+
+Burger (mobile) → Menu
+
+API/Props (frontend)
+
+AppSidebar:
+
+Props:
+
+collapsed?: boolean (optioneel; default uit localStorage)
+
+onToggle?(next:boolean): void
+
+badges?: { window?: string; throttle?: string; tz?: string; version?: string; }
+
+AppTopbar:
+
+Props:
+
+onOpenSidebar?():void (mobile)
+
+children? (optioneel extra actions)
+
+Gedrag
+
+Toggle collapsed ↔ expanded met knop in sidebar header; sla op in localStorage.
+
+Tooltips enkel tonen wanneer collapsed.
+
+Active route bepalen met router hook (bijv. next/router of react-router).
+
+User menu: items “Profile”, “Logout” (dummy handlers met toasts).
+
+Acceptance criteria
+
+Sidebar rendert op desktop (expanded & collapsed) en mobile (sheet/drawer).
+
+Active route highlighting werkt voor child routes.
+
+Collapsed state blijft behouden na page refresh (localStorage).
+
+Tooltips verschijnen correct in collapsed modus.
+
+Topbar toont burgerbutton (mobile), app-titel/logo, zoekveld (dummy), user menu.
+
+Footer bevat New Campaign knop en version/env badge.
+
+A11y: focus outlines zichtbaar; nav door items met toetsen; aria-current="page" ingesteld.
+
+Technische notities
+
+Geen externe state manager nodig; useState + localStorage is voldoende.
+
+Gebruik Tailwind utilities: brede paddings, rounded-2xl, zachte schaduwen, duidelijke hover/active states.
+
+Houd icons en labels uitlijning strak; gebruik group + data-[state] selectors indien nuttig.
+
+Voeg ScrollArea toe rond nav lijst voor overflow.
+
+Nice-to-have (optioneel, alleen als tijd)
+
+Breadcrumbs onder topbar, gebaseerd op route segments.
+
+Keyboard shortcut Cmd/Ctrl + B om sidebar te togglen.
+
+Unread/indicator badges (dummy counts) bij Campaigns/Reports.

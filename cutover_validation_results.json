@@ -1,0 +1,66 @@
+{
+  "timestamp": "2024-01-29T11:47:00Z",
+  "success": true,
+  "results": [
+    {
+      "test": "File: backend/.env.example",
+      "status": "PASS",
+      "message": "Exists"
+    },
+    {
+      "test": "File: backend/app/services/supabase_storage.py",
+      "status": "PASS",
+      "message": "Exists"
+    },
+    {
+      "test": "File: backend/app/api/health.py",
+      "status": "PASS",
+      "message": "Exists"
+    },
+    {
+      "test": "File: vitalign-pro/.env",
+      "status": "PASS",
+      "message": "Exists"
+    },
+    {
+      "test": "File: vitalign-pro/src/services/leads.ts",
+      "status": "PASS",
+      "message": "Exists"
+    },
+    {
+      "test": "File: vitalign-pro/src/services/templates.ts",
+      "status": "PASS",
+      "message": "Exists"
+    },
+    {
+      "test": "Frontend ENV",
+      "status": "PASS",
+      "message": "Fixtures disabled, API configured"
+    },
+    {
+      "test": "Backend ENV",
+      "status": "WARN",
+      "message": ".env file not found (using .env.example)"
+    },
+    {
+      "test": "Supabase Config",
+      "status": "WARN",
+      "message": "URL not configured (using mock)"
+    },
+    {
+      "test": "Backend Health",
+      "status": "WARN",
+      "message": "Skipped - requests module not available"
+    },
+    {
+      "test": "API Endpoints",
+      "status": "WARN",
+      "message": "Skipped - requests module not available"
+    },
+    {
+      "test": "Asset Endpoint",
+      "status": "WARN",
+      "message": "Skipped - requests module not available"
+    }
+  ]
+}

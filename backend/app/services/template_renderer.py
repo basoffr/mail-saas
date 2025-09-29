@@ -73,10 +73,27 @@ class TemplateRenderer:
     def _get_image_value(self, var: str, context: Dict[str, Any], warnings: List[str]) -> str:
         """Handle image variables"""
         if 'image.cid' in var:
-            # Extract slot name: image.cid 'hero' -> hero
+            # Extract slot name: image.cid 'hero' -> hero or 'dashboard' -> dashboard
             slot_match = re.search(r"image\.cid\s+['\"]([^'\"]+)['\"]", var)
             if slot_match:
                 slot = slot_match.group(1)
+                
+                # Special handling for dashboard images (implementation plan)
+                if slot == 'dashboard':
+                    domain = context.get('domain', '')
+                    if domain:
+                        # Lazy import to avoid circular imports
+                        from app.services.asset_resolver import asset_resolver
+                        if asset_resolver.has_dashboard_image(domain):
+                            return f"cid:dashboard_{domain.replace('.', '_')}"
+                        else:
+                            warnings.append(f"Dashboard image not found for domain: {domain}")
+                            return ""  # Return empty as per plan (permissive)
+                    else:
+                        warnings.append("No domain provided for dashboard image")
+                        return ""
+                
+                # Regular per-lead images
                 lead = context.get('lead', {})
                 image_key = lead.get('image_key', '')
                 if not image_key:

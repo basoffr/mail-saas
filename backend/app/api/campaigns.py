@@ -61,13 +61,49 @@ async def create_campaign(
     payload: CampaignCreatePayload,
     user: Dict[str, Any] = Depends(require_auth)
 ):
-    """Create a new campaign."""
+    """Create a new campaign (no overrides allowed)."""
     try:
+        # Check for forbidden override fields
+        payload_dict = payload.model_dump()
+        override_fields = {
+            "timezone_override", "sending_window_start_override", "sending_window_end_override",
+            "sending_days_override", "throttle_minutes_override", "timezoneOverride",
+            "sendingWindowStartOverride", "sendingWindowEndOverride", "sendingDaysOverride",
+            "throttleMinutesOverride"
+        }
+        
+        forbidden_fields = set(payload_dict.keys()) & override_fields
+        if forbidden_fields:
+            logger.warning(f"Campaign create attempt with override fields: {forbidden_fields}")
+            raise HTTPException(
+                status_code=400,
+                detail={"error": "campaign_overrides_forbidden"}
+            )
+        
+        # Validate domain is provided and check if busy
+        if not payload.domains or len(payload.domains) == 0:
+            raise HTTPException(
+                status_code=400,
+                detail={"error": "invalid_payload"}
+            )
+        
+        # Use first domain for now (MVP: 1 domain per campaign)
+        domain = payload.domains[0]
+        
+        # Check if domain is busy
+        if campaign_store.check_domain_busy(domain):
+            logger.warning(f"Campaign create attempt on busy domain: {domain}")
+            raise HTTPException(
+                status_code=409,
+                detail={"error": "domain_busy"}
+            )
+        
         # Create campaign
         campaign = Campaign(
             id=str(uuid.uuid4()),
             name=payload.name,
             template_id=payload.template_id,
+            domain=domain,
             start_at=payload.schedule.start_at if payload.schedule.start_mode == "scheduled" else None,
             status=CampaignStatus.draft,
             followup_enabled=payload.followup.enabled,

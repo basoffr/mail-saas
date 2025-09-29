@@ -25,6 +25,34 @@ class CampaignStore:
         logger.info(f"Created campaign {campaign.id}: {campaign.name}")
         return campaign
     
+    def check_domain_busy(self, domain: str) -> bool:
+        """Check if domain has an active campaign running."""
+        active_statuses = {CampaignStatus.running}
+        
+        for campaign in self.campaigns.values():
+            if (hasattr(campaign, 'domain') and campaign.domain == domain and 
+                campaign.status in active_statuses):
+                return True
+        return False
+    
+    def get_active_campaigns_by_domain(self) -> Dict[str, List[Campaign]]:
+        """Get all active campaigns grouped by domain."""
+        active_statuses = {CampaignStatus.running}
+        domain_campaigns = {}
+        
+        for campaign in self.campaigns.values():
+            if (hasattr(campaign, 'domain') and campaign.status in active_statuses):
+                domain = campaign.domain
+                if domain not in domain_campaigns:
+                    domain_campaigns[domain] = []
+                domain_campaigns[domain].append(campaign)
+        
+        return domain_campaigns
+    
+    def get_all_messages(self) -> List[Message]:
+        """Get all messages for CSV export."""
+        return list(self.messages.values())
+    
     def get_campaign(self, campaign_id: str) -> Optional[Campaign]:
         """Get campaign by ID."""
         return self.campaigns.get(campaign_id)

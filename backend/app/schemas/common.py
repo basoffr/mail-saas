@@ -6,3 +6,7 @@ T = TypeVar("T")
 class DataResponse(BaseModel, Generic[T]):
     data: Optional[T] = None
     error: Optional[str] = None
+    
+    class Config:
+        # Ensure required fields are present
+        validate_assignment = True
