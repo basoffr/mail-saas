@@ -17,8 +17,8 @@ export interface ReportItem {
 }
 
 export interface ReportsQuery {
-  page: number;
-  pageSize: number;
+  page?: number;
+  pageSize?: number;
   types?: ReportFileType[];
   boundFilter?: 'all' | 'bound' | 'unbound';
   boundKind?: 'lead' | 'campaign';
