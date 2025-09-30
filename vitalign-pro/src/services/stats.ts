@@ -1,5 +1,6 @@
 import { StatsSummary, StatsQuery, StatsExportQuery } from '@/types/stats';
 import { authService, buildQueryString } from './auth';
+import { toUiStatsSummary } from './adapters/statsAdapter';
 
 export const statsService = {
   async getStatsSummary(query: StatsQuery = {}): Promise<StatsSummary> {
@@ -9,7 +10,8 @@ export const statsService = {
     });
 
     const endpoint = `/stats/summary${queryString ? `?${queryString}` : ''}`;
-    return await authService.apiCall<StatsSummary>(endpoint);
+    const response = await authService.apiCall<any>(endpoint);
+    return toUiStatsSummary(response) as any;
   },
 
   async exportStats(query: StatsExportQuery): Promise<Blob> {

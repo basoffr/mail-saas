@@ -151,19 +151,19 @@ const Statistics = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <KpiCard
             title="Totaal Verzonden"
-            value={data?.global.totalSent.toLocaleString() || '0'}
+            value={(data?.global?.totalSent ?? 0).toLocaleString()}
             icon={Mail}
             loading={loading}
           />
           <KpiCard
             title="Open Rate"
-            value={data ? `${(data.global.openRate * 100).toFixed(1)}%` : '0%'}
+            value={`${((data?.global?.openRate ?? 0) * 100).toFixed(1)}%`}
             icon={MousePointer}
             loading={loading}
           />
           <KpiCard
             title="Bounces"
-            value={data?.global.bounces.toLocaleString() || '0'}
+            value={(data?.global?.bounces ?? 0).toLocaleString()}
             icon={AlertTriangle}
             loading={loading}
           />
@@ -171,19 +171,19 @@ const Statistics = () => {
 
         {/* Timeline Chart */}
         <TimelineChart
-          data={data?.timeline || []}
+          data={data?.timeline ?? []}
           loading={loading}
         />
 
         {/* Tables */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <DomainTable
-            data={data?.domains || []}
+            data={data?.domains ?? []}
             loading={loading}
             onExport={() => handleExport('domain')}
           />
           <CampaignTable
-            data={data?.campaigns || []}
+            data={data?.campaigns ?? []}
             loading={loading}
             onExport={() => handleExport('campaign')}
           />

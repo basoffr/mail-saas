@@ -340,7 +340,7 @@ const Settings = () => {
                   <Shield className="h-4 w-4" />
                   DNS Configuratie
                 </Label>
-                <DnsChecklist status={settings.emailInfra.dns} />
+                <DnsChecklist status={settings?.emailInfra?.dns ?? { spf: false, dkim: false, dmarc: false }} />
               </div>
             </>
           )}

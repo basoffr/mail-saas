@@ -1,0 +1,333 @@
+https://mail-saas-xi.vercel.app/leads
+
+Auth Service initialized: 
+Object
+baseUrl
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1"
+hasToken
+: 
+true
+timeout
+: 
+5000
+[[Prototype]]
+: 
+Object
+index-BqiTW089.js:440 API Call: 
+Object
+hasAuth
+: 
+true
+method
+: 
+"GET"
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/leads?page=1&page_size=25&sort_by=createdAt&sort_order=desc"
+[[Prototype]]
+: 
+Object
+index-BqiTW089.js:440 Calling templates API: https://mail-saas-rf4s.onrender.com/api/v1/templates
+index-BqiTW089.js:440 API Call: 
+Object
+hasAuth
+: 
+true
+method
+: 
+"GET"
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/templates"
+[[Prototype]]
+: 
+Object
+index-BqiTW089.js:440 API Response: 
+Object
+status
+: 
+200
+statusText
+: 
+""
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/templates"
+[[Prototype]]
+: 
+Object
+index-BqiTW089.js:440 API Response: 
+Object
+status
+: 
+200
+statusText
+: 
+""
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/leads?page=1&page_size=25&sort_by=createdAt&sort_order=desc"
+[[Prototype]]
+: 
+Object
+
+
+https://mail-saas-xi.vercel.app/campaigns
+
+API Call: 
+{method: 'GET', url: 'https://mail-saas-rf4s.onrender.com/api/v1/campaigns', hasAuth: true}
+hasAuth
+: 
+true
+method
+: 
+"GET"
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/campaigns"
+[[Prototype]]
+: 
+Object
+index-BqiTW089.js:440 API Response: 
+{status: 200, statusText: '', url: 'https://mail-saas-rf4s.onrender.com/api/v1/campaigns'}
+status
+: 
+200
+statusText
+: 
+""
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/campaigns"
+[[Prototype]]
+: 
+Object
+
+
+https://mail-saas-xi.vercel.app/templates
+
+Calling templates API: https://mail-saas-rf4s.onrender.com/api/v1/templates
+index-BqiTW089.js:440 API Call: 
+{method: 'GET', url: 'https://mail-saas-rf4s.onrender.com/api/v1/templates', hasAuth: true}
+hasAuth
+: 
+true
+method
+: 
+"GET"
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/templates"
+[[Prototype]]
+: 
+Object
+index-BqiTW089.js:440 API Response: 
+{status: 200, statusText: '', url: 'https://mail-saas-rf4s.onrender.com/api/v1/templates'}
+status
+: 
+200
+statusText
+: 
+""
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/templates"
+[[Prototype]]
+: 
+Object
+
+
+https://mail-saas-xi.vercel.app/reports
+
+API Call: 
+{method: 'GET', url: 'https://mail-saas-rf4s.onrender.com/api/v1/reports?page=1&page_size=20&search=&bound_filter=all', hasAuth: true}
+hasAuth
+: 
+true
+method
+: 
+"GET"
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/reports?page=1&page_size=20&search=&bound_filter=all"
+[[Prototype]]
+: 
+Object
+index-BqiTW089.js:440 API Response: 
+{status: 200, statusText: '', url: 'https://mail-saas-rf4s.onrender.com/api/v1/reports?page=1&page_size=20&search=&bound_filter=all'}
+status
+: 
+200
+statusText
+: 
+""
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/reports?page=1&page_size=20&search=&bound_filter=all"
+[[Prototype]]
+: 
+Object
+
+
+https://mail-saas-xi.vercel.app/stats
+
+
+API Call: 
+{method: 'GET', url: 'https://mail-saas-rf4s.onrender.com/api/v1/stats/summary?from=2025-08-31&to=2025-09-30', hasAuth: true}
+hasAuth
+: 
+true
+method
+: 
+"GET"
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/stats/summary?from=2025-08-31&to=2025-09-30"
+[[Prototype]]
+: 
+Object
+index-BqiTW089.js:440 API Response: 
+{status: 200, statusText: '', url: 'https://mail-saas-rf4s.onrender.com/api/v1/stats/summary?from=2025-08-31&to=2025-09-30'}
+status
+: 
+200
+statusText
+: 
+""
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/stats/summary?from=2025-08-31&to=2025-09-30"
+[[Prototype]]
+: 
+Object
+index-BqiTW089.js:40 
+ TypeError: Cannot read properties of undefined (reading 'totalSent')
+    at yCe (index-BqiTW089.js:525:23353)
+    at g1 (index-BqiTW089.js:38:16998)
+    at lb (index-BqiTW089.js:40:3139)
+    at eA (index-BqiTW089.js:40:44804)
+    at QT (index-BqiTW089.js:40:39766)
+    at M6 (index-BqiTW089.js:40:39694)
+    at Ah (index-BqiTW089.js:40:39547)
+    at xb (index-BqiTW089.js:40:35914)
+    at GT (index-BqiTW089.js:40:34865)
+    at j (index-BqiTW089.js:25:1552)
+sb	@	index-BqiTW089.js:40
+AT.n.callback	@	index-BqiTW089.js:40
+qN	@	index-BqiTW089.js:38
+cC	@	index-BqiTW089.js:40
+qT	@	index-BqiTW089.js:40
+_6	@	index-BqiTW089.js:40
+D6	@	index-BqiTW089.js:40
+Ro	@	index-BqiTW089.js:40
+GT	@	index-BqiTW089.js:40
+j	@	index-BqiTW089.js:25
+E	@	index-BqiTW089.js:25
+index-BqiTW089.js:525 
+ Uncaught TypeError: Cannot read properties of undefined (reading 'totalSent')
+    at yCe (index-BqiTW089.js:525:23353)
+    at g1 (index-BqiTW089.js:38:16998)
+    at lb (index-BqiTW089.js:40:3139)
+    at eA (index-BqiTW089.js:40:44804)
+    at QT (index-BqiTW089.js:40:39766)
+    at M6 (index-BqiTW089.js:40:39694)
+    at Ah (index-BqiTW089.js:40:39547)
+    at xb (index-BqiTW089.js:40:35914)
+    at GT (index-BqiTW089.js:40:34865)
+    at j (index-BqiTW089.js:25:1552)
+yCe	@	index-BqiTW089.js:525
+g1	@	index-BqiTW089.js:38
+lb	@	index-BqiTW089.js:40
+eA	@	index-BqiTW089.js:40
+QT	@	index-BqiTW089.js:40
+M6	@	index-BqiTW089.js:40
+Ah	@	index-BqiTW089.js:40
+xb	@	index-BqiTW089.js:40
+GT	@	index-BqiTW089.js:40
+j	@	index-BqiTW089.js:25
+E	@	index-BqiTW089.js:25
+
+https://mail-saas-xi.vercel.app/inbox
+
+API Response: 
+Object
+status
+: 
+200
+statusText
+: 
+""
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/inbox/messages?page=1&page_size=25"
+[[Prototype]]
+: 
+Object
+index-BqiTW089.js:440 API Response: 
+Object
+status
+: 
+200
+statusText
+: 
+""
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/settings/inbox/accounts"
+[[Prototype]]
+: 
+Object
+
+Dashboard melding: 
+"Geen actieve IMAP accounts
+Configureer eerst IMAP accounts om berichten op te kunnen halen.""
+
+https://mail-saas-xi.vercel.app/settings
+
+index-BqiTW089.js:40 
+ TypeError: Cannot read properties of undefined (reading 'filter')
+    at jCe (index-BqiTW089.js:525:30085)
+    at g1 (index-BqiTW089.js:38:16998)
+    at lb (index-BqiTW089.js:40:3139)
+    at eA (index-BqiTW089.js:40:44804)
+    at QT (index-BqiTW089.js:40:39766)
+    at M6 (index-BqiTW089.js:40:39694)
+    at Ah (index-BqiTW089.js:40:39547)
+    at xb (index-BqiTW089.js:40:35914)
+    at GT (index-BqiTW089.js:40:34865)
+    at j (index-BqiTW089.js:25:1552)
+sb	@	index-BqiTW089.js:40
+AT.n.callback	@	index-BqiTW089.js:40
+qN	@	index-BqiTW089.js:38
+cC	@	index-BqiTW089.js:40
+qT	@	index-BqiTW089.js:40
+_6	@	index-BqiTW089.js:40
+D6	@	index-BqiTW089.js:40
+Ro	@	index-BqiTW089.js:40
+GT	@	index-BqiTW089.js:40
+j	@	index-BqiTW089.js:25
+E	@	index-BqiTW089.js:25
+index-BqiTW089.js:525 
+ Uncaught TypeError: Cannot read properties of undefined (reading 'filter')
+    at jCe (index-BqiTW089.js:525:30085)
+    at g1 (index-BqiTW089.js:38:16998)
+    at lb (index-BqiTW089.js:40:3139)
+    at eA (index-BqiTW089.js:40:44804)
+    at QT (index-BqiTW089.js:40:39766)
+    at M6 (index-BqiTW089.js:40:39694)
+    at Ah (index-BqiTW089.js:40:39547)
+    at xb (index-BqiTW089.js:40:35914)
+    at GT (index-BqiTW089.js:40:34865)
+    at j (index-BqiTW089.js:25:1552)
+jCe	@	index-BqiTW089.js:525
+g1	@	index-BqiTW089.js:38
+lb	@	index-BqiTW089.js:40
+eA	@	index-BqiTW089.js:40
+QT	@	index-BqiTW089.js:40
+M6	@	index-BqiTW089.js:40
+Ah	@	index-BqiTW089.js:40
+xb	@	index-BqiTW089.js:40
+GT	@	index-BqiTW089.js:40
+j	@	index-BqiTW089.js:25
+E	@	index-BqiTW089.js:25
