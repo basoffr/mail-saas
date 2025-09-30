@@ -142,7 +142,7 @@ export default function TemplateDetail() {
                     <SelectValue placeholder="Selecteer lead" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Geen lead</SelectItem>
+                    <SelectItem value="__none__">Geen lead</SelectItem>
                     {leads?.items.map((lead) => (
                       <SelectItem key={lead.id} value={lead.id}>
                         {lead.email}

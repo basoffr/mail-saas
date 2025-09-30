@@ -9,7 +9,6 @@ from app.schemas.template import (
     TemplateOut, TemplateDetail, TemplatePreviewResponse, 
     TestsendPayload, TemplatesResponse, TemplateVarItem
 )
-from app.services.template_store import template_store
 from app.services.template_renderer import render_template_with_lead
 from app.services.testsend import testsend_service
 from app.services.leads_store import leads_store
@@ -120,7 +119,7 @@ async def preview_template(
 ):
     """Preview template with lead data"""
     try:
-        template = template_store.get_by_id(template_id)
+        template = get_template(template_id)
         if not template:
             raise HTTPException(status_code=404, detail="Template not found")
         
@@ -209,7 +208,7 @@ async def get_template_variables(
 ):
     """Get template variables list"""
     try:
-        template = template_store.get_by_id(template_id)
+        template = get_template(template_id)
         if not template:
             raise HTTPException(status_code=404, detail="Template not found")
         
@@ -257,7 +256,7 @@ async def send_test_email(
 ):
     """Send test email"""
     try:
-        template = template_store.get_by_id(template_id)
+        template = get_template(template_id)
         if not template:
             raise HTTPException(status_code=404, detail="Template not found")
         

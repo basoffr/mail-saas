@@ -86,7 +86,8 @@ export default function Inbox() {
   const fetchAccounts = async () => {
     try {
       const response = await inboxService.getAccounts();
-      setAccounts(response?.items || []);
+      // Response is array directly after our fix, not {items: []}
+      setAccounts(Array.isArray(response) ? response : []);
     } catch (error) {
       console.error('Failed to load accounts:', error);
       setAccounts([]);
