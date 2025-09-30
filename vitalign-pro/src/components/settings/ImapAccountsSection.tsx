@@ -35,7 +35,7 @@ export function ImapAccountsSection() {
     setLoading(true);
     try {
       const response = await inboxService.getAccounts();
-      setAccounts(Array.isArray(response?.items) ? response.items : []);
+      setAccounts(Array.isArray(response) ? response : []);
     } catch (error) {
       toast({
         title: 'Error',

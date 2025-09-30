@@ -202,6 +202,53 @@ async def preview_template(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@router.get("/{template_id}/variables", response_model=DataResponse[List[TemplateVarItem]])
+async def get_template_variables(
+    template_id: str,
+    user: Dict[str, Any] = Depends(require_auth)
+):
+    """Get template variables list"""
+    try:
+        template = template_store.get_by_id(template_id)
+        if not template:
+            raise HTTPException(status_code=404, detail="Template not found")
+        
+        # Extract variables from template placeholders
+        placeholder_strings = template.get_placeholders()
+        variables = []
+        for placeholder in placeholder_strings:
+            # Determine source based on prefix
+            if placeholder.startswith('lead.'):
+                source = 'lead'
+                example = 'Example Company' if 'company' in placeholder else 'https://example.com'
+            elif placeholder.startswith('vars.'):
+                source = 'vars'
+                example = 'example value'
+            elif placeholder.startswith('image.'):
+                source = 'image'
+                example = 'cid:image123'
+            else:
+                source = 'campaign'
+                example = 'example'
+            
+            variables.append(TemplateVarItem(
+                key=placeholder,
+                required=True,
+                source=source,
+                example=example
+            ))
+        
+        logger.info("template_variables_requested", extra={"user": user.get("sub"), "template_id": template_id})
+        
+        return DataResponse(data=variables, error=None)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting template variables: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 @router.post("/{template_id}/testsend", response_model=DataResponse[Dict[str, Any]])
 async def send_test_email(
     template_id: str,

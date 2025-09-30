@@ -36,8 +36,8 @@ export const inboxService = {
     });
   },
 
-  async getAccounts(): Promise<{ items: MailAccountOut[] }> {
-    return await authService.apiCall<{ items: MailAccountOut[] }>('/settings/inbox/accounts');
+  async getAccounts(): Promise<MailAccountOut[]> {
+    return await authService.apiCall<MailAccountOut[]>('/settings/inbox/accounts');
   },
 
   async testAccount(accountId: string): Promise<{ ok: boolean; message: string }> {

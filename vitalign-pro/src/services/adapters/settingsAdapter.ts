@@ -27,11 +27,36 @@ export interface UiEmailInfrastructure {
   };
 }
 
+export interface UiDomainAlias {
+  email: string;
+  name: string;
+  active: boolean;
+}
+
+export interface UiDomainConfig {
+  domain: string;
+  displayName: string;
+  smtpHost: string;
+  smtpPort: number;
+  useTls: boolean;
+  aliases: UiDomainAlias[];
+  dailyLimit: number;
+  throttleMinutes: number;
+  dnsStatus: {
+    spf: string;
+    dkim: string;
+    dmarc: string;
+  };
+  reputationScore: string;
+  active: boolean;
+}
+
 export interface UiSettings {
   timezone: string;
   window: UiSendingWindow;
   throttle: UiThrottleSettings;
   domains: string[];
+  domainsConfig?: UiDomainConfig[];
   unsubscribeText: string;
   unsubscribeUrl: string;
   trackingPixelEnabled: boolean;
@@ -83,6 +108,34 @@ export function toUiSettings(apiResponse: any): UiSettings {
 
   // Domains normalization
   const domains = asArray<string>(pick(data, ['domains', 'Domains', 'domainList'], []));
+  
+  // Domains config normalization (optional extended configuration)
+  const domainsConfigData = pick(data, ['domainsConfig', 'domains_config'], null);
+  let domainsConfig: UiDomainConfig[] | undefined = undefined;
+  
+  if (domainsConfigData && Array.isArray(domainsConfigData)) {
+    domainsConfig = domainsConfigData.map((dc: any) => ({
+      domain: asString(pick(dc, ['domain'], '')),
+      displayName: asString(pick(dc, ['displayName', 'display_name'], '')),
+      smtpHost: asString(pick(dc, ['smtpHost', 'smtp_host'], '')),
+      smtpPort: pick(dc, ['smtpPort', 'smtp_port'], 587) as number,
+      useTls: asBool(pick(dc, ['useTls', 'use_tls'], true)),
+      aliases: asArray(pick(dc, ['aliases'], [])).map((alias: any) => ({
+        email: asString(pick(alias, ['email'], '')),
+        name: asString(pick(alias, ['name'], '')),
+        active: asBool(pick(alias, ['active'], false))
+      })),
+      dailyLimit: pick(dc, ['dailyLimit', 'daily_limit'], 1000) as number,
+      throttleMinutes: pick(dc, ['throttleMinutes', 'throttle_minutes'], 20) as number,
+      dnsStatus: {
+        spf: asString(pick(pick(dc, ['dnsStatus', 'dns_status'], {}), ['spf', 'SPF'], 'unchecked')),
+        dkim: asString(pick(pick(dc, ['dnsStatus', 'dns_status'], {}), ['dkim', 'DKIM'], 'unchecked')),
+        dmarc: asString(pick(pick(dc, ['dnsStatus', 'dns_status'], {}), ['dmarc', 'DMARC'], 'unchecked'))
+      },
+      reputationScore: asString(pick(dc, ['reputationScore', 'reputation_score'], 'unknown')),
+      active: asBool(pick(dc, ['active'], true))
+    }));
+  }
 
   // Text fields
   const unsubscribeText = asString(pick(data, ['unsubscribeText', 'unsubscribe_text'], 'Uitschrijven'));
@@ -96,6 +149,7 @@ export function toUiSettings(apiResponse: any): UiSettings {
     window,
     throttle,
     domains,
+    domainsConfig,
     unsubscribeText,
     unsubscribeUrl,
     trackingPixelEnabled,
