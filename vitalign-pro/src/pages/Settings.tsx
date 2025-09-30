@@ -37,14 +37,15 @@ const Settings = () => {
     try {
       const data = await settingsService.getSettings();
       setSettings(data);
-      setUnsubscribeText(data.unsubscribeText);
-      setTrackingPixelEnabled(data.trackingPixelEnabled);
+      setUnsubscribeText(data?.unsubscribeText || 'Uitschrijven');
+      setTrackingPixelEnabled(data?.trackingPixelEnabled ?? true);
     } catch (error) {
       toast({
         title: 'Error',
         description: 'Failed to load settings',
         variant: 'destructive'
       });
+      setSettings(null);
     } finally {
       setLoading(false);
     }
@@ -173,7 +174,7 @@ const Settings = () => {
                   <div className="space-y-2">
                     <Label>Werkdagen</Label>
                     <div className="flex flex-wrap gap-1">
-                      {settings.window?.days?.map((day) => (
+                      {(settings?.window?.days || []).map((day) => (
                         <Badge key={day} variant="outline" className="text-xs">
                           {day}
                         </Badge>
@@ -228,7 +229,7 @@ const Settings = () => {
               <div className="space-y-2 mt-6">
                 <Label>Domeinen & Flows</Label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {settings.domains?.map((domain, index) => (
+                  {(settings?.domains || []).map((domain, index) => (
                     <div key={domain} className="p-3 border rounded-lg">
                       <div className="flex items-center justify-between mb-2">
                         <Badge variant="outline" className="font-mono text-xs">

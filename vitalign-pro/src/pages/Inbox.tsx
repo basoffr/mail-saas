@@ -68,14 +68,16 @@ export default function Inbox() {
     setLoading(true);
     try {
       const response = await inboxService.getMessages(query);
-      setMessages(response.items);
-      setTotal(response.total);
+      setMessages(response?.items || []);
+      setTotal(response?.total || 0);
     } catch (error) {
       toast({
         title: 'Error',
         description: 'Failed to load messages',
         variant: 'destructive'
       });
+      setMessages([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -84,16 +86,17 @@ export default function Inbox() {
   const fetchAccounts = async () => {
     try {
       const response = await inboxService.getAccounts();
-      setAccounts(response.items);
+      setAccounts(response?.items || []);
     } catch (error) {
       console.error('Failed to load accounts:', error);
+      setAccounts([]);
     }
   };
 
   const handleFetch = async () => {
     setFetchLoading(true);
     try {
-      await inboxService.fetchMessages();
+      await inboxService.startFetch();
       await fetchMessages();
       toast({
         title: 'Success',

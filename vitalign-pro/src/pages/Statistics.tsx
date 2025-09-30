@@ -40,7 +40,7 @@ const Statistics = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const summary = await statsService.getSummary(query);
+      const summary = await statsService.getStatsSummary(query);
       setData(summary);
     } catch (error) {
       toast({
@@ -56,7 +56,7 @@ const Statistics = () => {
   const handleExport = async (scope: 'global' | 'domain' | 'campaign') => {
     setExporting(true);
     try {
-      const csvData = await statsService.exportData({ ...query, scope });
+      const csvData = await statsService.exportStats({ ...query, scope });
       
       // Create and download CSV file
       const blob = new Blob([csvData], { type: 'text/csv' });

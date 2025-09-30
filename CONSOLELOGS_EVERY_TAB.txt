@@ -1,0 +1,553 @@
+Console logs bij bezoeken van ieder tabblad: 
+
+https://mail-saas-xi.vercel.app/leads (eerste tabblad die je krijgt als je via Vercel op link klikt)
+
+Auth Service initialized: 
+Object
+baseUrl
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1"
+hasToken
+: 
+true
+timeout
+: 
+5000
+[[Prototype]]
+: 
+Object
+index-hrHJBD1m.js:440 API Call: 
+Object
+hasAuth
+: 
+true
+method
+: 
+"GET"
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/leads?page=1&page_size=25&sort_by=createdAt&sort_order=desc"
+[[Prototype]]
+: 
+Object
+index-hrHJBD1m.js:440 Calling templates API: https://mail-saas-rf4s.onrender.com/api/v1/templates
+index-hrHJBD1m.js:440 API Call: 
+Object
+hasAuth
+: 
+true
+method
+: 
+"GET"
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/templates"
+[[Prototype]]
+: 
+Object
+index-hrHJBD1m.js:440 API Response: 
+Object
+status
+: 
+200
+statusText
+: 
+""
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/leads?page=1&page_size=25&sort_by=createdAt&sort_order=desc"
+[[Prototype]]
+: 
+Object
+index-hrHJBD1m.js:440 API Response: 
+Object
+status
+: 
+200
+statusText
+: 
+""
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/templates"
+[[Prototype]]
+: 
+Object
+
+https://mail-saas-xi.vercel.app/campaigns
+
+API Call: 
+{method: 'GET', url: 'https://mail-saas-rf4s.onrender.com/api/v1/campaigns', hasAuth: true}
+hasAuth
+: 
+true
+method
+: 
+"GET"
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/campaigns"
+[[Prototype]]
+: 
+Object
+index-hrHJBD1m.js:440 API Response: 
+{status: 200, statusText: '', url: 'https://mail-saas-rf4s.onrender.com/api/v1/campaigns'}
+status
+: 
+200
+statusText
+: 
+""
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/campaigns"
+[[Prototype]]
+: 
+Object
+
+https://mail-saas-xi.vercel.app/templates (hele dashboard crasht) 
+
+Calling templates API: https://mail-saas-rf4s.onrender.com/api/v1/templates
+index-hrHJBD1m.js:440 API Call: 
+{method: 'GET', url: 'https://mail-saas-rf4s.onrender.com/api/v1/templates', hasAuth: true}
+hasAuth
+: 
+true
+method
+: 
+"GET"
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/templates"
+[[Prototype]]
+: 
+Object
+constructor
+: 
+ƒ Object()
+hasOwnProperty
+: 
+ƒ hasOwnProperty()
+isPrototypeOf
+: 
+ƒ isPrototypeOf()
+propertyIsEnumerable
+: 
+ƒ propertyIsEnumerable()
+toLocaleString
+: 
+ƒ toLocaleString()
+toString
+: 
+ƒ toString()
+valueOf
+: 
+ƒ valueOf()
+__defineGetter__
+: 
+ƒ __defineGetter__()
+__defineSetter__
+: 
+ƒ __defineSetter__()
+__lookupGetter__
+: 
+ƒ __lookupGetter__()
+__lookupSetter__
+: 
+ƒ __lookupSetter__()
+__proto__
+: 
+(...)
+get __proto__
+: 
+ƒ __proto__()
+set __proto__
+: 
+ƒ __proto__()
+index-hrHJBD1m.js:440 API Response: 
+{status: 200, statusText: '', url: 'https://mail-saas-rf4s.onrender.com/api/v1/templates'}
+status
+: 
+200
+statusText
+: 
+""
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/templates"
+[[Prototype]]
+: 
+Object
+constructor
+: 
+ƒ Object()
+hasOwnProperty
+: 
+ƒ hasOwnProperty()
+isPrototypeOf
+: 
+ƒ isPrototypeOf()
+propertyIsEnumerable
+: 
+ƒ propertyIsEnumerable()
+toLocaleString
+: 
+ƒ toLocaleString()
+toString
+: 
+ƒ toString()
+valueOf
+: 
+ƒ valueOf()
+__defineGetter__
+: 
+ƒ __defineGetter__()
+__defineSetter__
+: 
+ƒ __defineSetter__()
+__lookupGetter__
+: 
+ƒ __lookupGetter__()
+__lookupSetter__
+: 
+ƒ __lookupSetter__()
+__proto__
+: 
+(...)
+get __proto__
+: 
+ƒ __proto__()
+set __proto__
+: 
+ƒ __proto__()
+index-hrHJBD1m.js:40 
+ RangeError: Invalid time value
+    at Qe (index-hrHJBD1m.js:440:63550)
+    at index-hrHJBD1m.js:523:66771
+    at Array.map (<anonymous>)
+    at aCe (index-hrHJBD1m.js:523:66570)
+    at g1 (index-hrHJBD1m.js:38:16998)
+    at lb (index-hrHJBD1m.js:40:3139)
+    at eA (index-hrHJBD1m.js:40:44804)
+    at QT (index-hrHJBD1m.js:40:39766)
+    at M6 (index-hrHJBD1m.js:40:39694)
+    at Ah (index-hrHJBD1m.js:40:39547)
+sb	@	index-hrHJBD1m.js:40
+AT.n.callback	@	index-hrHJBD1m.js:40
+qN	@	index-hrHJBD1m.js:38
+cC	@	index-hrHJBD1m.js:40
+qT	@	index-hrHJBD1m.js:40
+_6	@	index-hrHJBD1m.js:40
+D6	@	index-hrHJBD1m.js:40
+Ro	@	index-hrHJBD1m.js:40
+fC	@	index-hrHJBD1m.js:40
+mo	@	index-hrHJBD1m.js:38
+(anonymous)	@	index-hrHJBD1m.js:40
+setTimeout		
+j7	@	index-hrHJBD1m.js:361
+s	@	index-hrHJBD1m.js:361
+batch	@	index-hrHJBD1m.js:361
+Ma	@	index-hrHJBD1m.js:361
+setData	@	index-hrHJBD1m.js:361
+onSuccess	@	index-hrHJBD1m.js:361
+f	@	index-hrHJBD1m.js:361
+Promise.then		
+g	@	index-hrHJBD1m.js:361
+start	@	index-hrHJBD1m.js:361
+fetch	@	index-hrHJBD1m.js:361
+Nu	@	index-hrHJBD1m.js:361
+onSubscribe	@	index-hrHJBD1m.js:361
+subscribe	@	index-hrHJBD1m.js:361
+(anonymous)	@	index-hrHJBD1m.js:361
+vT	@	index-hrHJBD1m.js:38
+pv	@	index-hrHJBD1m.js:40
+yl	@	index-hrHJBD1m.js:40
+(anonymous)	@	index-hrHJBD1m.js:40
+j	@	index-hrHJBD1m.js:25
+E	@	index-hrHJBD1m.js:25
+index-hrHJBD1m.js:440 
+ Uncaught RangeError: Invalid time value
+    at Qe (index-hrHJBD1m.js:440:63550)
+    at index-hrHJBD1m.js:523:66771
+    at Array.map (<anonymous>)
+    at aCe (index-hrHJBD1m.js:523:66570)
+    at g1 (index-hrHJBD1m.js:38:16998)
+    at lb (index-hrHJBD1m.js:40:3139)
+    at eA (index-hrHJBD1m.js:40:44804)
+    at QT (index-hrHJBD1m.js:40:39766)
+    at M6 (index-hrHJBD1m.js:40:39694)
+    at Ah (index-hrHJBD1m.js:40:39547)
+Qe	@	index-hrHJBD1m.js:440
+(anonymous)	@	index-hrHJBD1m.js:523
+aCe	@	index-hrHJBD1m.js:523
+g1	@	index-hrHJBD1m.js:38
+lb	@	index-hrHJBD1m.js:40
+eA	@	index-hrHJBD1m.js:40
+QT	@	index-hrHJBD1m.js:40
+M6	@	index-hrHJBD1m.js:40
+Ah	@	index-hrHJBD1m.js:40
+xb	@	index-hrHJBD1m.js:40
+fC	@	index-hrHJBD1m.js:40
+mo	@	index-hrHJBD1m.js:38
+(anonymous)	@	index-hrHJBD1m.js:40
+setTimeout		
+j7	@	index-hrHJBD1m.js:361
+s	@	index-hrHJBD1m.js:361
+batch	@	index-hrHJBD1m.js:361
+Ma	@	index-hrHJBD1m.js:361
+setData	@	index-hrHJBD1m.js:361
+onSuccess	@	index-hrHJBD1m.js:361
+f	@	index-hrHJBD1m.js:361
+Promise.then		
+g	@	index-hrHJBD1m.js:361
+start	@	index-hrHJBD1m.js:361
+fetch	@	index-hrHJBD1m.js:361
+Nu	@	index-hrHJBD1m.js:361
+onSubscribe	@	index-hrHJBD1m.js:361
+subscribe	@	index-hrHJBD1m.js:361
+(anonymous)	@	index-hrHJBD1m.js:361
+vT	@	index-hrHJBD1m.js:38
+pv	@	index-hrHJBD1m.js:40
+yl	@	index-hrHJBD1m.js:40
+(anonymous)	@	index-hrHJBD1m.js:40
+j	@	index-hrHJBD1m.js:25
+E	@	index-hrHJBD1m.js:25
+
+https://mail-saas-xi.vercel.app/reports
+
+API Call: 
+{method: 'GET', url: 'https://mail-saas-rf4s.onrender.com/api/v1/reports?page=1&page_size=20&search=&bound_filter=all', hasAuth: true}
+hasAuth
+: 
+true
+method
+: 
+"GET"
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/reports?page=1&page_size=20&search=&bound_filter=all"
+[[Prototype]]
+: 
+Object
+constructor
+: 
+ƒ Object()
+hasOwnProperty
+: 
+ƒ hasOwnProperty()
+isPrototypeOf
+: 
+ƒ isPrototypeOf()
+propertyIsEnumerable
+: 
+ƒ propertyIsEnumerable()
+toLocaleString
+: 
+ƒ toLocaleString()
+toString
+: 
+ƒ toString()
+valueOf
+: 
+ƒ valueOf()
+__defineGetter__
+: 
+ƒ __defineGetter__()
+__defineSetter__
+: 
+ƒ __defineSetter__()
+__lookupGetter__
+: 
+ƒ __lookupGetter__()
+__lookupSetter__
+: 
+ƒ __lookupSetter__()
+__proto__
+: 
+(...)
+get __proto__
+: 
+ƒ __proto__()
+set __proto__
+: 
+ƒ __proto__()
+index-hrHJBD1m.js:440 API Response: 
+{status: 200, statusText: '', url: 'https://mail-saas-rf4s.onrender.com/api/v1/reports?page=1&page_size=20&search=&bound_filter=all'}
+status
+: 
+200
+statusText
+: 
+""
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/reports?page=1&page_size=20&search=&bound_filter=all"
+[[Prototype]]
+: 
+Object
+constructor
+: 
+ƒ Object()
+hasOwnProperty
+: 
+ƒ hasOwnProperty()
+isPrototypeOf
+: 
+ƒ isPrototypeOf()
+propertyIsEnumerable
+: 
+ƒ propertyIsEnumerable()
+toLocaleString
+: 
+ƒ toLocaleString()
+toString
+: 
+ƒ toString()
+valueOf
+: 
+ƒ valueOf()
+__defineGetter__
+: 
+ƒ __defineGetter__()
+__defineSetter__
+: 
+ƒ __defineSetter__()
+__lookupGetter__
+: 
+ƒ __lookupGetter__()
+__lookupSetter__
+: 
+ƒ __lookupSetter__()
+__proto__
+: 
+(...)
+get __proto__
+: 
+ƒ __proto__()
+set __proto__
+: 
+ƒ __proto__()
+
+https://mail-saas-xi.vercel.app/stats
+In screen error "Failed to load statistics", geen console logs
+
+https://mail-saas-xi.vercel.app/inbox (dashboard crasht ook tijdens bezoek)
+
+API Call: 
+{method: 'GET', url: 'https://mail-saas-rf4s.onrender.com/api/v1/inbox/messages?page=1&page_size=25', hasAuth: true}
+hasAuth
+: 
+true
+method
+: 
+"GET"
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/inbox/messages?page=1&page_size=25"
+[[Prototype]]
+: 
+Object
+index-hrHJBD1m.js:440 API Call: 
+{method: 'GET', url: 'https://mail-saas-rf4s.onrender.com/api/v1/settings/inbox/accounts', hasAuth: true}
+hasAuth
+: 
+true
+method
+: 
+"GET"
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/settings/inbox/accounts"
+[[Prototype]]
+: 
+Object
+index-hrHJBD1m.js:440 API Response: 
+{status: 200, statusText: '', url: 'https://mail-saas-rf4s.onrender.com/api/v1/settings/inbox/accounts'}
+status
+: 
+200
+statusText
+: 
+""
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/settings/inbox/accounts"
+[[Prototype]]
+: 
+Object
+index-hrHJBD1m.js:40 
+ TypeError: Cannot read properties of undefined (reading 'filter')
+    at NCe (index-hrHJBD1m.js:525:41374)
+    at g1 (index-hrHJBD1m.js:38:16998)
+    at lb (index-hrHJBD1m.js:40:3139)
+    at eA (index-hrHJBD1m.js:40:44804)
+    at QT (index-hrHJBD1m.js:40:39766)
+    at M6 (index-hrHJBD1m.js:40:39694)
+    at Ah (index-hrHJBD1m.js:40:39547)
+    at xb (index-hrHJBD1m.js:40:35914)
+    at GT (index-hrHJBD1m.js:40:34865)
+    at j (index-hrHJBD1m.js:25:1552)
+sb	@	index-hrHJBD1m.js:40
+AT.n.callback	@	index-hrHJBD1m.js:40
+qN	@	index-hrHJBD1m.js:38
+cC	@	index-hrHJBD1m.js:40
+qT	@	index-hrHJBD1m.js:40
+_6	@	index-hrHJBD1m.js:40
+D6	@	index-hrHJBD1m.js:40
+Ro	@	index-hrHJBD1m.js:40
+GT	@	index-hrHJBD1m.js:40
+j	@	index-hrHJBD1m.js:25
+E	@	index-hrHJBD1m.js:25
+index-hrHJBD1m.js:525 
+ Uncaught TypeError: Cannot read properties of undefined (reading 'filter')
+    at NCe (index-hrHJBD1m.js:525:41374)
+    at g1 (index-hrHJBD1m.js:38:16998)
+    at lb (index-hrHJBD1m.js:40:3139)
+    at eA (index-hrHJBD1m.js:40:44804)
+    at QT (index-hrHJBD1m.js:40:39766)
+    at M6 (index-hrHJBD1m.js:40:39694)
+    at Ah (index-hrHJBD1m.js:40:39547)
+    at xb (index-hrHJBD1m.js:40:35914)
+    at GT (index-hrHJBD1m.js:40:34865)
+    at j (index-hrHJBD1m.js:25:1552)
+NCe	@	index-hrHJBD1m.js:525
+g1	@	index-hrHJBD1m.js:38
+lb	@	index-hrHJBD1m.js:40
+eA	@	index-hrHJBD1m.js:40
+QT	@	index-hrHJBD1m.js:40
+M6	@	index-hrHJBD1m.js:40
+Ah	@	index-hrHJBD1m.js:40
+xb	@	index-hrHJBD1m.js:40
+GT	@	index-hrHJBD1m.js:40
+j	@	index-hrHJBD1m.js:25
+E	@	index-hrHJBD1m.js:25
+
+https://mail-saas-xi.vercel.app/settings (crasht ook)
+
+index-hrHJBD1m.js:40  TypeError: Cannot read properties of undefined (reading 'filter')
+    at jCe (index-hrHJBD1m.js:525:30079)
+    at g1 (index-hrHJBD1m.js:38:16998)
+    at lb (index-hrHJBD1m.js:40:3139)
+    at eA (index-hrHJBD1m.js:40:44804)
+    at QT (index-hrHJBD1m.js:40:39766)
+    at M6 (index-hrHJBD1m.js:40:39694)
+    at Ah (index-hrHJBD1m.js:40:39547)
+    at xb (index-hrHJBD1m.js:40:35914)
+    at GT (index-hrHJBD1m.js:40:34865)
+    at j (index-hrHJBD1m.js:25:1552)
+sb @ index-hrHJBD1m.js:40
+index-hrHJBD1m.js:40  Uncaught TypeError: Cannot read properties of undefined (reading 'filter')
+    at jCe (index-hrHJBD1m.js:525:30079)
+    at g1 (index-hrHJBD1m.js:38:16998)
+    at lb (index-hrHJBD1m.js:40:3139)
+    at eA (index-hrHJBD1m.js:40:44804)
+    at QT (index-hrHJBD1m.js:40:39766)
+    at M6 (index-hrHJBD1m.js:40:39694)
+    at Ah (index-hrHJBD1m.js:40:39547)
+    at xb (index-hrHJBD1m.js:40:35914)
+    at GT (index-hrHJBD1m.js:40:34865)
+    at j (index-hrHJBD1m.js:25:1552)
+
+
+
+

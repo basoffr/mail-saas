@@ -31,19 +31,23 @@ export default function Templates() {
     queryFn: () => templatesService.getTemplates()
   });
 
-  const filteredTemplates = data?.items?.filter((template: Template) =>
-    template.name.toLowerCase().includes(search.toLowerCase()) ||
-    template.subject.toLowerCase().includes(search.toLowerCase())
-  ).sort((a: Template, b: Template) => {
-    const aVal = a[sortBy];
-    const bVal = b[sortBy];
+  const filteredTemplates = data?.items?.filter((template: Template) => {
+    const name = template.name || '';
+    const subject = template.subject || (template as any).subject_template || '';
+    return name.toLowerCase().includes(search.toLowerCase()) ||
+      subject.toLowerCase().includes(search.toLowerCase());
+  }).sort((a: Template, b: Template) => {
+    const aVal = a[sortBy] || (a as any)[sortBy === 'updatedAt' ? 'updated_at' : sortBy];
+    const bVal = b[sortBy] || (b as any)[sortBy === 'updatedAt' ? 'updated_at' : sortBy];
     const multiplier = sortOrder === 'asc' ? 1 : -1;
     
     if (sortBy === 'updatedAt') {
-      return multiplier * (new Date(aVal).getTime() - new Date(bVal).getTime());
+      const aDate = new Date(aVal || 0).getTime();
+      const bDate = new Date(bVal || 0).getTime();
+      return multiplier * (aDate - bDate);
     }
     
-    return multiplier * aVal.localeCompare(bVal);
+    return multiplier * String(aVal || '').localeCompare(String(bVal || ''));
   }) || [];
 
   if (isLoading) {
@@ -147,12 +151,15 @@ export default function Templates() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredTemplates.map((template) => (
+                filteredTemplates.map((template) => {
+                  const subject = template.subject || (template as any).subject_template || '';
+                  const updatedAt = template.updatedAt || (template as any).updated_at || new Date().toISOString();
+                  return (
                   <TableRow key={template.id} className="hover:bg-muted/50">
                     <TableCell className="font-medium">{template.name}</TableCell>
-                    <TableCell className="max-w-md truncate">{template.subject}</TableCell>
+                    <TableCell className="max-w-md truncate">{subject}</TableCell>
                     <TableCell>
-                      {format(new Date(template.updatedAt), 'dd MMM yyyy HH:mm', { locale: nl })}
+                      {format(new Date(updatedAt), 'dd MMM yyyy HH:mm', { locale: nl })}
                     </TableCell>
                     <TableCell>
                       {template.assets?.length ? (
@@ -197,7 +204,8 @@ export default function Templates() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))
+                  );
+                })
               )}
             </TableBody>
           </Table>
