@@ -36,38 +36,51 @@ export enum MessageStatus {
   REPLIED = 'replied'
 }
 
+/**
+ * Simplified campaign creation payload.
+ * All settings are auto-assigned by backend:
+ * - Flow/version (round-robin first available domain)
+ * - Domain (1-to-1 with flow)
+ * - Templates (4 templates per flow version)
+ * - Followup (hard-coded: +3 workdays)
+ * - Throttle/window (hard-coded sending policy)
+ */
 export interface CampaignCreatePayload {
   name: string;
-  templateId: string;
-  startType: 'now' | 'scheduled';
-  scheduledStart?: Date;
-  followUp: {
-    enabled: boolean;
-    days: number;
-    attachmentRequired: boolean;
+  
+  // Audience selection
+  audience: {
+    mode: 'filter' | 'static';
+    lead_ids?: string[];
+    filter_criteria?: any;
+    
+    // Dedupe settings
+    exclude_suppressed: boolean;
+    exclude_recent_days: number;
+    one_per_domain: boolean;
   };
-  targetType: 'filter' | 'static';
-  leadIds?: string[];
-  filters?: any; // LeadsQuery type from leads
-  dedupe: {
-    suppressBounced: boolean;
-    contactedLastDays: number;
-    onePerDomain: boolean;
+  
+  // Schedule
+  schedule: {
+    start_mode: 'now' | 'scheduled';
+    start_at?: string; // ISO datetime
   };
-  domains: string[];
-  throttle: {
-    perHour: number;
-    windowStart: string; // "08:00"
-    windowEnd: string; // "17:00"
-    weekdays: boolean;
-  };
-  retry: {
-    maxAttempts: number;
-    backoffHours: number;
-  };
+  
+  // Legacy fields (ignored by backend, kept for compatibility)
+  templateId?: string;
+  domains?: string[];
+  followUp?: any;
+  throttle?: any;
+  retry?: any;
 }
 
 export interface CampaignDetail extends Campaign {
+  // Auto-assigned info
+  flowVersion: number; // 1-4
+  domain: string; // punthelder-{type}.nl
+  templates: string[]; // ["v1m1", "v1m2", "v1m3", "v1m4"]
+  estimatedDurationDays: number; // 9 workdays
+  
   settings: {
     followUp: {
       enabled: boolean;

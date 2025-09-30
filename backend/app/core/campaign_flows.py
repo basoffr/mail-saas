@@ -32,10 +32,11 @@ class CampaignFlow:
 
 
 # Hard-coded domain flows (v1-v4)
+# v1 = vindbaarheid, v2 = marketing, v3 = seo, v4 = zoekmachine
 DOMAIN_FLOWS = {
-    "punthelder-marketing.nl": CampaignFlow(
+    "punthelder-vindbaarheid.nl": CampaignFlow(
         version=1,
-        domain="punthelder-marketing.nl",
+        domain="punthelder-vindbaarheid.nl",
         steps=[
             FlowStep(mail_number=1, alias="christian", workdays_offset=0),
             FlowStep(mail_number=2, alias="christian", workdays_offset=3),
@@ -43,9 +44,9 @@ DOMAIN_FLOWS = {
             FlowStep(mail_number=4, alias="victor", workdays_offset=9),
         ]
     ),
-    "punthelder-vindbaarheid.nl": CampaignFlow(
+    "punthelder-marketing.nl": CampaignFlow(
         version=2,
-        domain="punthelder-vindbaarheid.nl",
+        domain="punthelder-marketing.nl",
         steps=[
             FlowStep(mail_number=1, alias="christian", workdays_offset=0),
             FlowStep(mail_number=2, alias="christian", workdays_offset=3),
@@ -109,33 +110,48 @@ def calculate_mail_schedule(campaign_start: datetime, flow: CampaignFlow) -> Dic
     return schedule
 
 
-def get_alias_mapping() -> Dict[str, Dict[str, str]]:
-    """Get alias configuration for From/Reply-To headers."""
+def get_alias_mapping(domain: str) -> Dict[str, Dict[str, str]]:
+    """Get alias configuration for From/Reply-To headers (domain-specific).
+    
+    Args:
+        domain: Campaign domain (e.g., "punthelder-vindbaarheid.nl")
+    
+    Returns:
+        Alias config with domain-specific email addresses
+    """
     return {
         "christian": {
             "name": "Christian",
-            "email": "christian@punthelder.nl",
+            "email": f"christian@{domain}",
             "role": "initial_contact"
         },
         "victor": {
             "name": "Victor", 
-            "email": "victor@punthelder.nl",
+            "email": f"victor@{domain}",
             "role": "follow_up"
         }
     }
 
 
-def get_followup_headers(mail_number: int) -> Dict[str, str]:
-    """Get From/Reply-To headers for follow-up mails."""
+def get_followup_headers(mail_number: int, domain: str) -> Dict[str, str]:
+    """Get From/Reply-To headers for follow-up mails (domain-specific).
+    
+    Args:
+        mail_number: Mail number (1-4)
+        domain: Campaign domain
+    
+    Returns:
+        From/Reply-To headers with domain-specific addresses
+    """
     if mail_number in [3, 4]:  # Victor mails
         return {
-            "from": "victor@punthelder.nl",
-            "reply_to": "christian@punthelder.nl"
+            "from": f"victor@{domain}",
+            "reply_to": f"christian@{domain}"
         }
     else:  # Christian mails
         return {
-            "from": "christian@punthelder.nl", 
-            "reply_to": "christian@punthelder.nl"
+            "from": f"christian@{domain}", 
+            "reply_to": f"christian@{domain}"
         }
 
 

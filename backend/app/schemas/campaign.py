@@ -73,12 +73,23 @@ class FollowupSettings(BaseModel):
 
 
 class CampaignCreatePayload(BaseModel):
+    """Simplified campaign creation payload.
+    
+    All settings are auto-assigned by backend:
+    - Flow/version (round-robin first available domain)
+    - Domain (1-to-1 with flow)
+    - Templates (4 templates per flow version)
+    - Followup (hard-coded: +3 workdays)
+    - Throttle/window (hard-coded sending policy)
+    """
     name: str = Field(..., min_length=1, max_length=255)
-    template_id: str
     audience: AudienceSelection
     schedule: ScheduleSettings
-    domains: List[str] = Field(..., min_items=1)
-    followup: FollowupSettings
+    
+    # Legacy fields (deprecated, kept for backward compatibility)
+    template_id: Optional[str] = None  # Ignored, auto-assigned
+    domains: Optional[List[str]] = None  # Ignored, auto-assigned
+    followup: Optional[FollowupSettings] = None  # Ignored, hard-coded
 
 
 # Campaign detail with KPIs
@@ -102,6 +113,11 @@ class CampaignDetail(CampaignOut):
     timeline: List[TimelinePoint]
     domains_used: List[str]
     audience_count: int
+    
+    # Auto-assigned info (for UI display)
+    flow_version: int
+    templates: List[str]  # e.g., ["v1m1", "v1m2", "v1m3", "v1m4"]
+    estimated_duration_days: int  # 9 workdays
 
 
 # API response wrappers

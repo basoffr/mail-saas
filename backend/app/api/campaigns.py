@@ -3,8 +3,8 @@ from datetime import datetime
 from typing import List, Dict, Any
 from fastapi import APIRouter, HTTPException, Depends, Query
 from loguru import logger
-
 from app.core.auth import require_auth
+from app.core.campaign_flows import get_all_flows, get_flow_for_domain
 from app.schemas.common import DataResponse
 from app.schemas.campaign import (
     CampaignOut, CampaignDetail, CampaignCreatePayload, CampaignsResponse,
@@ -56,59 +56,63 @@ async def list_campaigns(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+def _assign_next_available_flow(start_at: Optional[datetime] = None):
+    """Assign next available flow/domain (round-robin).
+    
+    Returns:
+        tuple: (flow, domain, templates)
+    
+    Raises:
+        HTTPException: If all domains are busy
+    """
+    flows = get_all_flows()
+    check_time = start_at or datetime.now()
+    
+    # Try each flow/domain in order (v1-v4)
+    for domain, flow in flows.items():
+        if not campaign_store.check_domain_busy(domain):
+            # Get templates for this flow version
+            templates = [
+                f"v{flow.version}m1",
+                f"v{flow.version}m2",
+                f"v{flow.version}m3",
+                f"v{flow.version}m4"
+            ]
+            return flow, domain, templates
+    
+    # All domains busy
+    raise HTTPException(
+        status_code=409,
+        detail={"error": "all_domains_busy", "message": "All domains are currently running campaigns"}
+    )
+
+
 @router.post("", response_model=DataResponse[Dict[str, str]])
 async def create_campaign(
     payload: CampaignCreatePayload,
     user: Dict[str, Any] = Depends(require_auth)
 ):
-    """Create a new campaign (no overrides allowed)."""
+    """Create a new campaign with auto-assigned flow/domain/templates."""
     try:
-        # Check for forbidden override fields
-        payload_dict = payload.model_dump()
-        override_fields = {
-            "timezone_override", "sending_window_start_override", "sending_window_end_override",
-            "sending_days_override", "throttle_minutes_override", "timezoneOverride",
-            "sendingWindowStartOverride", "sendingWindowEndOverride", "sendingDaysOverride",
-            "throttleMinutesOverride"
-        }
+        # Auto-assign flow/domain/templates (round-robin first available)
+        flow, domain, templates = _assign_next_available_flow(payload.schedule.start_at)
         
-        forbidden_fields = set(payload_dict.keys()) & override_fields
-        if forbidden_fields:
-            logger.warning(f"Campaign create attempt with override fields: {forbidden_fields}")
-            raise HTTPException(
-                status_code=400,
-                detail={"error": "campaign_overrides_forbidden"}
-            )
+        logger.info(
+            f"Auto-assigned: flow v{flow.version} ({domain}), "
+            f"templates: {templates}"
+        )
         
-        # Validate domain is provided and check if busy
-        if not payload.domains or len(payload.domains) == 0:
-            raise HTTPException(
-                status_code=400,
-                detail={"error": "invalid_payload"}
-            )
-        
-        # Use first domain for now (MVP: 1 domain per campaign)
-        domain = payload.domains[0]
-        
-        # Check if domain is busy
-        if campaign_store.check_domain_busy(domain):
-            logger.warning(f"Campaign create attempt on busy domain: {domain}")
-            raise HTTPException(
-                status_code=409,
-                detail={"error": "domain_busy"}
-            )
-        
-        # Create campaign
+        # Create campaign with auto-assigned values
         campaign = Campaign(
             id=str(uuid.uuid4()),
             name=payload.name,
-            template_id=payload.template_id,
+            template_id=templates[0],  # Use first template (v{X}m1)
             domain=domain,
             start_at=payload.schedule.start_at if payload.schedule.start_mode == "scheduled" else None,
             status=CampaignStatus.draft,
-            followup_enabled=payload.followup.enabled,
-            followup_days=payload.followup.days,
-            followup_attach_report=payload.followup.attach_report
+            followup_enabled=True,  # Hard-coded
+            followup_days=3,  # Hard-coded: +3 workdays
+            followup_attach_report=False  # Hard-coded for MVP
         )
         
         campaign = campaign_store.create_campaign(campaign)
@@ -127,7 +131,7 @@ async def create_campaign(
         
         # If starting now, create and schedule messages
         if payload.schedule.start_mode == "now":
-            await _start_campaign(campaign, audience, payload.domains)
+            await _start_campaign(campaign, audience, [domain])
         
         logger.info(f"Created campaign {campaign.id}: {campaign.name}")
         return DataResponse(data={"id": campaign.id})

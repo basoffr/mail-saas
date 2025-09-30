@@ -9,7 +9,7 @@ import { AppTopbar } from "@/components/layout/AppTopbar";
 import Leads from "./pages/leads/Leads";
 import LeadImport from "./pages/leads/LeadImport";
 import Campaigns from "./pages/campaigns/Campaigns";
-import CampaignNew from "./pages/campaigns/CampaignNew";
+import CampaignNew from "./pages/campaigns/CampaignNewSimplified";
 import CampaignDetail from "./pages/campaigns/CampaignDetail";
 import Templates from "./pages/templates/Templates";
 import TemplateDetail from "./pages/templates/TemplateDetail";
