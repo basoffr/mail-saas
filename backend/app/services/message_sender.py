@@ -105,16 +105,18 @@ class MessageSender:
         
         # Reset status to queued for retry
         message.status = MessageStatus.queued
-        message.last_error = None
         
         # Attempt send again
         return await self.send_message(message, lead, template_content)
     
     def generate_unsubscribe_headers(self, message: Message, lead: Lead) -> Dict[str, str]:
-        """Generate unsubscribe headers for email compliance."""
+        """Generate List-Unsubscribe headers for RFC 8058 compliance."""
+        import os
+        base_url = os.getenv('API_BASE_URL', 'https://mail-saas-rf4s.onrender.com')
+        token = self._generate_token(message.id)
         
-        unsubscribe_url = f"https://yourdomain.com/unsubscribe?m={message.id}&t={self._generate_token(message.id)}"
-        unsubscribe_mailto = f"unsubscribe-{message.id}@yourdomain.com"
+        unsubscribe_url = f"{base_url}/api/v1/unsubscribe?m={message.id}&t={token}"
+        unsubscribe_mailto = f"unsubscribe-{message.id}@mail-saas-rf4s.onrender.com"
         
         return {
             "List-Unsubscribe": f"<{unsubscribe_url}>, <mailto:{unsubscribe_mailto}>",
@@ -123,20 +125,109 @@ class MessageSender:
     
     def generate_tracking_pixel_url(self, message: Message) -> str:
         """Generate tracking pixel URL for open tracking."""
+        import os
+        base_url = os.getenv('API_BASE_URL', 'https://mail-saas-rf4s.onrender.com')
         token = self._generate_token(message.id)
-        return f"https://yourdomain.com/track/open.gif?m={message.id}&t={token}"
+        return f"{base_url}/api/v1/track/open.gif?m={message.id}&t={token}"
     
     async def _send_via_smtp(self, message: Message, lead: Lead, template_content: str) -> bool:
         """Send email via actual SMTP (production implementation)."""
-        # TODO: Implement actual SMTP sending
-        # - Connect to SMTP server
-        # - Add unsubscribe headers
-        # - Add tracking pixel to HTML content
-        # - Send email
-        # - Handle SMTP errors
+        import smtplib
+        import os
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+        from email.utils import formataddr
         
-        logger.info(f"SMTP sending not implemented yet for message {message.id}")
-        return True
+        # Check if tracking pixel should be added
+        from app.services.settings import settings_service
+        from app.services.template_renderer import inject_tracking_pixel
+        
+        settings = settings_service.get_settings()
+        
+        if settings.tracking_pixel_enabled:
+            pixel_url = self.generate_tracking_pixel_url(message)
+            template_content = inject_tracking_pixel(template_content, pixel_url)
+            logger.debug(f"Injected tracking pixel for message {message.id}")
+        
+        # Get unsubscribe headers
+        unsub_headers = self.generate_unsubscribe_headers(message, lead)
+        
+        # Get SMTP credentials from environment
+        smtp_host = os.getenv("SMTP_HOST", "smtp.vimexx.nl")
+        smtp_port = int(os.getenv("SMTP_PORT", "587"))
+        smtp_user = os.getenv("SMTP_USER")
+        smtp_password = os.getenv("SMTP_PASSWORD")
+        
+        if not smtp_user or not smtp_password:
+            logger.error("SMTP credentials not configured in environment")
+            return False
+        
+        # Get campaign to determine template subject
+        campaign = campaign_store.get_campaign(message.campaign_id)
+        if not campaign:
+            logger.error(f"Campaign {message.campaign_id} not found for message {message.id}")
+            return False
+        
+        # Get template for subject
+        from app.services.template_store import template_store
+        template = template_store.get(campaign.template_id)
+        if not template:
+            logger.error(f"Template {campaign.template_id} not found")
+            return False
+        
+        # Determine From address based on domain
+        from_name = "Christian"
+        from_email = f"christian@{message.domain_used}"
+        reply_to = from_email
+        
+        try:
+            # Create message
+            msg = MIMEMultipart('alternative')
+            msg['From'] = formataddr((from_name, from_email))
+            msg['To'] = lead.email
+            msg['Subject'] = template.subject
+            msg['Reply-To'] = reply_to
+            
+            # Add unsubscribe headers
+            for key, value in unsub_headers.items():
+                msg[key] = value
+            
+            # Add HTML body
+            html_part = MIMEText(template_content, 'html', 'utf-8')
+            msg.attach(html_part)
+            
+            # Connect to SMTP server
+            logger.debug(f"Connecting to SMTP server {smtp_host}:{smtp_port}")
+            
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=30) as server:
+                # Start TLS
+                server.starttls()
+                
+                # Login
+                logger.debug(f"Authenticating as {smtp_user}")
+                server.login(smtp_user, smtp_password)
+                
+                # Send email
+                server.send_message(msg)
+                
+            logger.info(f"Successfully sent email via SMTP for message {message.id} to {lead.email}")
+            return True
+            
+        except smtplib.SMTPAuthenticationError as e:
+            logger.error(f"SMTP authentication failed for message {message.id}: {str(e)}")
+            return False
+            
+        except smtplib.SMTPConnectError as e:
+            logger.error(f"SMTP connection failed for message {message.id}: {str(e)}")
+            return False
+            
+        except smtplib.SMTPException as e:
+            logger.error(f"SMTP error sending message {message.id}: {str(e)}")
+            return False
+            
+        except Exception as e:
+            logger.error(f"Unexpected error sending message {message.id} via SMTP: {str(e)}")
+            return False
     
     async def _simulate_send(self, message: Message, lead: Lead) -> bool:
         """Simulate email sending for MVP."""

@@ -261,6 +261,37 @@ async def stop_campaign(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@router.post("/{campaign_id}/duplicate", response_model=DataResponse[CampaignOut])
+async def duplicate_campaign(
+    campaign_id: str,
+    user: Dict[str, Any] = Depends(require_auth)
+):
+    """Duplicate an existing campaign with new ID."""
+    try:
+        # Check if campaign exists
+        original = campaign_store.get_campaign(campaign_id)
+        if not original:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+        
+        # Duplicate campaign
+        duplicate = campaign_store.duplicate_campaign(campaign_id)
+        if not duplicate:
+            raise HTTPException(status_code=500, detail="Failed to duplicate campaign")
+        
+        logger.info(f"Duplicated campaign {campaign_id} to {duplicate.id}")
+        
+        # Return duplicated campaign
+        return DataResponse(
+            data=CampaignOut.model_validate(duplicate.__dict__)
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error duplicating campaign: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 @router.post("/{campaign_id}/dry-run", response_model=DataResponse[DryRunResponse])
 async def dry_run_campaign(
     campaign_id: str,
@@ -295,6 +326,37 @@ async def dry_run_campaign(
         raise
     except Exception as e:
         logger.error(f"Error in dry run: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/{campaign_id}/messages", response_model=DataResponse[MessagesResponse])
+async def get_campaign_messages(
+    campaign_id: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+    status: List[MessageStatus] = Query(None),
+    user: Dict[str, Any] = Depends(require_auth)
+):
+    """Get messages for a specific campaign."""
+    try:
+        query = MessageQuery(
+            page=page,
+            page_size=page_size,
+            campaign_id=campaign_id,
+            status=status
+        )
+        
+        messages, total = campaign_store.list_messages(query)
+        
+        response = MessagesResponse(
+            items=[MessageOut.model_validate(m.__dict__) for m in messages],
+            total=total
+        )
+        
+        return DataResponse(data=response)
+        
+    except Exception as e:
+        logger.error(f"Error getting campaign messages: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 

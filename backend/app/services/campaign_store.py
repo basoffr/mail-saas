@@ -22,6 +22,52 @@ class CampaignStore:
         logger.info(f"Created campaign {campaign.id}: {campaign.name}")
         return campaign
     
+    def duplicate_campaign(self, campaign_id: str) -> Optional[Campaign]:
+        """Duplicate an existing campaign with new ID and reset status."""
+        original = self.campaigns.get(campaign_id)
+        if not original:
+            logger.warning(f"Campaign {campaign_id} not found for duplication")
+            return None
+        
+        # Create new campaign with copied attributes
+        new_id = str(uuid.uuid4())
+        duplicate = Campaign(
+            id=new_id,
+            name=f"{original.name} (Copy)",
+            template_id=original.template_id,
+            domain=original.domain,
+            status=CampaignStatus.draft,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+            start_at=None,  # Reset start date
+            # Copy follow-up settings
+            followup_enabled=original.followup_enabled,
+            followup_days=original.followup_days,
+            followup_attach_report=original.followup_attach_report
+        )
+        
+        # Save duplicate
+        self.campaigns[new_id] = duplicate
+        logger.info(f"Duplicated campaign {campaign_id} to {new_id}: {duplicate.name}")
+        
+        # Copy audience if exists
+        for audience_id, audience in self.audiences.items():
+            if audience.campaign_id == campaign_id:
+                new_audience = CampaignAudience(
+                    id=str(uuid.uuid4()),
+                    campaign_id=new_id,
+                    lead_ids=audience.lead_ids.copy(),  # Copy lead IDs
+                    exclude_suppressed=audience.exclude_suppressed,
+                    exclude_recent_days=audience.exclude_recent_days,
+                    one_per_domain=audience.one_per_domain,
+                    created_at=datetime.utcnow()
+                )
+                self.audiences[new_audience.id] = new_audience
+                logger.info(f"Duplicated audience with {len(new_audience.lead_ids)} leads")
+                break
+        
+        return duplicate
+    
     def check_domain_busy(self, domain: str) -> bool:
         """Check if domain has an active campaign running."""
         active_statuses = {CampaignStatus.running}

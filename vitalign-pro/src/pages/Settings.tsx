@@ -173,13 +173,17 @@ const Settings = () => {
                   
                   <div className="space-y-2">
                     <Label>Werkdagen</Label>
-                    <div className="flex flex-wrap gap-1">
-                      {(settings?.window?.days || []).map((day) => (
-                        <Badge key={day} variant="outline" className="text-xs">
-                          {day}
-                        </Badge>
-                      ))}
-                    </div>
+                    {settings?.window?.days && Array.isArray(settings.window.days) ? (
+                      <div className="flex flex-wrap gap-1">
+                        {settings.window.days.map((day) => (
+                          <Badge key={day} variant="outline" className="text-xs">
+                            {day}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Geen werkdagen geconfigureerd</p>
+                    )}
                   </div>
                   
                   <div className="space-y-2">

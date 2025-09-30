@@ -185,6 +185,15 @@ class LeadsStore:
             if rec.id == lead_id:
                 return rec.stopped
         return False
+    
+    def update_status(self, lead_id: str, status: LeadStatus) -> bool:
+        """Update lead status (e.g., for unsubscribe). Returns True if found."""
+        for rec in self._leads:
+            if rec.id == lead_id:
+                rec.status = status
+                rec.updated_at = _now()
+                return True
+        return False
 
 
 # Global instance

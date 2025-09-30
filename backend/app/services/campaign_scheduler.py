@@ -20,6 +20,13 @@ class CampaignScheduler:
     - Max 1 active campaign per domain
     """
     
+    # Class constants for backwards compatibility with old methods
+    TIMEZONE = ZoneInfo("Europe/Amsterdam")
+    WORK_DAYS = [0, 1, 2, 3, 4]  # Monday-Friday (weekday numbers)
+    WORK_START_HOUR = 8
+    WORK_END_HOUR = 17
+    THROTTLE_MINUTES = 20
+    
     def __init__(self):
         # In-memory tracking for MVP (replace with Redis/DB in production)
         self.domain_queues: Dict[str, List[Dict]] = {}  # FIFO queue per domain
@@ -207,29 +214,71 @@ class CampaignScheduler:
         domains: List[str],
         start_at: Optional[datetime] = None
     ) -> List[DryRunDay]:
-        """Simulate campaign planning without creating actual messages."""
+        """Simulate campaign planning using flow-based scheduling.
+        
+        Uses the same logic as actual campaign scheduling:
+        - Each lead gets 4 mails (flow steps)
+        - Mails scheduled based on domain flow (christian/victor, workday offsets)
+        - 20-minute throttling between mails on same domain
+        """
         
         if start_at is None:
             start_at = datetime.now(self.TIMEZONE)
         
-        next_slot = self._get_next_valid_slot(start_at)
-        domain_slots: Dict[str, datetime] = {domain: next_slot for domain in domains}
-        
         # Track messages per day
         daily_counts: Dict[str, int] = {}
         
+        # Get flow for first domain (all have same structure)
+        from app.core.campaign_flows import get_flow_for_domain, calculate_mail_schedule
+        
+        if not domains:
+            return []
+        
+        domain = domains[0]  # Use first domain for flow structure
+        flow = get_flow_for_domain(domain)
+        
+        if not flow:
+            # Fallback to old logic if no flow found
+            logger.warning(f"No flow found for domain {domain}, using fallback")
+            return self._dry_run_fallback(lead_count, domains, start_at)
+        
+        # For each lead, schedule all mails in the flow
+        for lead_idx in range(lead_count):
+            # Calculate base schedule for this lead
+            mail_schedule = calculate_mail_schedule(start_at, flow)
+            
+            # Add each mail to daily counts
+            for mail_number, scheduled_at in mail_schedule.items():
+                date_key = scheduled_at.strftime("%Y-%m-%d")
+                daily_counts[date_key] = daily_counts.get(date_key, 0) + 1
+        
+        # Convert to response format
+        return [
+            DryRunDay(date=date, planned=count)
+            for date, count in sorted(daily_counts.items())
+        ]
+    
+    def _dry_run_fallback(
+        self,
+        lead_count: int,
+        domains: List[str],
+        start_at: datetime
+    ) -> List[DryRunDay]:
+        """Fallback dry-run logic when no flow is available."""
+        next_slot = self._get_next_valid_slot(start_at)
+        domain_slots: Dict[str, datetime] = {domain: next_slot for domain in domains}
+        
+        daily_counts: Dict[str, int] = {}
+        
         for i in range(lead_count):
-            domain = domains[i % len(domains)]  # Simple round-robin for dry run
+            domain = domains[i % len(domains)]
             slot_time = domain_slots[domain]
             
-            # Count by date
             date_key = slot_time.strftime("%Y-%m-%d")
             daily_counts[date_key] = daily_counts.get(date_key, 0) + 1
             
-            # Advance slot
             domain_slots[domain] = self._get_next_slot_for_domain(slot_time)
         
-        # Convert to response format
         return [
             DryRunDay(date=date, planned=count)
             for date, count in sorted(daily_counts.items())

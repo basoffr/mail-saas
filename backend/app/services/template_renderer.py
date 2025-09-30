@@ -161,6 +161,22 @@ class TemplateRenderer:
         return warnings
 
 
+def inject_tracking_pixel(html: str, pixel_url: str) -> str:
+    """
+    Inject 1x1 tracking pixel before closing </body> tag.
+    If no </body> tag found, append to end of HTML.
+    """
+    pixel_html = f'<img src="{pixel_url}" width="1" height="1" alt="" style="display:none;" />'
+    
+    if '</body>' in html.lower():
+        # Case-insensitive replacement
+        import re
+        return re.sub(r'</body>', f'{pixel_html}</body>', html, count=1, flags=re.IGNORECASE)
+    else:
+        # No body tag, append to end
+        return html + pixel_html
+
+
 def render_template_with_lead(template_body: str, subject_template: str, lead_data: Dict[str, Any], campaign_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Render template with lead data"""
     renderer = TemplateRenderer()

@@ -124,12 +124,18 @@ export default function Campaigns() {
           toast({ title: 'Campaign stopped successfully' });
           break;
         case 'duplicate':
-          response = await campaignsService.duplicateCampaign(campaignId);
-          toast({ title: 'Campaign duplicated successfully' });
-          break;
+          const duplicatedCampaign = await campaignsService.duplicateCampaign(campaignId);
+          toast({ 
+            title: 'Campaign duplicated successfully',
+            description: `Created: ${duplicatedCampaign.name}`
+          });
+          await fetchCampaigns();
+          // Navigate to the new duplicate campaign
+          navigate(`/campaigns/${duplicatedCampaign.id}`);
+          return;
       }
       
-      if (response?.ok || response?.id) {
+      if (response?.ok) {
         await fetchCampaigns();
       }
     } catch (error) {
@@ -399,13 +405,13 @@ export default function Campaigns() {
                           )}
                           
                           <DropdownMenuSeparator />
-                          
-                          <DropdownMenuItem
-                            onClick={() => handleAction('duplicate', campaign.id)}
-                          >
-                            <Copy className="w-4 h-4 mr-2" />
-                            Duplicate
-                          </DropdownMenuItem>
+                      
+                      <DropdownMenuItem
+                        onClick={() => handleAction('duplicate', campaign.id)}
+                      >
+                        <Copy className="w-4 h-4 mr-2" />
+                        Duplicate
+                      </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

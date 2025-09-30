@@ -48,8 +48,8 @@ export const campaignsService = {
     });
   },
 
-  async duplicateCampaign(id: string): Promise<{ id: string }> {
-    return await authService.apiCall<{ id: string }>(`/campaigns/${id}/duplicate`, {
+  async duplicateCampaign(id: string): Promise<Campaign> {
+    return await authService.apiCall<Campaign>(`/campaigns/${id}/duplicate`, {
       method: 'POST',
     });
   },
@@ -59,7 +59,10 @@ export const campaignsService = {
   },
 
   async getCampaignMessages(campaignId: string): Promise<CampaignMessage[]> {
-    return await authService.apiCall<CampaignMessage[]>(`/campaigns/${campaignId}/messages`);
+    const response = await authService.apiCall<{ items: CampaignMessage[]; total: number }>(
+      `/campaigns/${campaignId}/messages`
+    );
+    return response.items || [];
   },
 
   async resendMessage(messageId: string): Promise<{ ok: boolean }> {
