@@ -10,6 +10,7 @@ class MailAccountsStore:
     
     def __init__(self):
         self.accounts: Dict[str, Dict[str, Any]] = {}
+        self._seed_default_accounts()
     
     
     def get_all(self) -> List[Dict[str, Any]]:
@@ -100,6 +101,96 @@ class MailAccountsStore:
                 return username[0] + '*' * (len(username) - 1)
             else:
                 return username[:3] + '*' * (len(username) - 3)
+    
+    def _seed_default_accounts(self):
+        """Seed default IMAP accounts for MVP (4 domains × 2 aliases = 8 accounts)"""
+        default_accounts = [
+            # Punthelder Marketing (Christian)
+            {
+                'label': 'Punthelder Marketing - Christian',
+                'imap_host': 'mail.punthelder-marketing.nl',
+                'imap_port': 993,
+                'use_ssl': True,
+                'username': 'christian@punthelder-marketing.nl',
+                'secret_ref': 'vault://imap/punthelder-marketing/christian',
+                'active': True
+            },
+            # Punthelder Marketing (Victor)
+            {
+                'label': 'Punthelder Marketing - Victor',
+                'imap_host': 'mail.punthelder-marketing.nl',
+                'imap_port': 993,
+                'use_ssl': True,
+                'username': 'victor@punthelder-marketing.nl',
+                'secret_ref': 'vault://imap/punthelder-marketing/victor',
+                'active': True
+            },
+            # Punthelder SEO (Christian)
+            {
+                'label': 'Punthelder SEO - Christian',
+                'imap_host': 'mail.punthelder-seo.nl',
+                'imap_port': 993,
+                'use_ssl': True,
+                'username': 'christian@punthelder-seo.nl',
+                'secret_ref': 'vault://imap/punthelder-seo/christian',
+                'active': True
+            },
+            # Punthelder SEO (Victor)
+            {
+                'label': 'Punthelder SEO - Victor',
+                'imap_host': 'mail.punthelder-seo.nl',
+                'imap_port': 993,
+                'use_ssl': True,
+                'username': 'victor@punthelder-seo.nl',
+                'secret_ref': 'vault://imap/punthelder-seo/victor',
+                'active': True
+            },
+            # Punthelder Vindbaarheid (Christian)
+            {
+                'label': 'Punthelder Vindbaarheid - Christian',
+                'imap_host': 'mail.punthelder-vindbaarheid.nl',
+                'imap_port': 993,
+                'use_ssl': True,
+                'username': 'christian@punthelder-vindbaarheid.nl',
+                'secret_ref': 'vault://imap/punthelder-vindbaarheid/christian',
+                'active': True
+            },
+            # Punthelder Vindbaarheid (Victor)
+            {
+                'label': 'Punthelder Vindbaarheid - Victor',
+                'imap_host': 'mail.punthelder-vindbaarheid.nl',
+                'imap_port': 993,
+                'use_ssl': True,
+                'username': 'victor@punthelder-vindbaarheid.nl',
+                'secret_ref': 'vault://imap/punthelder-vindbaarheid/victor',
+                'active': True
+            },
+            # Punthelder Zoekmachine (Christian)
+            {
+                'label': 'Punthelder Zoekmachine - Christian',
+                'imap_host': 'mail.punthelder-zoekmachine.nl',
+                'imap_port': 993,
+                'use_ssl': True,
+                'username': 'christian@punthelder-zoekmachine.nl',
+                'secret_ref': 'vault://imap/punthelder-zoekmachine/christian',
+                'active': True
+            },
+            # Punthelder Zoekmachine (Victor)
+            {
+                'label': 'Punthelder Zoekmachine - Victor',
+                'imap_host': 'mail.punthelder-zoekmachine.nl',
+                'imap_port': 993,
+                'use_ssl': True,
+                'username': 'victor@punthelder-zoekmachine.nl',
+                'secret_ref': 'vault://imap/punthelder-zoekmachine/victor',
+                'active': True
+            }
+        ]
+        
+        for account_data in default_accounts:
+            self.create(account_data)
+        
+        logger.info(f"Seeded {len(default_accounts)} default IMAP accounts for MVP")
 
 
 class MailAccountService:

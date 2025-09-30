@@ -33,12 +33,12 @@ export default function Templates() {
 
   const filteredTemplates = data?.items?.filter((template: Template) => {
     const name = template.name || '';
-    const subject = template.subject || (template as any).subject_template || '';
+    const subject = template.subject || '';
     return name.toLowerCase().includes(search.toLowerCase()) ||
       subject.toLowerCase().includes(search.toLowerCase());
   }).sort((a: Template, b: Template) => {
-    const aVal = a[sortBy] || (a as any)[sortBy === 'updatedAt' ? 'updated_at' : sortBy];
-    const bVal = b[sortBy] || (b as any)[sortBy === 'updatedAt' ? 'updated_at' : sortBy];
+    const aVal = a[sortBy];
+    const bVal = b[sortBy];
     const multiplier = sortOrder === 'asc' ? 1 : -1;
     
     if (sortBy === 'updatedAt') {
