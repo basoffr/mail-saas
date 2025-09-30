@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Send } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -88,9 +88,9 @@ export function TestsendModal({ open, onOpenChange, templateId }: TestsendModalP
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Test email versturen</DialogTitle>
-          <p className="text-sm text-muted-foreground">
+          <DialogDescription className="text-sm text-muted-foreground">
             Verstuur een test versie van deze template
-          </p>
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -121,7 +121,7 @@ export function TestsendModal({ open, onOpenChange, templateId }: TestsendModalP
                 <SelectValue placeholder="Selecteer lead voor variabelen" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Geen lead (toon placeholders)</SelectItem>
+                <SelectItem value="__none__">Geen lead (toon placeholders)</SelectItem>
                 {leads?.items.map((lead) => (
                   <SelectItem key={lead.id} value={lead.id}>
                     {lead.email} {lead.companyName ? `(${lead.companyName})` : ''}
