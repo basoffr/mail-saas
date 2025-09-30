@@ -67,27 +67,16 @@ const Settings = () => {
       
       const response = await settingsService.updateSettings(updates);
       
-      if (response.ok) {
-        toast({
-          title: 'Opgeslagen!',
-          description: response.message || 'Instellingen zijn succesvol opgeslagen',
-        });
-        
-        // Update local settings
-        setSettings(prev => prev ? {
-          ...prev,
-          unsubscribeText,
-          trackingPixelEnabled
-        } : null);
-        
-        setHasChanges(false);
-      } else {
-        toast({
-          title: 'Fout bij opslaan',
-          description: response.message || 'Er is een fout opgetreden',
-          variant: 'destructive'
-        });
-      }
+      // Update local settings with response
+      setSettings(response);
+      setUnsubscribeText(response.unsubscribeText);
+      setTrackingPixelEnabled(response.trackingPixelEnabled);
+      setHasChanges(false);
+      
+      toast({
+        title: 'Opgeslagen!',
+        description: 'Instellingen zijn succesvol opgeslagen',
+      });
     } catch (error) {
       toast({
         title: 'Fout bij opslaan',
@@ -99,8 +88,13 @@ const Settings = () => {
     }
   };
 
-  const handleCopy = async (value: string) => {
-    return await settingsService.copyToClipboard(value);
+  const handleCopy = async (value: string): Promise<boolean> => {
+    try {
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch (error) {
+      return false;
+    }
   };
 
   // Check for changes
@@ -319,7 +313,7 @@ const Settings = () => {
                   </Label>
                   <div className="flex items-center gap-2">
                     <Badge variant="default" className="font-medium">
-                      {settingsService.getProviderStatus().label} (Vimexx)
+                      SMTP (Vimexx)
                     </Badge>
                   </div>
                 </div>
