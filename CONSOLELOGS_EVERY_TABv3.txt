@@ -1,0 +1,342 @@
+https://mail-saas-xi.vercel.app/leads
+
+Auth Service initialized: 
+Object
+baseUrl
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1"
+hasToken
+: 
+true
+timeout
+: 
+5000
+[[Prototype]]
+: 
+Object
+index-CCktGi4U.js:440 API Call: 
+Object
+hasAuth
+: 
+true
+method
+: 
+"GET"
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/leads?page=1&page_size=25&sort_by=createdAt&sort_order=desc"
+[[Prototype]]
+: 
+Object
+index-CCktGi4U.js:440 Calling templates API: https://mail-saas-rf4s.onrender.com/api/v1/templates
+index-CCktGi4U.js:440 API Call: 
+Object
+hasAuth
+: 
+true
+method
+: 
+"GET"
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/templates"
+[[Prototype]]
+: 
+Object
+index-CCktGi4U.js:440 API Response: 
+Object
+status
+: 
+200
+statusText
+: 
+""
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/leads?page=1&page_size=25&sort_by=createdAt&sort_order=desc"
+[[Prototype]]
+: 
+Object
+index-CCktGi4U.js:440 API Response: 
+Object
+status
+: 
+200
+statusText
+: 
+""
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/templates"
+[[Prototype]]
+: 
+Object
+
+https://mail-saas-xi.vercel.app/campaigns
+
+API Call: 
+{method: 'GET', url: 'https://mail-saas-rf4s.onrender.com/api/v1/campaigns', hasAuth: true}
+hasAuth
+: 
+true
+method
+: 
+"GET"
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/campaigns"
+[[Prototype]]
+: 
+Object
+index-CCktGi4U.js:440 API Response: 
+{status: 200, statusText: '', url: 'https://mail-saas-rf4s.onrender.com/api/v1/campaigns'}
+status
+: 
+200
+statusText
+: 
+""
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/campaigns"
+[[Prototype]]
+: 
+Object
+
+https://mail-saas-xi.vercel.app/templates
+
+Calling templates API: https://mail-saas-rf4s.onrender.com/api/v1/templates
+index-CCktGi4U.js:440 API Call: 
+{method: 'GET', url: 'https://mail-saas-rf4s.onrender.com/api/v1/templates', hasAuth: true}
+hasAuth
+: 
+true
+method
+: 
+"GET"
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/templates"
+[[Prototype]]
+: 
+Object
+index-CCktGi4U.js:440 API Response: 
+{status: 200, statusText: '', url: 'https://mail-saas-rf4s.onrender.com/api/v1/templates'}
+status
+: 
+200
+statusText
+: 
+""
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/templates"
+[[Prototype]]
+: 
+Object
+
+https://mail-saas-xi.vercel.app/reports
+
+API Call: 
+{method: 'GET', url: 'https://mail-saas-rf4s.onrender.com/api/v1/reports?page=1&page_size=20&search=&bound_filter=all', hasAuth: true}
+hasAuth
+: 
+true
+method
+: 
+"GET"
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/reports?page=1&page_size=20&search=&bound_filter=all"
+[[Prototype]]
+: 
+Object
+index-CCktGi4U.js:440 API Response: 
+{status: 200, statusText: '', url: 'https://mail-saas-rf4s.onrender.com/api/v1/reports?page=1&page_size=20&search=&bound_filter=all'}
+status
+: 
+200
+statusText
+: 
+""
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/reports?page=1&page_size=20&search=&bound_filter=all"
+[[Prototype]]
+: 
+Object
+
+https://mail-saas-xi.vercel.app/stats
+
+API Call: 
+{method: 'GET', url: 'https://mail-saas-rf4s.onrender.com/api/v1/stats/summary?from=2025-08-31&to=2025-09-30', hasAuth: true}
+hasAuth
+: 
+true
+method
+: 
+"GET"
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/stats/summary?from=2025-08-31&to=2025-09-30"
+[[Prototype]]
+: 
+Object
+index-CCktGi4U.js:440 API Response: 
+{status: 200, statusText: '', url: 'https://mail-saas-rf4s.onrender.com/api/v1/stats/summary?from=2025-08-31&to=2025-09-30'}
+status
+: 
+200
+statusText
+: 
+""
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/stats/summary?from=2025-08-31&to=2025-09-30"
+[[Prototype]]
+: 
+Object
+
+https://mail-saas-xi.vercel.app/inbox
+
+API Call: 
+{method: 'GET', url: 'https://mail-saas-rf4s.onrender.com/api/v1/inbox/messages?page=1&page_size=25', hasAuth: true}
+hasAuth
+: 
+true
+method
+: 
+"GET"
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/inbox/messages?page=1&page_size=25"
+[[Prototype]]
+: 
+Object
+index-CCktGi4U.js:440 API Call: 
+{method: 'GET', url: 'https://mail-saas-rf4s.onrender.com/api/v1/settings/inbox/accounts', hasAuth: true}
+hasAuth
+: 
+true
+method
+: 
+"GET"
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/settings/inbox/accounts"
+[[Prototype]]
+: 
+Object
+index-CCktGi4U.js:440 API Response: 
+{status: 200, statusText: '', url: 'https://mail-saas-rf4s.onrender.com/api/v1/settings/inbox/accounts'}
+status
+: 
+200
+statusText
+: 
+""
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/settings/inbox/accounts"
+[[Prototype]]
+: 
+Object
+index-CCktGi4U.js:440 API Response: 
+{status: 200, statusText: '', url: 'https://mail-saas-rf4s.onrender.com/api/v1/inbox/messages?page=1&page_size=25'}
+status
+: 
+200
+statusText
+: 
+""
+url
+: 
+"https://mail-saas-rf4s.onrender.com/api/v1/inbox/messages?page=1&page_size=25"
+[[Prototype]]
+: 
+Object
+
+https://mail-saas-xi.vercel.app/settings
+
+API Call: {method: 'GET', url: 'https://mail-saas-rf4s.onrender.com/api/v1/settings', hasAuth: true}hasAuth: truemethod: "GET"url: "https://mail-saas-rf4s.onrender.com/api/v1/settings"[[Prototype]]: Object
+index-CCktGi4U.js:440 API Response: {status: 200, statusText: '', url: 'https://mail-saas-rf4s.onrender.com/api/v1/settings'}status: 200statusText: ""url: "https://mail-saas-rf4s.onrender.com/api/v1/settings"[[Prototype]]: Object
+index-CCktGi4U.js:440 API Call: {method: 'GET', url: 'https://mail-saas-rf4s.onrender.com/api/v1/settings/inbox/accounts', hasAuth: true}hasAuth: truemethod: "GET"url: "https://mail-saas-rf4s.onrender.com/api/v1/settings/inbox/accounts"[[Prototype]]: Object
+index-CCktGi4U.js:440 API Response: {status: 200, statusText: '', url: 'https://mail-saas-rf4s.onrender.com/api/v1/settings/inbox/accounts'}status: 200statusText: ""url: "https://mail-saas-rf4s.onrender.com/api/v1/settings/inbox/accounts"[[Prototype]]: Object
+index-CCktGi4U.js:40  TypeError: Cannot read properties of undefined (reading 'filter')
+    at OCe (index-CCktGi4U.js:525:31233)
+    at x1 (index-CCktGi4U.js:38:16998)
+    at ub (index-CCktGi4U.js:40:3139)
+    at aA (index-CCktGi4U.js:40:44804)
+    at tA (index-CCktGi4U.js:40:39766)
+    at I6 (index-CCktGi4U.js:40:39694)
+    at Mh (index-CCktGi4U.js:40:39547)
+    at wb (index-CCktGi4U.js:40:35914)
+    at ZT (index-CCktGi4U.js:40:34865)
+    at j (index-CCktGi4U.js:25:1552)
+cb @ index-CCktGi4U.js:40
+RT.n.callback @ index-CCktGi4U.js:40
+YN @ index-CCktGi4U.js:38
+dC @ index-CCktGi4U.js:40
+QT @ index-CCktGi4U.js:40
+D6 @ index-CCktGi4U.js:40
+F6 @ index-CCktGi4U.js:40
+Io @ index-CCktGi4U.js:40
+ZT @ index-CCktGi4U.js:40
+j @ index-CCktGi4U.js:25
+E @ index-CCktGi4U.js:25
+index-CCktGi4U.js:525  Uncaught TypeError: Cannot read properties of undefined (reading 'filter')
+    at OCe (index-CCktGi4U.js:525:31233)
+    at x1 (index-CCktGi4U.js:38:16998)
+    at ub (index-CCktGi4U.js:40:3139)
+    at aA (index-CCktGi4U.js:40:44804)
+    at tA (index-CCktGi4U.js:40:39766)
+    at I6 (index-CCktGi4U.js:40:39694)
+    at Mh (index-CCktGi4U.js:40:39547)
+    at wb (index-CCktGi4U.js:40:35914)
+    at ZT (index-CCktGi4U.js:40:34865)
+    at j (index-CCktGi4U.js:25:1552)
+
+IN RENDER: Weet niet of dit relevant is maar:
+
+INFO:     34.82.80.145:0 - "GET / HTTP/1.1" 404 Not Found
+INFO:     145.33.102.25:0 - "OPTIONS /api/v1/templates HTTP/1.1" 200 OK
+INFO:     145.33.102.25:0 - "OPTIONS /api/v1/leads?page=1&page_size=25&sort_by=createdAt&sort_order=desc HTTP/1.1" 200 OK
+INFO:     145.33.102.25:0 - "GET /api/v1/templates HTTP/1.1" 200 OK
+INFO:     145.33.102.25:0 - "GET /api/v1/leads?page=1&page_size=25&sort_by=createdAt&sort_order=desc HTTP/1.1" 200 OK
+INFO:     145.33.102.25:0 - "OPTIONS /api/v1/campaigns HTTP/1.1" 200 OK
+2025-09-30 10:49:07.180 | INFO     | app.api.campaigns:list_campaigns:51 - Listed 0 campaigns (total: 0)
+INFO:     145.33.102.25:0 - "GET /api/v1/campaigns HTTP/1.1" 200 OK
+INFO:     145.33.102.25:0 - "GET /api/v1/templates HTTP/1.1" 200 OK
+INFO:     145.33.102.25:0 - "OPTIONS /api/v1/reports?page=1&page_size=20&search=&bound_filter=all HTTP/1.1" 200 OK
+2025-09-30 10:49:11.044 | INFO     | app.api.reports:list_reports:58 - Listed 0 reports (total: 0) for user demo-user
+INFO:     145.33.102.25:0 - "GET /api/v1/reports?page=1&page_size=20&search=&bound_filter=all HTTP/1.1" 200 OK
+INFO:     145.33.102.25:0 - "OPTIONS /api/v1/stats/summary?from=2025-08-31&to=2025-09-30 HTTP/1.1" 200 OK
+INFO:     145.33.102.25:0 - "GET /api/v1/stats/summary?from=2025-08-31&to=2025-09-30 HTTP/1.1" 200 OK
+INFO:     145.33.102.25:0 - "OPTIONS /api/v1/settings/inbox/accounts HTTP/1.1" 200 OK
+INFO:     145.33.102.25:0 - "OPTIONS /api/v1/inbox/messages?page=1&page_size=25 HTTP/1.1" 200 OK
+INFO:     145.33.102.25:0 - "GET /api/v1/settings/inbox/accounts HTTP/1.1" 200 OK
+INFO:     145.33.102.25:0 - "GET /api/v1/inbox/messages?page=1&page_size=25 HTTP/1.1" 200 OK
+INFO:     145.33.102.25:0 - "OPTIONS /api/v1/settings HTTP/1.1" 200 OK
+2025-09-30 10:49:19.890 | INFO     | app.api.settings:get_settings:25 - settings_viewed
+INFO:     145.33.102.25:0 - "GET /api/v1/settings HTTP/1.1" 200 OK
+INFO:     145.33.102.25:0 - "GET /api/v1/settings/inbox/accounts HTTP/1.1" 200 OK
+INFO:     145.33.102.25:0 - "GET /api/v1/templates HTTP/1.1" 200 OK
+INFO:     145.33.102.25:0 - "GET /api/v1/leads?page=1&page_size=25&sort_by=createdAt&sort_order=desc HTTP/1.1" 200 OK
+2025-09-30 10:50:29.280 | INFO     | app.api.campaigns:list_campaigns:51 - Listed 0 campaigns (total: 0)
+INFO:     145.33.102.25:0 - "GET /api/v1/campaigns HTTP/1.1" 200 OK
+INFO:     145.33.102.25:0 - "GET /api/v1/templates HTTP/1.1" 200 OK
+INFO:     145.33.102.25:0 - "GET /api/v1/templates HTTP/1.1" 200 OK
+INFO:     145.33.102.25:0 - "GET /api/v1/templates HTTP/1.1" 200 OK
+2025-09-30 10:51:12.405 | INFO     | app.api.reports:list_reports:58 - Listed 0 reports (total: 0) for user demo-user
+INFO:     145.33.102.25:0 - "GET /api/v1/reports?page=1&page_size=20&search=&bound_filter=all HTTP/1.1" 200 OK
+INFO:     145.33.102.25:0 - "GET /api/v1/stats/summary?from=2025-08-31&to=2025-09-30 HTTP/1.1" 200 OK
+INFO:     145.33.102.25:0 - "GET /api/v1/settings/inbox/accounts HTTP/1.1" 200 OK
+INFO:     145.33.102.25:0 - "GET /api/v1/inbox/messages?page=1&page_size=25 HTTP/1.1" 200 OK
+INFO:     145.33.102.25:0 - "GET /api/v1/stats/summary?from=2025-08-31&to=2025-09-30 HTTP/1.1" 200 OK
+INFO:     145.33.102.25:0 - "GET /api/v1/settings/inbox/accounts HTTP/1.1" 200 OK
+INFO:     145.33.102.25:0 - "GET /api/v1/inbox/messages?page=1&page_size=25 HTTP/1.1" 200 OK
+2025-09-30 10:53:09.796 | INFO     | app.api.settings:get_settings:25 - settings_viewed
+INFO:     145.33.102.25:0 - "GET /api/v1/settings HTTP/1.1" 200 OK
+INFO:     145.33.102.25:0 - "GET /api/v1/settings/inbox/accounts HTTP/1.1" 200 OK
+==> Detected service running on port 10000
+==> Docs on specifying a port: https://render.com/docs/web-services#port-binding

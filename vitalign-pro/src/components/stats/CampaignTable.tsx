@@ -39,7 +39,8 @@ export const CampaignTable: React.FC<CampaignTableProps> = ({
     }
   };
 
-  const sortedData = [...data].sort((a, b) => {
+  const safeData = data ?? [];
+  const sortedData = [...safeData].sort((a, b) => {
     let aValue: string | number;
     let bValue: string | number;
 

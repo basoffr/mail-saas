@@ -27,15 +27,16 @@ export const TimelineChart: React.FC<TimelineChartProps> = ({
     );
   }
 
-  // Format data for chart
-  const chartData = data.map(point => ({
+  // Format data for chart - defensive guard
+  const safeData = data ?? [];
+  const chartData = safeData.map(point => ({
     ...point,
     formattedDate: format(new Date(point.date), 'dd/MM', { locale: nl })
   }));
 
   const customTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
-      const date = data.find(d => format(new Date(d.date), 'dd/MM', { locale: nl }) === label)?.date;
+      const date = safeData.find(d => format(new Date(d.date), 'dd/MM', { locale: nl }) === label)?.date;
       const formattedDate = date ? format(new Date(date), 'dd MMMM yyyy', { locale: nl }) : label;
       
       return (
@@ -57,7 +58,7 @@ export const TimelineChart: React.FC<TimelineChartProps> = ({
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-foreground">{title}</h3>
         
-        {data.length === 0 ? (
+        {safeData.length === 0 ? (
           <div className="h-64 flex items-center justify-center text-muted-foreground">
             <div className="text-center">
               <p className="text-lg font-medium">Geen data beschikbaar</p>

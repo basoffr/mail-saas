@@ -35,13 +35,14 @@ export function ImapAccountsSection() {
     setLoading(true);
     try {
       const response = await inboxService.getAccounts();
-      setAccounts(response.items);
+      setAccounts(Array.isArray(response?.items) ? response.items : []);
     } catch (error) {
       toast({
         title: 'Error',
         description: 'Failed to load IMAP accounts',
         variant: 'destructive'
       });
+      setAccounts([]); // Ensure empty array on error
     } finally {
       setLoading(false);
     }
@@ -136,11 +137,11 @@ export function ImapAccountsSection() {
           <span className="font-medium">IMAP Accounts</span>
         </div>
         <Badge variant="outline" className="text-xs">
-          {accounts.filter(acc => acc.active).length} active
+          {(accounts ?? []).filter(acc => acc?.active).length} active
         </Badge>
       </div>
 
-      {accounts.length === 0 ? (
+      {(accounts ?? []).length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
           <Mail className="w-12 h-12 mx-auto mb-4 opacity-20" />
           <p className="font-medium">No IMAP accounts configured</p>
@@ -160,7 +161,7 @@ export function ImapAccountsSection() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {accounts.map((account) => (
+              {(accounts ?? []).map((account) => (
                 <TableRow key={account.id} className="hover:bg-muted/20">
                   <TableCell>
                     <div>

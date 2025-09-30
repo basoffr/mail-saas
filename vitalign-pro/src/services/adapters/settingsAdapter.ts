@@ -3,6 +3,8 @@
  * Normalizes API responses to consistent UI types with safe defaults
  */
 
+import { asArray, asBool, asString, pick } from '@/lib/safe';
+
 export interface UiSendingWindow {
   days: string[];
   from: string;
@@ -40,58 +42,66 @@ export interface UiSettings {
 }
 
 /**
- * Ensure array type
- */
-function ensureArray<T>(value: any): T[] {
-  return Array.isArray(value) ? value : [];
-}
-
-/**
- * Convert API response to UI Settings
+ * Convert API response to UI Settings with runtime validation
  */
 export function toUiSettings(apiResponse: any): UiSettings {
   const data = apiResponse || {};
 
-  // Safe window extraction
-  const windowData = data.window || {};
+  // Window normalization (handles both camel/snake case)
+  const windowData = pick(data, ['window', 'sending_window', 'sendingWindow'], {});
+  const windowDays = asArray<string>(pick(windowData, ['days', 'Days'], []));
+  const windowFrom = asString(pick(windowData, ['from', 'start', 'start_at', 'startAt'], '08:00'));
+  const windowTo = asString(pick(windowData, ['to', 'end', 'end_at', 'endAt'], '17:00'));
+  
   const window: UiSendingWindow = {
-    days: ensureArray<string>(windowData.days),
-    from: windowData.from || '08:00',
-    to: windowData.to || '17:00',
+    days: windowDays,
+    from: windowFrom,
+    to: windowTo,
   };
 
-  // Safe throttle extraction
-  const throttleData = data.throttle || {};
+  // Throttle normalization
+  const throttleData = pick(data, ['throttle', 'throttleSettings'], {});
   const throttle: UiThrottleSettings = {
-    emailsPer: throttleData.emailsPer ?? throttleData.emails_per ?? 1,
-    minutes: throttleData.minutes ?? 20,
+    emailsPer: pick(throttleData, ['emailsPer', 'emails_per', 'perInterval'], 1) as number,
+    minutes: pick(throttleData, ['minutes', 'Minutes', 'interval'], 20) as number,
   };
 
-  // Safe email infra extraction
-  const infraData = data.emailInfra || data.email_infra || {};
-  const dnsData = infraData.dns || {};
+  // Email infra normalization
+  const infraData = pick(data, ['emailInfra', 'email_infra', 'emailInfrastructure'], {});
+  const dnsData = pick(infraData, ['dns', 'DNS', 'dns_status', 'dnsStatus'], {});
+  
   const emailInfra: UiEmailInfrastructure = {
-    current: infraData.current || 'SMTP',
-    provider: infraData.provider || null,
-    providerEnabled: infraData.providerEnabled ?? infraData.provider_enabled ?? false,
+    current: asString(pick(infraData, ['current', 'provider', 'currentProvider'], 'SMTP')),
+    provider: pick(infraData, ['provider', 'providerName'], null),
+    providerEnabled: asBool(pick(infraData, ['providerEnabled', 'provider_enabled'], false)),
     dns: {
-      spf: dnsData.spf ?? false,
-      dkim: dnsData.dkim ?? false,
-      dmarc: dnsData.dmarc ?? false,
+      spf: asBool(pick(dnsData, ['spf', 'SPF'], false)),
+      dkim: asBool(pick(dnsData, ['dkim', 'DKIM'], false)),
+      dmarc: asBool(pick(dnsData, ['dmarc', 'DMARC'], false)),
     },
   };
 
+  // Domains normalization
+  const domains = asArray<string>(pick(data, ['domains', 'Domains', 'domainList'], []));
+
+  // Text fields
+  const unsubscribeText = asString(pick(data, ['unsubscribeText', 'unsubscribe_text'], 'Uitschrijven'));
+  const unsubscribeUrl = asString(pick(data, ['unsubscribeUrl', 'unsubscribe_url'], ''));
+  
+  // Boolean fields
+  const trackingPixelEnabled = asBool(pick(data, ['trackingPixelEnabled', 'tracking_pixel_enabled'], true));
+
   return {
-    timezone: data.timezone || 'Europe/Amsterdam',
+    timezone: asString(pick(data, ['timezone', 'timeZone', 'tz'], 'Europe/Amsterdam')),
     window,
     throttle,
-    domains: ensureArray<string>(data.domains),
-    unsubscribeText: data.unsubscribeText ?? data.unsubscribe_text ?? 'Uitschrijven',
-    unsubscribeUrl: data.unsubscribeUrl ?? data.unsubscribe_url ?? '',
-    trackingPixelEnabled: data.trackingPixelEnabled ?? data.tracking_pixel_enabled ?? true,
+    domains,
+    unsubscribeText,
+    unsubscribeUrl,
+    trackingPixelEnabled,
     emailInfra,
-    gracePeriodTo: data.gracePeriodTo ?? data.grace_period_to ?? undefined,
-    dailyCapPerDomain: data.dailyCapPerDomain ?? data.daily_cap_per_domain ?? undefined,
-    timezoneEditable: data.timezoneEditable ?? data.timezone_editable ?? undefined,
+    gracePeriodTo: pick(data, ['gracePeriodTo', 'grace_period_to'], undefined),
+    dailyCapPerDomain: pick(data, ['dailyCapPerDomain', 'daily_cap_per_domain'], undefined),
+    timezoneEditable: pick(data, ['timezoneEditable', 'timezone_editable'], undefined),
   };
 }
