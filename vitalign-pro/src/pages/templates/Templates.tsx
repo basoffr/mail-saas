@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
-import { Eye, FileText, Send, Search, ChevronDown } from 'lucide-react';
+import { FileText, Send, Search, ChevronDown } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -170,14 +170,6 @@ export default function Templates() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setPreviewModal({ open: true, templateId: template.id })}
-                        >
-                          <Eye className="h-4 w-4" />
-                          Preview
-                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"

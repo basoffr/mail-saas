@@ -163,8 +163,8 @@ async def preview_template(
         
         # Render template
         result = render_template_with_lead(
-            template.body_template,
-            template.subject_template,
+            template.body,
+            template.subject,
             lead_data,
             {'name': 'Preview Campaign', 'sender_name': 'Preview Sender'}
         )
