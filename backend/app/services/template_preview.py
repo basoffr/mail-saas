@@ -70,21 +70,24 @@ def validate_lead_variables(lead: Any, required_vars: Set[str]) -> List[str]:
                     warnings.append("Missing industry variable")
             
             elif var == 'email':
-                if not lead.email:
                     warnings.append("Missing email address")
     
     return warnings
 
 
-def render_preview(template_id: str, lead_id: str, store: LeadsStore) -> dict:
-    """
-    Enhanced template preview with comprehensive variable validation.
+def render_preview(template_id: str, lead_id: str, store: LeadsStore, mail_number: int = 1) -> dict:
+    """Enhanced template preview with comprehensive variable validation.
+    
+    Args:
+        template_id: Template ID to preview
+        lead_id: Lead ID for variable substitution
+        store: LeadsStore instance
+        mail_number: Mail number (1-4) to determine signature (default: 1 = christian)
     - Extracts variables from template
     - Validates lead data against required variables
     - Provides detailed warnings for missing data
     - Renders preview with proper variable substitution
     """
-    # Get lead
     lead = store.get(lead_id)
     if not lead:
         return {"html": "", "text": "", "warnings": ["Lead not found"]}
@@ -107,6 +110,39 @@ def render_preview(template_id: str, lead_id: str, store: LeadsStore) -> dict:
     # Render template with variable substitution
     html = _substitute_variables(template.body_template, lead)
     subject = _substitute_variables(template.subject_template, lead)
+    
+    # Add signature based on mail_number (for preview purposes)
+    from app.services.signature_injector import inject_signature, get_alias_from_mail_number
+    import base64
+    from pathlib import Path
+    
+    alias = get_alias_from_mail_number(mail_number)
+    
+    # Load signatures as base64 data URLs for preview
+    try:
+        signature_dir = Path(__file__).parent.parent / "assets" / "signatures"
+        christian_path = signature_dir / "Christian Handtekening.png"
+        victor_path = signature_dir / "Victor Handtekening.png"
+        
+        # Load and encode Christian signature
+        if christian_path.exists():
+            with open(christian_path, 'rb') as f:
+                christian_data = base64.b64encode(f.read()).decode('utf-8')
+                christian_signature_url = f"data:image/png;base64,{christian_data}"
+        else:
+            christian_signature_url = "https://via.placeholder.com/300x100?text=Christian+Signature"
+        
+        # Load and encode Victor signature
+        if victor_path.exists():
+            with open(victor_path, 'rb') as f:
+                victor_data = base64.b64encode(f.read()).decode('utf-8')
+                victor_signature_url = f"data:image/png;base64,{victor_data}"
+        else:
+            victor_signature_url = "https://via.placeholder.com/300x100?text=Victor+Signature"
+        
+        html = inject_signature(html, alias, christian_signature_url, victor_signature_url)
+    except Exception as e:
+        warnings.append(f"Could not load signature: {str(e)}")
     
     # Create text version
     text = re.sub(r'<[^>]+>', '', html)

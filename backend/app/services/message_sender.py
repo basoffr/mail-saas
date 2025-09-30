@@ -5,6 +5,7 @@ from loguru import logger
 
 from app.models.campaign import Message, MessageStatus, MessageEvent, MessageEventType
 from app.models.lead import Lead, LeadStatus
+from app.services.signature_injector import inject_signature_cid, get_alias_from_mail_number
 
 
 class MessageSender:
@@ -138,21 +139,24 @@ class MessageSender:
         from email.mime.text import MIMEText
         from email.utils import formataddr
         
-        # Check if tracking pixel should be added
         from app.services.settings import settings_service
-        from app.services.template_renderer import inject_tracking_pixel
+        from app.services.template_renderer import inject_tracking_pixel, inject_signature_cid
         
         settings = settings_service.get_settings()
         
+        # Inject signature based on alias (before tracking pixel)
+        alias = get_alias_from_mail_number(message.mail_number)
+        template_content = inject_signature_cid(template_content, alias)
+        logger.debug(f"Injected {alias} signature for message {message.id}")
+        
+        # Inject tracking pixel
         if settings.tracking_pixel_enabled:
-            pixel_url = self.generate_tracking_pixel_url(message)
-            template_content = inject_tracking_pixel(template_content, pixel_url)
+            tracking_url = self.generate_tracking_pixel_url(message)
+            template_content = inject_tracking_pixel(template_content, tracking_url)
             logger.debug(f"Injected tracking pixel for message {message.id}")
         
         # Get unsubscribe headers
         unsub_headers = self.generate_unsubscribe_headers(message, lead)
-        
-        # Get SMTP credentials from environment
         smtp_host = os.getenv("SMTP_HOST", "smtp.vimexx.nl")
         smtp_port = int(os.getenv("SMTP_PORT", "587"))
         smtp_user = os.getenv("SMTP_USER")
@@ -182,7 +186,7 @@ class MessageSender:
         
         try:
             # Create message
-            msg = MIMEMultipart('alternative')
+            msg = MIMEMultipart('related')  # Changed to 'related' for embedded images
             msg['From'] = formataddr((from_name, from_email))
             msg['To'] = lead.email
             msg['Subject'] = template.subject
@@ -195,6 +199,26 @@ class MessageSender:
             # Add HTML body
             html_part = MIMEText(template_content, 'html', 'utf-8')
             msg.attach(html_part)
+            
+            # Attach signature image as CID
+            from email.mime.image import MIMEImage
+            import os
+            from pathlib import Path
+            
+            alias = get_alias_from_mail_number(message.mail_number)
+            signature_filename = f"{alias.capitalize()} Handtekening.png"
+            signature_path = Path(__file__).parent.parent / "assets" / "signatures" / signature_filename
+            
+            if signature_path.exists():
+                with open(signature_path, 'rb') as img_file:
+                    img_data = img_file.read()
+                    image = MIMEImage(img_data)
+                    image.add_header('Content-ID', f'<signature_{alias}>')
+                    image.add_header('Content-Disposition', 'inline', filename=signature_filename)
+                    msg.attach(image)
+                    logger.debug(f"Attached {alias} signature image as CID for message {message.id}")
+            else:
+                logger.warning(f"Signature image not found: {signature_path}")
             
             # Connect to SMTP server
             logger.debug(f"Connecting to SMTP server {smtp_host}:{smtp_port}")

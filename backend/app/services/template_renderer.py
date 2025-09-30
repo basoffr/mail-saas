@@ -177,8 +177,16 @@ def inject_tracking_pixel(html: str, pixel_url: str) -> str:
         return html + pixel_html
 
 
-def render_template_with_lead(template_body: str, subject_template: str, lead_data: Dict[str, Any], campaign_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """Render template with lead data"""
+def render_template_with_lead(template_body: str, subject_template: str, lead_data: Dict[str, Any], campaign_data: Optional[Dict[str, Any]] = None, mail_number: int = 1) -> Dict[str, Any]:
+    """Render template with lead data and signature.
+    
+    Args:
+        template_body: HTML template
+        subject_template: Subject line template
+        lead_data: Lead data for variable substitution
+        campaign_data: Optional campaign context
+        mail_number: Mail number (1-4) to determine signature (default: 1 = christian)
+    """
     renderer = TemplateRenderer()
     
     # Prepare context
@@ -191,6 +199,37 @@ def render_template_with_lead(template_body: str, subject_template: str, lead_da
     # Render subject and body
     rendered_subject, subject_warnings = renderer.render(subject_template, context)
     rendered_body, body_warnings = renderer.render(template_body, context)
+    
+    # Add signature based on mail_number (for preview)
+    import base64
+    from pathlib import Path
+    from app.services.signature_injector import inject_signature, get_alias_from_mail_number
+    
+    alias = get_alias_from_mail_number(mail_number)
+    
+    try:
+        signature_dir = Path(__file__).parent.parent / "assets" / "signatures"
+        christian_path = signature_dir / "Christian Handtekening.png"
+        victor_path = signature_dir / "Victor Handtekening.png"
+        
+        # Load and encode signatures as base64 data URLs
+        if christian_path.exists():
+            with open(christian_path, 'rb') as f:
+                christian_data = base64.b64encode(f.read()).decode('utf-8')
+                christian_url = f"data:image/png;base64,{christian_data}"
+        else:
+            christian_url = "https://via.placeholder.com/300x100?text=Christian"
+        
+        if victor_path.exists():
+            with open(victor_path, 'rb') as f:
+                victor_data = base64.b64encode(f.read()).decode('utf-8')
+                victor_url = f"data:image/png;base64,{victor_data}"
+        else:
+            victor_url = "https://via.placeholder.com/300x100?text=Victor"
+        
+        rendered_body = inject_signature(rendered_body, alias, christian_url, victor_url)
+    except Exception as e:
+        body_warnings.append(f"Could not load signature: {str(e)}")
     
     # Validate subject
     subject_validation_warnings = renderer.validate_subject(rendered_subject)
