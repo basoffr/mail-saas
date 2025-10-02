@@ -11,6 +11,7 @@ from app.services.template_preview import render_preview
 from app.schemas.common import DataResponse
 from app.services.import_jobs import import_job_store
 from app.services.supabase_storage import supabase_storage
+from app.services.lead_enrichment import enrich_leads_bulk, enrich_lead_with_metadata, get_lead_variables_detail
 
 router = APIRouter(dependencies=[Depends(require_auth)])
 
@@ -28,6 +29,8 @@ async def list_leads(
     has_image: Optional[bool] = None,
     has_var: Optional[bool] = None,
     search: Optional[str] = None,
+    list_name: Optional[str] = None,
+    is_complete: Optional[bool] = None,
 ):
     items, total = store.query(
         page=page,
@@ -37,8 +40,14 @@ async def list_leads(
         has_image=has_image,
         has_var=has_var,
         search=search,
+        list_name=list_name,
+        is_complete=is_complete,
     )
-    return {"data": {"items": items, "total": total}, "error": None}
+    
+    # Enrich leads with metadata (zonder full completeness voor performance)
+    enriched_items = enrich_leads_bulk(items, include_completeness=True)
+    
+    return {"data": {"items": enriched_items, "total": total}, "error": None}
 
 
 @router.get("/leads/{lead_id}", response_model=DataResponse[LeadDetail])
@@ -46,7 +55,23 @@ async def get_lead(lead_id: str):
     lead = store.get(lead_id)
     if not lead:
         return {"data": None, "error": "Not Found"}
-    return {"data": lead, "error": None}
+    
+    # Enrich with full metadata including completeness
+    enriched_lead = enrich_lead_with_metadata(lead, include_completeness=True)
+    
+    return {"data": enriched_lead, "error": None}
+
+
+@router.get("/leads/{lead_id}/variables")
+async def get_lead_variables(lead_id: str):
+    """Get detailed variables information for lead (for drawer view)."""
+    lead = store.get(lead_id)
+    if not lead:
+        return {"data": None, "error": "Not Found"}
+    
+    variables_detail = get_lead_variables_detail(lead)
+    
+    return {"data": variables_detail, "error": None}
 
 
 class ImportResult(BaseModel):
@@ -98,7 +123,14 @@ class PreviewResponse(BaseModel):
 
 @router.post("/previews/render", response_model=DataResponse[PreviewResponse])
 async def previews_render(payload: PreviewRequest):
-    preview = render_preview(payload.template_id, payload.lead_id, store)
+    # Extract mail number from template_id (e.g., v1m3 -> 3)
+    import re
+    mail_number = 1  # default
+    match = re.search(r'm(\d)$', payload.template_id)
+    if match:
+        mail_number = int(match.group(1))
+    
+    preview = render_preview(payload.template_id, payload.lead_id, store, mail_number=mail_number)
     return {"data": preview, "error": None}
 
 

@@ -308,6 +308,7 @@ export default function Leads() {
                 <TableHead>Last Mailed</TableHead>
                 <TableHead>Last Opened</TableHead>
                 <TableHead>Image</TableHead>
+                <TableHead>Report</TableHead>
                 <TableHead>Vars</TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
@@ -326,12 +327,13 @@ export default function Leads() {
                     <TableCell><div className="h-4 bg-muted animate-pulse rounded w-24" /></TableCell>
                     <TableCell><div className="h-4 bg-muted animate-pulse rounded w-8" /></TableCell>
                     <TableCell><div className="h-4 bg-muted animate-pulse rounded w-8" /></TableCell>
+                    <TableCell><div className="h-4 bg-muted animate-pulse rounded w-8" /></TableCell>
                     <TableCell><div className="h-4 bg-muted animate-pulse rounded w-6" /></TableCell>
                   </TableRow>
                 ))
               ) : leads.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center py-8">
+                  <TableCell colSpan={12} className="text-center py-8">
                     <div className="text-muted-foreground">
                       <Users className="w-12 h-12 mx-auto mb-4 opacity-20" />
                       <p className="text-lg font-medium">No leads found</p>
@@ -382,18 +384,26 @@ export default function Leads() {
                     <TableCell>{formatDate(lead.lastMailed)}</TableCell>
                     <TableCell>{formatDate(lead.lastOpened)}</TableCell>
                     <TableCell>
-                      {lead.imageKey ? (
-                        <div className="w-8 h-8 rounded-full overflow-hidden">
-                          <ImagePreview imageKey={lead.imageKey} className="w-full h-full" />
-                        </div>
-                      ) : (
-                        '-'
-                      )}
+                      <div className="text-center">
+                        {lead.hasImage ? '✅' : '❌'}
+                      </div>
                     </TableCell>
                     <TableCell>
-                      {lead.vars && Object.keys(lead.vars).length > 0 && (
-                        <Badge variant="outline">
-                          {Object.keys(lead.vars).length}
+                      <div className="text-center">
+                        {lead.hasReport ? '✅' : '❌'}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {lead.varsCompleteness ? (
+                        <Badge 
+                          variant={lead.varsCompleteness.is_complete ? "default" : "secondary"}
+                          className="font-mono"
+                        >
+                          {lead.varsCompleteness.filled}/{lead.varsCompleteness.total}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="font-mono">
+                          {Object.keys(lead.vars || {}).length}
                         </Badge>
                       )}
                     </TableCell>
@@ -605,18 +615,98 @@ function LeadDetails({ lead }: { lead: Lead }) {
         </div>
       </div>
 
-      {/* Image Preview */}
-      {lead.imageKey && (
-        <div>
-          <label className="text-sm font-medium text-muted-foreground mb-2 block">Image</label>
-          <ImagePreview imageKey={lead.imageKey} className="w-32 h-32" />
+      {/* Completeness Overview */}
+      {lead.varsCompleteness && (
+        <div className="bg-muted/30 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm font-medium">Lead Completeness</label>
+            <Badge variant={lead.isComplete ? "default" : "secondary"}>
+              {lead.isComplete ? 'Complete ✅' : 'Incomplete'}
+            </Badge>
+          </div>
+          <div className="grid grid-cols-3 gap-4 text-sm">
+            <div>
+              <span className="text-muted-foreground">Variables:</span>
+              <span className="ml-2 font-mono font-medium">
+                {lead.varsCompleteness.filled}/{lead.varsCompleteness.total}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Image:</span>
+              <span className="ml-2">{lead.hasImage ? '✅' : '❌'}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Report:</span>
+              <span className="ml-2">{lead.hasReport ? '✅' : '❌'}</span>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Variables */}
+      {/* Variables Detail */}
       <div>
-        <label className="text-sm font-medium text-muted-foreground mb-2 block">Variables</label>
-        <JsonViewer data={lead.vars} />
+        <label className="text-sm font-medium text-muted-foreground mb-2 block">
+          Template Variables
+          {lead.varsCompleteness && (
+            <span className="ml-2 font-mono text-xs">({lead.varsCompleteness.filled}/{lead.varsCompleteness.total})</span>
+          )}
+        </label>
+        {lead.varsCompleteness ? (
+          <div className="space-y-2">
+            {lead.varsCompleteness.missing.length === 0 && lead.vars && Object.keys(lead.vars).length === 0 ? (
+              <p className="text-sm text-muted-foreground">All required variables are filled</p>
+            ) : (
+              <div className="space-y-1 max-h-48 overflow-y-auto">
+                {Object.entries(lead.vars || {}).map(([key, value]) => (
+                  <div key={key} className="flex items-start gap-2 text-sm">
+                    <span className="text-green-600">✅</span>
+                    <span className="font-mono text-muted-foreground">{key}:</span>
+                    <span className="flex-1 truncate">{String(value)}</span>
+                  </div>
+                ))}
+                {lead.varsCompleteness.missing.map((varName) => (
+                  <div key={varName} className="flex items-start gap-2 text-sm">
+                    <span className="text-destructive">❌</span>
+                    <span className="font-mono text-muted-foreground">{varName}</span>
+                    <span className="text-xs text-muted-foreground italic ml-auto">Missing</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <JsonViewer data={lead.vars} />
+        )}
+      </div>
+
+      {/* Image Section */}
+      <div>
+        <label className="text-sm font-medium text-muted-foreground mb-2 block">Image</label>
+        {lead.hasImage && lead.imageKey ? (
+          <ImagePreview imageKey={lead.imageKey} className="w-32 h-32 rounded-lg" />
+        ) : (
+          <div className="bg-muted/30 rounded-lg p-4 text-center text-muted-foreground">
+            <p className="text-sm">No image attached</p>
+          </div>
+        )}
+      </div>
+
+      {/* Report Section */}
+      <div>
+        <label className="text-sm font-medium text-muted-foreground mb-2 block">Report</label>
+        {lead.hasReport ? (
+          <div className="bg-muted/30 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <span className="text-green-600">📄 ✅</span>
+              <span className="text-sm font-medium">Report attached</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Download available from reports tab</p>
+          </div>
+        ) : (
+          <div className="bg-muted/30 rounded-lg p-4 text-center text-muted-foreground">
+            <p className="text-sm">No report attached</p>
+          </div>
+        )}
       </div>
 
       {/* Template Test */}

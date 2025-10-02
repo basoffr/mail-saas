@@ -9,15 +9,28 @@ export interface Lead {
   lastMailed?: Date;
   lastOpened?: Date;
   imageKey?: string;
+  listName?: string;
   vars: Record<string, any>;
+  stopped: boolean;
   createdAt: Date;
   updatedAt: Date;
+  
+  // Enriched fields (computed by backend)
+  hasReport: boolean;
+  hasImage: boolean;
+  varsCompleteness?: {
+    filled: number;
+    total: number;
+    missing: string[];
+    percentage: number;
+    is_complete: boolean;
+  };
+  isComplete: boolean;
 }
 
 export enum LeadStatus {
   NEW = 'new',
   QUALIFIED = 'qualified',
-  CONTACTED = 'contacted',
   RESPONDED = 'responded',
   CONVERTED = 'converted',
   UNQUALIFIED = 'unqualified',
@@ -31,6 +44,8 @@ export interface LeadsQuery {
   tags?: string[];
   hasImage?: boolean;
   hasVars?: boolean;
+  listName?: string;
+  isComplete?: boolean;
   sortBy?: 'email' | 'companyName' | 'lastMailed' | 'lastOpened' | 'createdAt';
   sortOrder?: 'asc' | 'desc';
   page?: number;

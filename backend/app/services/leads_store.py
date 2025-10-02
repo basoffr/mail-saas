@@ -21,6 +21,7 @@ class _LeadRec:
     status: LeadStatus = LeadStatus.active
     tags: List[str] = field(default_factory=list)
     image_key: Optional[str] = None
+    list_name: Optional[str] = None
     last_emailed_at: Optional[datetime] = None
     last_open_at: Optional[datetime] = None
     vars: dict = field(default_factory=dict)
@@ -38,9 +39,11 @@ class _LeadRec:
             status=self.status,
             tags=list(self.tags),
             image_key=self.image_key,
+            list_name=self.list_name,
             last_emailed_at=self.last_emailed_at,
             last_open_at=self.last_open_at,
             vars=self.vars,
+            stopped=self.stopped,
             created_at=self.created_at,
             updated_at=self.updated_at,
         )
@@ -70,6 +73,7 @@ class LeadsStore:
         status: LeadStatus = LeadStatus.active,
         tags: Optional[List[str]] = None,
         image_key: Optional[str] = None,
+        list_name: Optional[str] = None,
         vars: Optional[dict] = None,
         last_emailed_at: Optional[datetime] = None,
         last_open_at: Optional[datetime] = None,
@@ -88,6 +92,7 @@ class LeadsStore:
                 status=status,
                 tags=list(tags or []),
                 image_key=image_key,
+                list_name=list_name,
                 vars=dict(vars or {}),
                 last_emailed_at=last_emailed_at,
                 last_open_at=last_open_at,
@@ -109,6 +114,8 @@ class LeadsStore:
                 rec.tags = list(tags)
             if image_key:
                 rec.image_key = image_key
+            if list_name:
+                rec.list_name = list_name
             if vars:
                 rec.vars.update(vars)
             if last_emailed_at:
@@ -138,6 +145,8 @@ class LeadsStore:
         has_image: Optional[bool] = None,
         has_var: Optional[bool] = None,
         search: Optional[str] = None,
+        list_name: Optional[str] = None,
+        is_complete: Optional[bool] = None,
     ) -> Tuple[List[LeadOut], int]:
         data = list(self._leads)
         if status:
@@ -154,6 +163,34 @@ class LeadsStore:
             data = [r for r in data if (r.image_key is not None) == has_image]
         if has_var is not None:
             data = [r for r in data if (len(r.vars) > 0) == has_var]
+        if list_name is not None:
+            data = [r for r in data if r.list_name == list_name]
+        if is_complete is not None:
+            # For is_complete filter, we need to import the enrichment service
+            from app.services.lead_enrichment import check_lead_is_complete
+            from app.models.lead import Lead
+            
+            # Convert _LeadRec to Lead model for checking
+            filtered = []
+            for r in data:
+                lead = Lead(
+                    id=r.id,
+                    email=r.email,
+                    company=r.company,
+                    url=r.url,
+                    domain=r.domain,
+                    status=r.status,
+                    tags=r.tags,
+                    image_key=r.image_key,
+                    list_name=r.list_name,
+                    vars=r.vars,
+                    stopped=r.stopped,
+                    created_at=r.created_at,
+                    updated_at=r.updated_at
+                )
+                if check_lead_is_complete(lead) == is_complete:
+                    filtered.append(r)
+            data = filtered
         if search:
             q = search.lower()
             data = [

@@ -12,6 +12,7 @@ from app.schemas.template import (
 from app.services.template_renderer import render_template_with_lead
 from app.services.testsend import testsend_service
 from app.services.leads_store import leads_store
+from app.services.template_variables import template_variables_service
 
 router = APIRouter(prefix="/templates", tags=["templates"])
 logger = logging.getLogger(__name__)
@@ -161,12 +162,20 @@ async def preview_template(
             }
             warnings = ["Using dummy data for preview"]
         
+        # Extract mail number from template_id (e.g., v1m3 -> 3)
+        import re
+        mail_number = 1  # default
+        match = re.search(r'm(\d)$', template_id)
+        if match:
+            mail_number = int(match.group(1))
+        
         # Render template
         result = render_template_with_lead(
             template.body,
             template.subject,
             lead_data,
-            {'name': 'Preview Campaign', 'sender_name': 'Preview Sender'}
+            {'name': 'Preview Campaign', 'sender_name': 'Preview Sender'},
+            mail_number=mail_number
         )
         
         # Combine warnings
@@ -344,6 +353,33 @@ async def send_test_email(
         raise
     except Exception as e:
         logger.error(f"Error sending test email: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/variables/all")
+async def get_all_template_variables(
+    user: Dict[str, Any] = Depends(require_auth)
+):
+    """Get all unique variables from all templates (aggregated)."""
+    try:
+        all_vars = template_variables_service.get_all_required_variables()
+        categorized = template_variables_service.get_categorized_variables()
+        
+        response = {
+            "all_variables": sorted(list(all_vars)),
+            "total": len(all_vars),
+            "categorized": categorized
+        }
+        
+        logger.info("all_template_variables_requested", extra={
+            "user": user.get("sub"),
+            "total_vars": len(all_vars)
+        })
+        
+        return DataResponse(data=response, error=None)
+        
+    except Exception as e:
+        logger.error(f"Error getting all template variables: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 

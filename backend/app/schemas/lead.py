@@ -20,11 +20,19 @@ class LeadOut(BaseModel):
     status: LeadStatus = LeadStatus.active
     tags: List[str] = Field(default_factory=list)
     image_key: Optional[str] = None
+    list_name: Optional[str] = None
     last_emailed_at: Optional[datetime] = None
     last_open_at: Optional[datetime] = None
     vars: Dict[str, Any] = Field(default_factory=dict)
+    stopped: bool = False
     created_at: datetime
     updated_at: datetime
+    
+    # Enriched fields (computed)
+    has_report: bool = False
+    has_image: bool = False
+    vars_completeness: Optional[Dict[str, Any]] = None
+    is_complete: bool = False
 
 
 class LeadDetail(LeadOut):

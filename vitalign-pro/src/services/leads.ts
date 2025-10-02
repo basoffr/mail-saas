@@ -40,6 +40,8 @@ export const leadsService = {
       tags: query.tags,
       has_image: query.hasImage,
       has_vars: query.hasVars,
+      list_name: query.listName,
+      is_complete: query.isComplete,
       tld: query.tld,
       sort_by: query.sortBy,
       sort_order: query.sortOrder,

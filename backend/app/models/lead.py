@@ -24,6 +24,7 @@ class Lead(SQLModel, table=True):
     status: LeadStatus = Field(default=LeadStatus.active)
     tags: List[str] = Field(default_factory=list, sa_column=Column(JSON))
     image_key: Optional[str] = None
+    list_name: Optional[str] = Field(default=None, index=True)
     last_emailed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), index=True))
     last_open_at: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True)))
     vars: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
