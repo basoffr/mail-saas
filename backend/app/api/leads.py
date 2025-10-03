@@ -4,7 +4,15 @@ from pydantic import BaseModel
 from datetime import datetime
 
 from app.core.auth import require_auth
-from app.schemas.lead import LeadOut, LeadDetail, LeadsListResponse, LeadStatus
+from app.schemas.lead import (
+    LeadOut, 
+    LeadDetail, 
+    LeadsListResponse, 
+    LeadStatus,
+    LeadDeleteRequest,
+    LeadDeleteResponse,
+    LeadRestoreResponse,
+)
 from app.services.leads_store import LeadsStore
 from app.services.leads_import import process_import_file
 from app.services.template_preview import render_preview
@@ -31,6 +39,7 @@ async def list_leads(
     search: Optional[str] = None,
     list_name: Optional[str] = None,
     is_complete: Optional[bool] = None,
+    include_deleted: bool = Query(False),
 ):
     items, total = store.query(
         page=page,
@@ -42,6 +51,7 @@ async def list_leads(
         search=search,
         list_name=list_name,
         is_complete=is_complete,
+        include_deleted=include_deleted,
     )
     
     # Enrich leads with metadata (zonder full completeness voor performance)
@@ -199,6 +209,68 @@ async def stop_lead(lead_id: str):
             "lead_id": lead_id,
             "stopped": True,
             "canceled": canceled_count
+        },
+        "error": None
+    }
+
+
+@router.post("/leads/delete", response_model=DataResponse[LeadDeleteResponse])
+async def soft_delete_leads(payload: LeadDeleteRequest):
+    """Soft delete one or more leads.
+    
+    Sets deleted_at timestamp. Leads will be filtered from standard queries.
+    """
+    deleted_ids, failed_ids = store.soft_delete_bulk(payload.lead_ids)
+    
+    return {
+        "data": {
+            "deleted_count": len(deleted_ids),
+            "deleted_ids": deleted_ids,
+            "failed_ids": failed_ids
+        },
+        "error": None
+    }
+
+
+@router.post("/leads/restore", response_model=DataResponse[LeadRestoreResponse])
+async def restore_leads(payload: LeadDeleteRequest):
+    """Restore soft-deleted leads.
+    
+    Clears deleted_at timestamp. Leads will reappear in standard queries.
+    """
+    restored_ids, failed_ids = store.restore_bulk(payload.lead_ids)
+    
+    return {
+        "data": {
+            "restored_count": len(restored_ids),
+            "restored_ids": restored_ids,
+            "failed_ids": failed_ids
+        },
+        "error": None
+    }
+
+
+@router.get("/leads/deleted", response_model=DataResponse[LeadsListResponse])
+async def list_deleted_leads(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=100),
+    search: Optional[str] = None,
+):
+    """Get all soft-deleted leads (trash view).
+    
+    Returns leads where deleted_at is not null.
+    """
+    items, total = store.get_deleted_leads(
+        page=page,
+        page_size=page_size,
+        search=search
+    )
+    
+    # Don't enrich deleted leads (performance optimization)
+    return {
+        "data": {
+            "items": items,
+            "total": total
         },
         "error": None
     }

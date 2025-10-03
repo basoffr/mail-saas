@@ -177,7 +177,7 @@ def inject_tracking_pixel(html: str, pixel_url: str) -> str:
         return html + pixel_html
 
 
-def render_template_with_lead(template_body: str, subject_template: str, lead_data: Dict[str, Any], campaign_data: Optional[Dict[str, Any]] = None, mail_number: int = 1) -> Dict[str, Any]:
+def render_template_with_lead(template_body: str, subject_template: str, lead_data: Dict[str, Any], campaign_data: Optional[Dict[str, Any]] = None, mail_number: Optional[int] = None) -> Dict[str, Any]:
     """Render template with lead data and signature.
     
     Args:
@@ -185,9 +185,13 @@ def render_template_with_lead(template_body: str, subject_template: str, lead_da
         subject_template: Subject line template
         lead_data: Lead data for variable substitution
         campaign_data: Optional campaign context
-        mail_number: Mail number (1-4) to determine signature (default: 1 = christian)
+        mail_number: Mail number (1-4) to determine signature. If None, defaults to 1.
     """
     renderer = TemplateRenderer()
+    
+    # Auto-detect mail_number if not provided (default to 1)
+    if mail_number is None:
+        mail_number = 1
     
     # Prepare context
     context = {

@@ -12,6 +12,7 @@ export interface Lead {
   listName?: string;
   vars: Record<string, any>;
   stopped: boolean;
+  deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
   
@@ -26,6 +27,7 @@ export interface Lead {
     is_complete: boolean;
   };
   isComplete: boolean;
+  isDeleted: boolean;
 }
 
 export enum LeadStatus {
@@ -95,4 +97,21 @@ export interface TemplatePreview {
   html: string;
   text: string;
   warnings?: string[];
+}
+
+export interface LeadDeleteRequest {
+  lead_ids: string[];
+  reason?: string;
+}
+
+export interface LeadDeleteResponse {
+  deleted_count: number;
+  deleted_ids: string[];
+  failed_ids: string[];
+}
+
+export interface LeadRestoreResponse {
+  restored_count: number;
+  restored_ids: string[];
+  failed_ids: string[];
 }

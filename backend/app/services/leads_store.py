@@ -26,6 +26,7 @@ class _LeadRec:
     last_open_at: Optional[datetime] = None
     vars: dict = field(default_factory=dict)
     stopped: bool = False
+    deleted_at: Optional[datetime] = None
     created_at: datetime = field(default_factory=_now)
     updated_at: datetime = field(default_factory=_now)
 
@@ -44,8 +45,10 @@ class _LeadRec:
             last_open_at=self.last_open_at,
             vars=self.vars,
             stopped=self.stopped,
+            deleted_at=self.deleted_at,
             created_at=self.created_at,
             updated_at=self.updated_at,
+            is_deleted=(self.deleted_at is not None),
         )
 
     def to_detail(self) -> LeadDetail:
@@ -147,8 +150,13 @@ class LeadsStore:
         search: Optional[str] = None,
         list_name: Optional[str] = None,
         is_complete: Optional[bool] = None,
+        include_deleted: bool = False,
     ) -> Tuple[List[LeadOut], int]:
-        data = list(self._leads)
+        # Filter deleted leads UNLESS explicitly requested
+        if include_deleted:
+            data = list(self._leads)
+        else:
+            data = [r for r in self._leads if r.deleted_at is None]
         if status:
             sset = set(status)
             data = [r for r in data if r.status in sset]
@@ -231,6 +239,89 @@ class LeadsStore:
                 rec.updated_at = _now()
                 return True
         return False
+    
+    def soft_delete(self, lead_id: str) -> bool:
+        """Soft delete a lead by setting deleted_at timestamp.
+        
+        Returns True if successful, False if lead not found.
+        """
+        for rec in self._leads:
+            if rec.id == lead_id:
+                rec.deleted_at = _now()
+                rec.updated_at = _now()
+                return True
+        return False
+    
+    def soft_delete_bulk(self, lead_ids: List[str]) -> Tuple[List[str], List[str]]:
+        """Soft delete multiple leads.
+        
+        Returns (deleted_ids, failed_ids)
+        """
+        deleted = []
+        failed = []
+        
+        for lead_id in lead_ids:
+            if self.soft_delete(lead_id):
+                deleted.append(lead_id)
+            else:
+                failed.append(lead_id)
+        
+        return deleted, failed
+    
+    def restore(self, lead_id: str) -> bool:
+        """Restore a soft-deleted lead by clearing deleted_at.
+        
+        Returns True if successful, False if lead not found.
+        """
+        for rec in self._leads:
+            if rec.id == lead_id:
+                rec.deleted_at = None
+                rec.updated_at = _now()
+                return True
+        return False
+    
+    def restore_bulk(self, lead_ids: List[str]) -> Tuple[List[str], List[str]]:
+        """Restore multiple soft-deleted leads.
+        
+        Returns (restored_ids, failed_ids)
+        """
+        restored = []
+        failed = []
+        
+        for lead_id in lead_ids:
+            if self.restore(lead_id):
+                restored.append(lead_id)
+            else:
+                failed.append(lead_id)
+        
+        return restored, failed
+    
+    def get_deleted_leads(
+        self,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: Optional[str] = None
+    ) -> Tuple[List[LeadOut], int]:
+        """Get all soft-deleted leads (for trash view).
+        
+        Returns (leads, total_count)
+        """
+        data = [r for r in self._leads if r.deleted_at is not None]
+        
+        if search:
+            q = search.lower()
+            data = [
+                r for r in data
+                if q in r.email.lower()
+                or (r.company or "").lower().find(q) != -1
+            ]
+        
+        total = len(data)
+        start = (page - 1) * page_size
+        end = start + page_size
+        
+        return [r.to_out() for r in data[start:end]], total
 
 
 # Global instance

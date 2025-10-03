@@ -1,4 +1,4 @@
-import { Lead, LeadsQuery, LeadsResponse, LeadStatus, ImportJobStatus, ImportPreview, ImportMapping } from '@/types/lead';
+import { Lead, LeadsQuery, LeadsResponse, LeadStatus, ImportJobStatus, ImportPreview, ImportMapping, LeadDeleteRequest, LeadDeleteResponse, LeadRestoreResponse } from '@/types/lead';
 import { authService, buildQueryString } from './auth';
 
 // Backend -> UI status mapping (centralized)
@@ -123,5 +123,43 @@ export const leadsService = {
   async getImageUrl(imageKey: string): Promise<string> {
     const queryString = buildQueryString({ key: imageKey });
     return await authService.apiCall<string>(`/assets/image-by-key?${queryString}`);
+  },
+
+  async deleteLeads(leadIds: string[], reason?: string): Promise<LeadDeleteResponse> {
+    const payload: LeadDeleteRequest = {
+      lead_ids: leadIds,
+      reason
+    };
+    
+    return await authService.apiCall<LeadDeleteResponse>('/leads/delete', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+  
+  async restoreLeads(leadIds: string[]): Promise<LeadRestoreResponse> {
+    const payload: LeadDeleteRequest = {
+      lead_ids: leadIds
+    };
+    
+    return await authService.apiCall<LeadRestoreResponse>('/leads/restore', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+  
+  async getDeletedLeads(query: { 
+    page?: number; 
+    limit?: number; 
+    search?: string;
+  } = {}): Promise<LeadsResponse> {
+    const queryString = buildQueryString({
+      page: query.page || 1,
+      page_size: query.limit || 25,
+      search: query.search
+    });
+    
+    const endpoint = `/leads/deleted${queryString ? `?${queryString}` : ''}`;
+    return await authService.apiCall<LeadsResponse>(endpoint);
   }
 };

@@ -36,6 +36,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { 
   Search, 
   Filter, 
@@ -46,7 +56,8 @@ import {
   Users,
   Loader2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Trash2
 } from 'lucide-react';
 import { Lead, LeadsQuery, LeadStatus, Template, TemplatePreview } from '@/types/lead';
 import { leadsService, toUiLeadStatus, toneToBadgeClass, BackendLeadStatus } from '@/services/leads';
@@ -160,17 +171,32 @@ export default function Leads() {
     setSelectedLeads(newSelected);
   };
 
-  const handleBulkAddToCampaign = () => {
-    if (selectedLeads.size === 0) return;
-    
-    // Navigate to campaigns with selected lead IDs
-    const leadIds = Array.from(selectedLeads).join(',');
-    // This would normally navigate to campaigns page
+  const handleAddToCampaign = () => {
+    // TODO: Implement add to campaign functionality
     toast({
       title: 'Success',
       description: `${selectedLeads.size} leads ready to add to campaign`,
     });
     setSelectedLeads(new Set());
+  };
+
+  const handleBulkDelete = async () => {
+    const leadIds = Array.from(selectedLeads);
+    try {
+      const result = await leadsService.deleteLeads(leadIds);
+      toast({
+        title: 'Leads verwijderd',
+        description: `${result.deleted_count} leads succesvol verwijderd`,
+      });
+      setSelectedLeads(new Set());
+      fetchLeads();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Kon leads niet verwijderen. Probeer het opnieuw.',
+        variant: 'destructive'
+      });
+    }
   };
 
   const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
@@ -276,14 +302,24 @@ export default function Leads() {
                 <span className="text-sm font-medium">
                   {selectedLeads.size} lead{selectedLeads.size > 1 ? 's' : ''} selected
                 </span>
-                <Button
-                  size="sm"
-                  onClick={handleBulkAddToCampaign}
-                  className="bg-gradient-accent hover:shadow-glow"
-                >
-                  <Users className="w-4 h-4 mr-2" />
-                  Add to Campaign
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={handleAddToCampaign}
+                    className="bg-gradient-accent hover:shadow-glow"
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    Add to Campaign
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={handleBulkDelete}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete ({selectedLeads.size})
+                  </Button>
+                </div>
               </div>
             )}
           </div>
@@ -523,6 +559,8 @@ function LeadDetails({ lead }: { lead: Lead }) {
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [templatePreview, setTemplatePreview] = useState<TemplatePreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     templatesService.getTemplates().then(response => {
@@ -551,6 +589,28 @@ function LeadDetails({ lead }: { lead: Lead }) {
   const formatDate = (date: Date | undefined) => {
     if (!date) return 'Never';
     return format(date, 'dd MMMM yyyy \'at\' HH:mm', { locale: nl });
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await leadsService.deleteLeads([lead.id]);
+      toast({
+        title: 'Lead verwijderd',
+        description: 'De lead is succesvol verwijderd en verplaatst naar de prullenbak',
+      });
+      // Trigger refresh by closing drawer and reloading
+      window.location.reload();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Kon lead niet verwijderen. Probeer het opnieuw.',
+        variant: 'destructive'
+      });
+    } finally {
+      setDeleting(false);
+      setDeleteDialogOpen(false);
+    }
   };
 
   return (
@@ -707,6 +767,42 @@ function LeadDetails({ lead }: { lead: Lead }) {
             <p className="text-sm">No report attached</p>
           </div>
         )}
+      </div>
+
+      {/* Delete Section */}
+      <div className="border-t pt-4">
+        <label className="text-sm font-medium text-muted-foreground mb-2 block">Danger Zone</label>
+        <Button
+          variant="destructive"
+          onClick={() => setDeleteDialogOpen(true)}
+          className="w-full"
+          disabled={lead.isDeleted}
+        >
+          <Trash2 className="w-4 h-4 mr-2" />
+          {lead.isDeleted ? 'Lead is verwijderd' : 'Verwijder Lead'}
+        </Button>
+        
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Weet je het zeker?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Deze lead wordt verplaatst naar de prullenbak. Je kunt hem later herstellen via de deleted leads view.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuleren</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDelete}
+                disabled={deleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                Verwijderen
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       {/* Template Test */}

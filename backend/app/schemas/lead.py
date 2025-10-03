@@ -25,6 +25,7 @@ class LeadOut(BaseModel):
     last_open_at: Optional[datetime] = None
     vars: Dict[str, Any] = Field(default_factory=dict)
     stopped: bool = False
+    deleted_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
     
@@ -33,6 +34,7 @@ class LeadOut(BaseModel):
     has_image: bool = False
     vars_completeness: Optional[Dict[str, Any]] = None
     is_complete: bool = False
+    is_deleted: bool = False
 
 
 class LeadDetail(LeadOut):
@@ -42,3 +44,23 @@ class LeadDetail(LeadOut):
 class LeadsListResponse(BaseModel):
     items: List[LeadOut]
     total: int
+
+
+class LeadDeleteRequest(BaseModel):
+    """Request to soft delete lead(s)."""
+    lead_ids: List[str] = Field(..., min_length=1, max_length=100)
+    reason: Optional[str] = None
+
+
+class LeadDeleteResponse(BaseModel):
+    """Response after soft delete operation."""
+    deleted_count: int
+    deleted_ids: List[str]
+    failed_ids: List[str] = Field(default_factory=list)
+
+
+class LeadRestoreResponse(BaseModel):
+    """Response after restore operation."""
+    restored_count: int
+    restored_ids: List[str]
+    failed_ids: List[str] = Field(default_factory=list)
