@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional, Dict, Any, List
 import logging
+import os
 
 from app.core.auth import require_auth
 from app.core.templates_store import get_all_templates, get_template, get_templates_summary
+from app.services.db_template_store import db_template_store
 from app.schemas.common import DataResponse
 from app.schemas.template import (
     TemplateOut, TemplateDetail, TemplatePreviewResponse, 
@@ -24,30 +26,52 @@ logger = logging.getLogger(__name__)
 async def list_templates(
     user: Dict[str, Any] = Depends(require_auth)
 ):
-    """Get list of all hard-coded templates (read-only)"""
+    """Get list of all templates (from DB or hard-coded)"""
     try:
-        templates = get_all_templates()
+        use_in_memory = os.getenv("USE_IN_MEMORY_STORES", "true").lower() == "true"
         
-        template_outs = [
-            TemplateOut(
-                id=t.id,
-                name=f"V{t.version} Mail {t.mail_number}",
-                subject_template=t.subject,
-                updated_at="2025-09-26T00:00:00Z",  # Hard-coded timestamp
-                required_vars=t.placeholders
-            )
-            for t in templates.values()
-        ]
+        if use_in_memory:
+            # Use hard-coded templates
+            templates = get_all_templates()
+            template_outs = [
+                TemplateOut(
+                    id=t.id,
+                    name=f"V{t.version} Mail {t.mail_number}",
+                    subject_template=t.subject,
+                    updated_at="2025-09-26T00:00:00Z",
+                    required_vars=t.placeholders
+                )
+                for t in templates.values()
+            ]
+            count = len(templates)
+        else:
+            # Use database templates
+            db_templates = db_template_store.get_all()
+            template_outs = [
+                TemplateOut(
+                    id=t.get('id'),
+                    name=t.get('name'),
+                    subject_template=t.get('subject_template'),
+                    updated_at=t.get('updated_at', ''),
+                    required_vars=t.get('required_vars', [])
+                )
+                for t in db_templates
+            ]
+            count = len(db_templates)
         
-        logger.info("hard_coded_templates_listed", extra={"user": user.get("sub"), "count": len(templates)})
+        logger.info("templates_listed", extra={
+            "user": user.get("sub"), 
+            "count": count,
+            "source": "in-memory" if use_in_memory else "database"
+        })
         
         return DataResponse(
-            data=TemplatesResponse(items=template_outs, total=len(templates)),
+            data=TemplatesResponse(items=template_outs, total=count),
             error=None
         )
         
     except Exception as e:
-        logger.error(f"Error listing hard-coded templates: {str(e)}")
+        logger.error(f"Error listing templates: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -56,52 +80,102 @@ async def get_template_detail(
     template_id: str,
     user: Dict[str, Any] = Depends(require_auth)
 ):
-    """Get detailed hard-coded template information (read-only)"""
+    """Get detailed template information (from DB or hard-coded)"""
     try:
-        template = get_template(template_id)
-        if not template:
-            raise HTTPException(status_code=404, detail="Template not found")
+        use_in_memory = os.getenv("USE_IN_MEMORY_STORES", "true").lower() == "true"
         
-        # Hard-coded assets (dashboard image)
-        assets = [{"key": "dashboard", "type": "image"}]
-        
-        # Extract variables from template placeholders and convert to TemplateVarItem
-        placeholder_strings = template.get_placeholders()
-        variables = []
-        for placeholder in placeholder_strings:
-            # Determine source based on prefix
-            if placeholder.startswith('lead.'):
-                source = 'lead'
-                example = 'Example Company' if 'company' in placeholder else 'https://example.com'
-            elif placeholder.startswith('vars.'):
-                source = 'vars'
-                example = 'example value'
-            elif placeholder.startswith('image.'):
-                source = 'image'
-                example = 'cid:image123'
-            else:
-                source = 'campaign'
-                example = 'example'
+        if use_in_memory:
+            # Use hard-coded template
+            template = get_template(template_id)
+            if not template:
+                raise HTTPException(status_code=404, detail="Template not found")
             
-            variables.append(TemplateVarItem(
-                key=placeholder,
-                required=True,
-                source=source,
-                example=example
-            ))
+            assets = [{"key": "dashboard", "type": "image"}]
+            placeholder_strings = template.get_placeholders()
+            
+            variables = []
+            for placeholder in placeholder_strings:
+                if placeholder.startswith('lead.'):
+                    source = 'lead'
+                    example = 'Example Company' if 'company' in placeholder else 'https://example.com'
+                elif placeholder.startswith('vars.'):
+                    source = 'vars'
+                    example = 'example value'
+                elif placeholder.startswith('image.'):
+                    source = 'image'
+                    example = 'cid:image123'
+                else:
+                    source = 'campaign'
+                    example = 'example'
+                
+                variables.append(TemplateVarItem(
+                    key=placeholder,
+                    required=True,
+                    source=source,
+                    example=example
+                ))
+            
+            detail = TemplateDetail(
+                id=template.id,
+                name=f"V{template.version} Mail {template.mail_number}",
+                subject_template=template.subject,
+                body_template=template.body,
+                updated_at="2025-09-26T00:00:00Z",
+                required_vars=template.placeholders,
+                assets=assets,
+                variables=variables
+            )
+        else:
+            # Use database template
+            db_template = db_template_store.get_by_id(template_id)
+            if not db_template:
+                raise HTTPException(status_code=404, detail="Template not found")
+            
+            # Parse assets from JSONB
+            assets_dict = db_template.get('assets', {})
+            assets = [{"key": k, "type": "image"} for k, v in assets_dict.items() if v]
+            
+            # Parse required_vars from JSONB array
+            required_vars = db_template.get('required_vars', [])
+            
+            variables = []
+            for var in required_vars:
+                if var.startswith('lead.'):
+                    source = 'lead'
+                    example = 'Example Company' if 'company' in var else 'https://example.com'
+                elif var.startswith('vars.'):
+                    source = 'vars'
+                    example = 'example value'
+                elif var.startswith('image.'):
+                    source = 'image'
+                    example = 'cid:image123'
+                else:
+                    source = 'campaign'
+                    example = 'example'
+                
+                variables.append(TemplateVarItem(
+                    key=var,
+                    required=True,
+                    source=source,
+                    example=example
+                ))
+            
+            detail = TemplateDetail(
+                id=db_template.get('id'),
+                name=db_template.get('name'),
+                subject_template=db_template.get('subject_template'),
+                body_template=db_template.get('body_template'),
+                updated_at=db_template.get('updated_at', ''),
+                required_vars=required_vars,
+                assets=assets,
+                variables=variables
+            )
         
-        detail = TemplateDetail(
-            id=template.id,
-            name=f"V{template.version} Mail {template.mail_number}",
-            subject_template=template.subject,
-            body_template=template.body,
-            updated_at="2025-09-26T00:00:00Z",  # Hard-coded timestamp
-            required_vars=template.placeholders,
-            assets=assets,
-            variables=variables
-        )
-        
-        logger.info("template_detail_requested", extra={"user": user.get("sub"), "template_id": template_id})
+        logger.info("template_detail_requested", extra={
+            "user": user.get("sub"), 
+            "template_id": template_id,
+            "source": "in-memory" if use_in_memory else "database"
+        })
         
         return DataResponse(data=detail, error=None)
         
@@ -120,9 +194,21 @@ async def preview_template(
 ):
     """Preview template with lead data"""
     try:
-        template = get_template(template_id)
-        if not template:
-            raise HTTPException(status_code=404, detail="Template not found")
+        use_in_memory = os.getenv("USE_IN_MEMORY_STORES", "true").lower() == "true"
+        
+        # Get template from appropriate source
+        if use_in_memory:
+            template = get_template(template_id)
+            if not template:
+                raise HTTPException(status_code=404, detail="Template not found")
+            template_subject = template.subject
+            template_body = template.body
+        else:
+            db_template = db_template_store.get_by_id(template_id)
+            if not db_template:
+                raise HTTPException(status_code=404, detail="Template not found")
+            template_subject = db_template.get('subject_template')
+            template_body = db_template.get('body_template')
         
         # Get lead data if provided
         lead_data = {}
@@ -171,8 +257,8 @@ async def preview_template(
         
         # Render template
         result = render_template_with_lead(
-            template.body,
-            template.subject,
+            template_body,
+            template_subject,
             lead_data,
             {'name': 'Preview Campaign', 'sender_name': 'Preview Sender'},
             mail_number=mail_number
@@ -265,9 +351,23 @@ async def send_test_email(
 ):
     """Send test email"""
     try:
-        template = get_template(template_id)
-        if not template:
-            raise HTTPException(status_code=404, detail="Template not found")
+        use_in_memory = os.getenv("USE_IN_MEMORY_STORES", "true").lower() == "true"
+        
+        # Get template from appropriate source
+        if use_in_memory:
+            template = get_template(template_id)
+            if not template:
+                raise HTTPException(status_code=404, detail="Template not found")
+            template_subject = template.subject
+            template_body = template.body
+            template_name = f"V{template.version} Mail {template.mail_number}"
+        else:
+            db_template = db_template_store.get_by_id(template_id)
+            if not db_template:
+                raise HTTPException(status_code=404, detail="Template not found")
+            template_subject = db_template.get('subject_template')
+            template_body = db_template.get('body_template')
+            template_name = db_template.get('name')
         
         # Get lead data if provided
         lead_data = {}
@@ -303,8 +403,8 @@ async def send_test_email(
         
         # Render template
         result = render_template_with_lead(
-            template.body_template,
-            template.subject_template,
+            template_body,
+            template_subject,
             lead_data,
             {'name': 'Test Campaign', 'sender_name': 'Test Sender'}
         )
@@ -319,7 +419,7 @@ async def send_test_email(
         # Send email
         send_result = await testsend_service.send_test_email(
             to_email=str(payload.to),
-            subject=result.get('subject', template.name),
+            subject=result.get('subject', template_name),
             html_body=result['html'],
             text_body=result['text'],
             user_id=user.get("sub", "default")
