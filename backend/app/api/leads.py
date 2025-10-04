@@ -41,13 +41,17 @@ async def list_leads(
     is_complete: Optional[bool] = None,
     include_deleted: bool = Query(False),
 ):
+    # Map API parameters to store parameters
+    # Note: API uses domain_tld, store uses tld; API uses has_var, store uses has_vars
+    tld_filter = domain_tld[0] if domain_tld and len(domain_tld) > 0 else None
+    
     items, total = store.query(
         page=page,
         page_size=page_size,
-        status=status,
-        domain_tld=domain_tld,
+        status=status[0] if status and len(status) > 0 else None,
+        tld=tld_filter,
         has_image=has_image,
-        has_var=has_var,
+        has_vars=has_var,
         search=search,
         list_name=list_name,
         is_complete=is_complete,

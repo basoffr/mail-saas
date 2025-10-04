@@ -45,7 +45,7 @@ async def list_templates(
             count = len(templates)
         else:
             # Use database templates
-            db_templates = db_template_store.get_all()
+            db_templates = templates_store.get_all()
             template_outs = [
                 TemplateOut(
                     id=t.get('id'),
@@ -126,7 +126,7 @@ async def get_template_detail(
             )
         else:
             # Use database template
-            db_template = db_template_store.get_by_id(template_id)
+            db_template = templates_store.get_by_id(template_id)
             if not db_template:
                 raise HTTPException(status_code=404, detail="Template not found")
             
@@ -203,7 +203,7 @@ async def preview_template(
             template_subject = template.subject
             template_body = template.body
         else:
-            db_template = db_template_store.get_by_id(template_id)
+            db_template = templates_store.get_by_id(template_id)
             if not db_template:
                 raise HTTPException(status_code=404, detail="Template not found")
             template_subject = db_template.get('subject_template')
@@ -361,7 +361,7 @@ async def send_test_email(
             template_body = template.body
             template_name = f"V{template.version} Mail {template.mail_number}"
         else:
-            db_template = db_template_store.get_by_id(template_id)
+            db_template = templates_store.get_by_id(template_id)
             if not db_template:
                 raise HTTPException(status_code=404, detail="Template not found")
             template_subject = db_template.get('subject_template')
