@@ -51,6 +51,20 @@ class TestsendPayload(BaseModel):
     leadId: Optional[str] = None
 
 
+# Alias for API compatibility
+class TemplateTestSendRequest(BaseModel):
+    """Template test send request"""
+    to: EmailStr
+    lead_id: Optional[str] = None
+
+
+class TemplateTestSendResponse(BaseModel):
+    """Template test send response"""
+    success: bool
+    message: str
+    preview_html: Optional[str] = None
+
+
 class TemplatesResponse(BaseModel):
     """Templates list response"""
     items: List[TemplateOut]

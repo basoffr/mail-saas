@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Dict, Any, Optional, List
 import logging
 import os
 
@@ -8,7 +9,8 @@ from app.services.store_factory import templates_store, leads_store
 from app.schemas.common import DataResponse
 from app.schemas.template import (
     TemplateOut, TemplateDetail, TemplatePreviewResponse, 
-    TemplateTestSendRequest, TemplateTestSendResponse
+    TemplateTestSendRequest, TemplateTestSendResponse, TemplatesResponse,
+    TemplateVarItem, TestsendPayload
 )
 from app.services.template_renderer import render_template_with_lead
 from app.services.testsend import testsend_service
