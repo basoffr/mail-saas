@@ -14,6 +14,8 @@ from app.schemas.lead import (
     LeadRestoreResponse,
 )
 from app.services.leads_store import LeadsStore
+from app.services.db_leads_store import DBLeadsStore
+import os
 from app.services.leads_import import process_import_file
 from app.services.template_preview import render_preview
 from app.schemas.common import DataResponse
@@ -23,8 +25,14 @@ from app.services.lead_enrichment import enrich_leads_bulk, enrich_lead_with_met
 
 router = APIRouter(dependencies=[Depends(require_auth)])
 
-# In-memory store for MVP
-store = LeadsStore()
+# Use DB store if configured, otherwise in-memory for development
+use_db = os.getenv('USE_IN_MEMORY_STORES', 'true').lower() == 'false'
+if use_db:
+    store = DBLeadsStore()
+    print("✅ Using Supabase database for leads")
+else:
+    store = LeadsStore()
+    print("⚠️  Using in-memory store for leads (development mode)")
 
 
 
