@@ -1,24 +1,21 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import Optional, Dict, Any, List
 import logging
 import os
 
 from app.core.auth import require_auth
 from app.core.templates_store import get_all_templates, get_template, get_templates_summary
-from app.services.db_template_store import db_template_store
+from app.services.store_factory import templates_store, leads_store
 from app.schemas.common import DataResponse
 from app.schemas.template import (
     TemplateOut, TemplateDetail, TemplatePreviewResponse, 
-    TestsendPayload, TemplatesResponse, TemplateVarItem
+    TemplateTestSendRequest, TemplateTestSendResponse
 )
 from app.services.template_renderer import render_template_with_lead
 from app.services.testsend import testsend_service
-from app.services.leads_store import leads_store
 from app.services.template_variables import template_variables_service
 
 router = APIRouter(prefix="/templates", tags=["templates"])
 logger = logging.getLogger(__name__)
-
 
 
 

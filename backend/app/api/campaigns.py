@@ -12,10 +12,9 @@ from app.schemas.campaign import (
     ResendPayload, CampaignQuery, MessageQuery
 )
 from app.models.campaign import Campaign, CampaignAudience, CampaignStatus, MessageStatus
-from app.services.campaign_store import campaign_store
+from app.services.store_factory import campaigns_store as campaign_store, leads_store
 from app.services.campaign_scheduler import CampaignScheduler
 from app.services.message_sender import MessageSender
-from app.services.leads_store import leads_store
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 

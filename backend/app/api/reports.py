@@ -10,9 +10,8 @@ from app.schemas.report import (
     ReportsResponse, ReportsQuery, ReportDetail, ReportBindPayload, 
     ReportUnbindPayload, BulkUploadResult, DownloadResponse
 )
-from app.services.reports_store import reports_store
+from app.services.store_factory import reports_store, leads_store
 from app.services.file_handler import file_handler
-from app.services.leads_store import leads_store  # For bulk mapping
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 

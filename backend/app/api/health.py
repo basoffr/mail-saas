@@ -1,13 +1,14 @@
 import os
 from datetime import datetime
 from fastapi import APIRouter
-from app.schemas.common import DataResponse
+from typing import Dict, Any
+from app.services.store_factory import get_stores_summary
 from app.services.supabase_storage import supabase_storage
+from app.schemas.common import DataResponse
 
 router = APIRouter(tags=["health"])
 
-
-@router.get("/health", response_model=DataResponse[dict])
+@router.get("/health", response_model=Dict[str, Any])
 async def health_check():
     """
     Health check endpoint for monitoring
@@ -24,13 +25,16 @@ async def health_check():
         "timestamp": datetime.utcnow().isoformat(),
         "environment": {
             "use_fixtures": os.getenv("USE_FIXTURES", "true").lower() == "true",
+            "use_in_memory_stores": os.getenv("USE_IN_MEMORY_STORES", "true").lower() == "true",
             "timezone": os.getenv("TZ", "UTC"),
             "supabase_configured": bool(os.getenv("SUPABASE_URL")),
+            "database_url_configured": bool(os.getenv("DATABASE_URL")),
         },
         "services": {
             "api": "ok",
             "storage": "ok" if supabase_storage.client else "mock",
         },
+        "stores": get_stores_summary(),
         "version": "1.0.0"
     }
     
