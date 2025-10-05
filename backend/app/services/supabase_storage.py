@@ -37,12 +37,22 @@ class SupabaseStorage:
             return f"https://via.placeholder.com/200x200?text={image_key}"
         
         try:
-            # Try different file extensions
-            extensions = ['.png', '.jpg', '.jpeg', '.webp']
+            # If image_key already has extension (e.g., "labelnoir_40e03960.png"), use as-is
+            # Otherwise try different extensions
             
-            for ext in extensions:
-                file_path = f"images/{image_key}{ext}"
-                
+            paths_to_try = []
+            
+            # Check if image_key already has an extension
+            if any(image_key.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.webp']):
+                # Use as-is in screenshots folder
+                paths_to_try.append(f"screenshots/{image_key}")
+            else:
+                # Try different extensions
+                extensions = ['.png', '.jpg', '.jpeg', '.webp']
+                for ext in extensions:
+                    paths_to_try.append(f"screenshots/{image_key}{ext}")
+            
+            for file_path in paths_to_try:
                 try:
                     # Check if file exists and get signed URL
                     response = self.client.storage.from_(self.bucket_name).create_signed_url(
@@ -58,7 +68,7 @@ class SupabaseStorage:
                     logger.debug(f"File not found: {file_path} - {e}")
                     continue
             
-            logger.warning(f"No image found for key: {image_key}")
+            logger.warning(f"No image found for key: {image_key} in paths: {paths_to_try}")
             return None
             
         except Exception as e:
