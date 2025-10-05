@@ -277,6 +277,24 @@ export default function Leads() {
               </Select>
 
               <Select
+                value={query.isComplete === undefined ? 'all' : query.isComplete ? 'complete' : 'incomplete'}
+                onValueChange={(value) => {
+                  const isComplete = value === 'all' ? undefined : value === 'complete';
+                  setQuery(prev => ({ ...prev, isComplete, page: 1 }));
+                }}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <Filter className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="Completeness" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border border-border">
+                  <SelectItem value="all">All Leads</SelectItem>
+                  <SelectItem value="complete">Complete</SelectItem>
+                  <SelectItem value="incomplete">Incomplete</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select
                 value={query.sortBy || 'createdAt'}
                 onValueChange={(value) => setQuery(prev => ({ 
                   ...prev, 

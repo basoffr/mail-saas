@@ -120,7 +120,9 @@ CREATE OR REPLACE FUNCTION calculate_campaign_eta(
     throttle_minutes INTEGER DEFAULT 20,
     domains_count INTEGER DEFAULT 4
 )
-RETURNS INTERVAL AS $$
+RETURNS INTERVAL
+SET search_path = public, pg_temp
+AS $$
 DECLARE
     messages_per_hour INTEGER;
     total_hours FLOAT;
@@ -142,7 +144,9 @@ CREATE OR REPLACE FUNCTION get_next_send_slot(
     domain_param VARCHAR,
     after_time TIMESTAMPTZ DEFAULT NOW()
 )
-RETURNS TIMESTAMPTZ AS $$
+RETURNS TIMESTAMPTZ
+SET search_path = public, pg_temp
+AS $$
 DECLARE
     last_scheduled TIMESTAMPTZ;
     throttle_mins INTEGER;
@@ -228,7 +232,9 @@ CREATE OR REPLACE FUNCTION link_inbox_message(
     campaign_message_id_param VARCHAR,
     is_weak_link BOOLEAN DEFAULT FALSE
 )
-RETURNS BOOLEAN AS $$
+RETURNS BOOLEAN
+SET search_path = public, pg_temp
+AS $$
 DECLARE
     campaign_id_val VARCHAR;
     lead_id_val VARCHAR;
@@ -270,7 +276,9 @@ CREATE OR REPLACE FUNCTION get_campaign_stats(
 RETURNS TABLE(
     metric VARCHAR,
     value BIGINT
-) AS $$
+)
+SET search_path = public, pg_temp
+AS $$
 BEGIN
     RETURN QUERY
     SELECT 'total_planned'::VARCHAR, COUNT(*)
@@ -304,7 +312,9 @@ RETURNS TABLE(
     total_opened BIGINT,
     total_bounced BIGINT,
     open_rate_pct NUMERIC
-) AS $$
+)
+SET search_path = public, pg_temp
+AS $$
 BEGIN
     RETURN QUERY
     SELECT 

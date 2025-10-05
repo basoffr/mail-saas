@@ -12,7 +12,8 @@ import {
   Settings, 
   ChevronsLeft, 
   ChevronsRight,
-  Mail
+  Mail,
+  Upload
 } from 'lucide-react';
 import { SidebarItem } from './SidebarItem';
 import { SidebarFooter } from './SidebarFooter';
@@ -36,6 +37,7 @@ interface MobileSidebarProps extends AppSidebarProps {
 }
 
 const navigationItems = [
+  { href: '/import/bulk', icon: Upload, label: 'Bulk Import' },
   { href: '/leads', icon: Contact2, label: 'Leads' },
   { href: '/campaigns', icon: Send, label: 'Campagnes' },
   { href: '/templates', icon: FileCode2, label: 'Templates' },

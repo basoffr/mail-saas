@@ -8,6 +8,7 @@ import { AppSidebar, MobileSidebar } from "@/components/layout/AppSidebar";
 import { AppTopbar } from "@/components/layout/AppTopbar";
 import Leads from "./pages/leads/Leads";
 import LeadImport from "./pages/leads/LeadImport";
+import BulkImport from "./pages/import/BulkImport";
 import Campaigns from "./pages/campaigns/Campaigns";
 import CampaignNew from "./pages/campaigns/CampaignNewSimplified";
 import CampaignDetail from "./pages/campaigns/CampaignDetail";
@@ -51,6 +52,7 @@ const App = () => {
                   <Route path="/" element={<Navigate to="/leads" replace />} />
                   <Route path="/leads" element={<Leads />} />
                   <Route path="/leads/import" element={<LeadImport />} />
+                  <Route path="/import/bulk" element={<BulkImport />} />
                   <Route path="/campaigns" element={<Campaigns />} />
                   <Route path="/campaigns/new" element={<CampaignNew />} />
                   <Route path="/campaigns/:id" element={<CampaignDetail />} />

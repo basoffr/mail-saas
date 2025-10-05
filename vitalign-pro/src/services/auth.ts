@@ -43,6 +43,10 @@ class AuthService {
     };
   }
 
+  getToken(): string {
+    return this.token;
+  }
+
   async apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);

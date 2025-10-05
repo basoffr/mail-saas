@@ -13,6 +13,13 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -33,7 +40,8 @@ import {
   Play,
   Eye,
   Loader2,
-  Info
+  Info,
+  List
 } from 'lucide-react';
 import { CampaignCreatePayload, DryRunResult } from '@/types/campaign';
 import { campaignsService } from '@/services/campaigns';
@@ -48,6 +56,7 @@ interface WizardData {
   name: string;
   startMode: 'now' | 'scheduled';
   scheduledStart?: Date;
+  listName?: string;
   leadIds: string[];
   onePerDomain: boolean;
 }
@@ -55,6 +64,7 @@ interface WizardData {
 const defaultData: WizardData = {
   name: '',
   startMode: 'now',
+  listName: undefined,
   leadIds: [],
   onePerDomain: false
 };
@@ -68,10 +78,31 @@ export default function CampaignNewSimplified() {
   const [data, setData] = useState<WizardData>(defaultData);
   const [loading, setLoading] = useState(false);
   const [dryRunResult, setDryRunResult] = useState<DryRunResult | null>(null);
+  const [availableLists, setAvailableLists] = useState<string[]>([]);
 
   // Handle incoming leads from URL params
   const source = searchParams.get('source');
   const leadIdsParam = searchParams.get('ids');
+
+  // Fetch available lists
+  useEffect(() => {
+    const fetchLists = async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/lists`, {
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+          }
+        });
+        const result = await response.json();
+        if (result.data) {
+          setAvailableLists(result.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch lists:', err);
+      }
+    };
+    fetchLists();
+  }, []);
 
   useEffect(() => {
     if (source === 'leads' && leadIdsParam) {
@@ -97,7 +128,7 @@ export default function CampaignNewSimplified() {
       case 'basic':
         return !!data.name;
       case 'audience':
-        return data.leadIds.length > 0;
+        return !!data.listName || data.leadIds.length > 0;
       case 'review':
         return true;
       default:
@@ -293,15 +324,49 @@ export default function CampaignNewSimplified() {
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl font-bold mb-2">Doelgroep</h2>
-          <p className="text-muted-foreground">Selecteer de leads voor deze campagne</p>
+          <p className="text-muted-foreground">Selecteer een lijst voor deze campagne</p>
         </div>
 
         <div className="space-y-4">
           <div>
-            <Label>Geselecteerde Leads</Label>
+            <Label htmlFor="list-select">Lijst Selecteren *</Label>
+            <Select
+              value={data.listName}
+              onValueChange={(value) => updateData({ listName: value })}
+            >
+              <SelectTrigger id="list-select" className="w-full">
+                <SelectValue placeholder="Kies een lijst..." />
+              </SelectTrigger>
+              <SelectContent>
+                {availableLists.map((list) => (
+                  <SelectItem key={list} value={list}>
+                    <div className="flex items-center gap-2">
+                      <List className="w-4 h-4" />
+                      {list}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground mt-2">
+              Alle leads uit de geselecteerde lijst worden toegevoegd aan de campagne
+            </p>
+          </div>
+
+          {data.listName && (
+            <Card className="p-4 bg-green-50 border-green-200">
+              <div className="flex items-center gap-2 text-green-900">
+                <CheckCircle className="w-5 h-5" />
+                <span className="font-medium">Lijst geselecteerd: {data.listName}</span>
+              </div>
+            </Card>
+          )}
+
+          <div>
+            <Label className="text-muted-foreground text-sm">Of selecteer individuele leads (optioneel)</Label>
             <div className="mt-2 p-4 border border-border rounded-lg bg-muted/30">
               <div className="flex items-center justify-between">
-                <span className="font-medium">{data.leadIds.length} leads geselecteerd</span>
+                <span className="font-medium">{data.leadIds.length} individuele leads geselecteerd</span>
                 <Button 
                   size="sm" 
                   variant="outline"
