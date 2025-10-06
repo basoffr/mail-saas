@@ -20,7 +20,6 @@ from loguru import logger
 from fastapi import UploadFile
 
 from app.models.lead import Lead
-from app.services.supabase_storage import supabase_storage
 from supabase import create_client
 import os
 
@@ -345,6 +344,7 @@ class BulkImportService:
                     # Upload to Supabase Storage
                     if self.supabase:
                         try:
+                            bucket_name = os.getenv("SUPABASE_BUCKET", "assets")
                             storage_path = f"{folder}/{filename}"
                             
                             # Determine content type
@@ -354,10 +354,10 @@ class BulkImportService:
                                           "application/octet-stream"
                             
                             # Upload with upsert to overwrite existing files
-                            supabase_storage.upload(
-                                storage_path,
-                                file_content,
-                                {"content-type": content_type, "upsert": "true"}
+                            self.supabase.storage.from_(bucket_name).upload(
+                                path=storage_path,
+                                file=file_content,
+                                file_options={"content-type": content_type, "upsert": "true"}
                             )
                             
                             uploaded_files[filename] = storage_path
