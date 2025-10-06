@@ -3,7 +3,6 @@ Assets API - Endpoints voor Supabase Storage assets (screenshots, reports, etc.)
 """
 
 from fastapi import APIRouter, HTTPException, Query
-from app.schemas.response import DataResponse
 from loguru import logger
 import os
 from supabase import create_client
