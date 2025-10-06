@@ -42,6 +42,7 @@ def enrich_lead_with_metadata(lead: Lead, include_completeness: bool = True) -> 
         'status': lead.status,
         'tags': lead.tags,
         'image_key': lead.image_key,
+        'imageKey': lead.image_key,  # Frontend expects camelCase
         'last_emailed_at': lead.last_emailed_at,
         'last_open_at': lead.last_open_at,
         'vars': lead.vars,
