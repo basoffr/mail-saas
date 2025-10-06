@@ -247,13 +247,14 @@ class BulkImportService:
                     result["warnings"].append(f"Row {idx+2}: {str(e)}")
                     continue
             
-            # Step 3: Bulk insert leads naar Supabase
+            # Step 3: Bulk upsert leads naar Supabase (update on conflict)
             if leads_data and self.supabase:
                 try:
-                    logger.info(f"Inserting {len(leads_data)} leads into Supabase...")
-                    response = self.supabase.table('leads').insert(leads_data).execute()
+                    logger.info(f"Upserting {len(leads_data)} leads into Supabase...")
+                    # Use upsert to update existing leads instead of failing on duplicates
+                    response = self.supabase.table('leads').upsert(leads_data, on_conflict='email').execute()
                     result["leads_imported"] = len(leads_data)
-                    logger.info(f"Successfully inserted {len(leads_data)} leads")
+                    logger.info(f"Successfully upserted {len(leads_data)} leads")
                     
                 except Exception as e:
                     logger.error(f"Failed to insert leads: {e}")
