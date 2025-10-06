@@ -247,7 +247,25 @@ class BulkImportService:
                     result["warnings"].append(f"Row {idx+2}: {str(e)}")
                     continue
             
-            # Step 3: Bulk upsert leads naar Supabase (update on conflict)
+            # Step 3: Deduplicate leads by email (Excel may have duplicates)
+            if leads_data:
+                # Keep last occurrence of each email (most recent data)
+                unique_leads = {}
+                duplicates_found = 0
+                for lead in leads_data:
+                    email = lead['email']
+                    if email in unique_leads:
+                        duplicates_found += 1
+                        logger.warning(f"Duplicate email in Excel: {email} - using last occurrence")
+                    unique_leads[email] = lead
+                
+                leads_data = list(unique_leads.values())
+                if duplicates_found > 0:
+                    result["warnings"].append(f"Found {duplicates_found} duplicate emails in Excel - kept last occurrence")
+                
+                logger.info(f"After deduplication: {len(leads_data)} unique leads")
+            
+            # Step 4: Bulk upsert leads naar Supabase (update on conflict)
             if leads_data and self.supabase:
                 try:
                     logger.info(f"Upserting {len(leads_data)} leads into Supabase...")
