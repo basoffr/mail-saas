@@ -73,14 +73,17 @@ def enrich_lead_with_metadata(lead: Lead, include_completeness: bool = True) -> 
         # Simplified completeness check without full calculation
         is_complete = has_report and has_image and bool(lead.vars)
     
-    # Add enriched fields
+    # Add enriched fields (both snake_case and camelCase for compatibility)
     lead_dict['has_report'] = has_report
     lead_dict['has_image'] = has_image
+    lead_dict['hasReport'] = has_report  # Frontend expects camelCase
+    lead_dict['hasImage'] = has_image    # Frontend expects camelCase
     
     if vars_completeness:
         lead_dict['vars_completeness'] = vars_completeness
     
     lead_dict['is_complete'] = is_complete
+    lead_dict['isComplete'] = is_complete  # Frontend expects camelCase
     
     return lead_dict
 
