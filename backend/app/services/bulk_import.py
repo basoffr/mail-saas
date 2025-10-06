@@ -12,6 +12,7 @@ Functionaliteit:
 import io
 import zipfile
 import re
+import uuid
 import pandas as pd
 from typing import Dict, List, Optional, Tuple, Any
 from datetime import datetime
@@ -225,6 +226,7 @@ class BulkImportService:
                         url = f"https://{domain}"
                     
                     lead_data = {
+                        "id": str(uuid.uuid4()),  # Generate UUID for Supabase
                         "email": email,
                         "domain": domain,
                         "company": company,
