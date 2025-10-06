@@ -302,26 +302,86 @@ class BulkImportService:
         """
         if not self.supabase:
             logger.warning("Supabase not configured")
-            return
+            return {"deleted_leads": 0, "deleted_files": 0}
+        
+        deleted_counts = {
+            "deleted_leads": 0,
+            "deleted_reports": 0,
+            "deleted_report_links": 0,
+            "deleted_assets": 0,
+            "deleted_files": 0
+        }
         
         try:
             # Delete all leads
-            self.supabase.table('leads').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
+            logger.info("Deleting all leads...")
+            result = self.supabase.table('leads').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
+            deleted_counts["deleted_leads"] = len(result.data) if result.data else 0
+            logger.info(f"Deleted {deleted_counts['deleted_leads']} leads")
             
             # Delete all reports
-            self.supabase.table('reports').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
+            logger.info("Deleting all reports...")
+            result = self.supabase.table('reports').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
+            deleted_counts["deleted_reports"] = len(result.data) if result.data else 0
+            logger.info(f"Deleted {deleted_counts['deleted_reports']} reports")
             
             # Delete all report_links
-            self.supabase.table('report_links').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
+            logger.info("Deleting all report_links...")
+            result = self.supabase.table('report_links').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
+            deleted_counts["deleted_report_links"] = len(result.data) if result.data else 0
+            logger.info(f"Deleted {deleted_counts['deleted_report_links']} report_links")
             
             # Delete all assets
-            self.supabase.table('assets').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
+            logger.info("Deleting all assets...")
+            result = self.supabase.table('assets').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
+            deleted_counts["deleted_assets"] = len(result.data) if result.data else 0
+            logger.info(f"Deleted {deleted_counts['deleted_assets']} assets")
             
-            # Clear storage buckets
-            # Note: This requires iterating and deleting files
-            # Simplified version - in production we'd batch this
+            # Clear storage buckets - delete ALL files in screenshots/ and reports/
+            logger.info("Clearing storage buckets...")
+            bucket_name = os.getenv("SUPABASE_BUCKET", "assets")
             
-            logger.info("All data cleared from Supabase")
+            folders_to_clear = ["screenshots", "reports"]
+            total_deleted_files = 0
+            
+            for folder in folders_to_clear:
+                try:
+                    # List all files in folder
+                    logger.info(f"Listing files in {folder}/...")
+                    files = self.supabase.storage.from_(bucket_name).list(folder)
+                    
+                    if files:
+                        # Create list of file paths to delete
+                        file_paths = [f"{folder}/{file['name']}" for file in files if 'name' in file]
+                        
+                        if file_paths:
+                            logger.info(f"Deleting {len(file_paths)} files from {folder}/...")
+                            
+                            # Delete files in batches of 100 (Supabase limit)
+                            batch_size = 100
+                            for i in range(0, len(file_paths), batch_size):
+                                batch = file_paths[i:i + batch_size]
+                                try:
+                                    self.supabase.storage.from_(bucket_name).remove(batch)
+                                    total_deleted_files += len(batch)
+                                    logger.info(f"Deleted batch of {len(batch)} files")
+                                except Exception as e:
+                                    logger.warning(f"Failed to delete batch: {e}")
+                                    continue
+                        else:
+                            logger.info(f"No files found in {folder}/")
+                    else:
+                        logger.info(f"Folder {folder}/ is empty or does not exist")
+                        
+                except Exception as e:
+                    logger.warning(f"Failed to clear {folder}/: {e}")
+                    continue
+            
+            deleted_counts["deleted_files"] = total_deleted_files
+            logger.info(f"Total files deleted from storage: {total_deleted_files}")
+            
+            logger.info("All data cleared from Supabase successfully")
+            return deleted_counts
             
         except Exception as e:
             logger.error(f"Failed to clear data: {e}")

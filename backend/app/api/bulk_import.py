@@ -100,6 +100,11 @@ async def bulk_import(
 class ClearDataResponse(BaseModel):
     success: bool
     message: str
+    deleted_leads: int
+    deleted_reports: int
+    deleted_report_links: int
+    deleted_assets: int
+    deleted_files: int
 
 
 @router.post("/clear-all-data", response_model=DataResponse[ClearDataResponse])
@@ -113,14 +118,16 @@ async def clear_all_data():
     - Alle reports
     - Alle report_links
     - Alle assets
+    - Alle bestanden in storage (screenshots/, reports/)
     """
     try:
-        await bulk_import_service.clear_all_data()
+        counts = await bulk_import_service.clear_all_data()
         
         return {
             "data": {
                 "success": True,
-                "message": "All data cleared successfully"
+                "message": f"Cleared {counts['deleted_leads']} leads, {counts['deleted_files']} files",
+                **counts
             },
             "error": None
         }

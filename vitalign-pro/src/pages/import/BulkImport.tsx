@@ -48,20 +48,27 @@ export default function BulkImport() {
   };
 
   const handleClearData = async () => {
-    if (!confirm('⚠️ WAARSCHUWING: Dit verwijdert ALLE data uit de database!\n\nWeet je het zeker?')) {
+    if (!confirm('⚠️ WAARSCHUWING: Dit verwijdert ALLE data uit de database EN storage!\n\nInclusive:\n- Leads\n- Reports\n- Screenshots\n- Alle bestanden\n\nWeet je het zeker?')) {
       return;
     }
 
     try {
       setUploading(true);
       
-      const response = await authService.apiCall('/clear-all-data', {
+      const response = await authService.apiCall<any>('/clear-all-data', {
         method: 'POST'
       });
 
+      const counts = response;
+      const message = `Verwijderd:\n` +
+        `• ${counts.deleted_leads || 0} leads\n` +
+        `• ${counts.deleted_files || 0} bestanden\n` +
+        `• ${counts.deleted_reports || 0} reports\n` +
+        `• ${counts.deleted_assets || 0} assets`;
+
       toast({
         title: 'Data verwijderd',
-        description: 'Alle data is succesvol verwijderd uit de database',
+        description: message,
       });
 
     } catch (err: any) {
