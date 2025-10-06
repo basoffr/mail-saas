@@ -18,24 +18,32 @@ class BulkImportResult(BaseModel):
     leads_imported: int
     screenshots_uploaded: int
     reports_uploaded: int
-    leads_complete: int
     warnings: list[str] = []
 
 
 @router.post("/bulk-import", response_model=DataResponse[BulkImportResult])
 async def bulk_import(
-    excel_file: UploadFile = File(..., description="Excel bestand met leads + variabelen"),
-    list_name: str = Form(..., description="Naam voor deze import batch"),
-    screenshots_zip: Optional[UploadFile] = File(None, description="ZIP met screenshots (optioneel)"),
-    reports_zip: Optional[UploadFile] = File(None, description="ZIP met reports (optioneel)"),
+    excel_file: UploadFile = File(...),
+    screenshots_zip: Optional[UploadFile] = File(None),
+    reports_zip: Optional[UploadFile] = File(None),
+    list_name: str = Form(...)
 ):
     """
     Bulk import: Upload leads + screenshots + reports in één keer
     
+    **Upload Formaat:**
+    - excel_file: Excel bestand met leads
+    - screenshots_zip: ZIP met screenshots (optioneel)
+    - reports_zip: ZIP met reports (optioneel)
+    - list_name: Naam voor deze import batch
+    
+    ⚠️ BELANGRIJK: Voor grote imports (>500 bestanden per ZIP), split in kleinere batches
+    om timeouts te voorkomen. Upload meerdere keren met verschillende list_names.
+    
     **Flow:**
     1. Upload screenshots ZIP → Supabase Storage
     2. Upload reports ZIP → Supabase Storage  
-    3. Parse Excel → Extract leads + variabelen
+    3. Parse Excel bestand
     4. Auto-link screenshot + report per lead (via normalized domain)
     5. Bulk insert leads naar database
     
