@@ -30,7 +30,9 @@ store = leads_store
 
 
 
-@router.get("/leads", response_model=DataResponse[LeadsListResponse])
+# Temporarily disable response model to allow enriched fields
+# @router.get("/leads", response_model=DataResponse[LeadsListResponse])
+@router.get("/leads")
 async def list_leads(
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100),
