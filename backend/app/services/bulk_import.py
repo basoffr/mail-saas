@@ -28,7 +28,7 @@ class BulkImportService:
     
     def __init__(self):
         self.supabase_url = os.getenv("SUPABASE_URL")
-        self.supabase_key = os.getenv("SUPABASE_SERVICE_KEY")  # Service key voor admin access
+        self.supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")  # Service key voor admin access
         
         if self.supabase_url and self.supabase_key:
             self.supabase = create_client(self.supabase_url, self.supabase_key)
