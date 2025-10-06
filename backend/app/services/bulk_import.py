@@ -344,8 +344,13 @@ class BulkImportService:
                     # Upload to Supabase Storage
                     if self.supabase:
                         try:
-                            bucket_name = os.getenv("SUPABASE_BUCKET", "assets")
-                            storage_path = f"{folder}/{filename}"
+                            # Use separate buckets for reports vs screenshots
+                            if folder == "reports":
+                                bucket_name = "reports"  # Reports bucket
+                                storage_path = filename  # No subfolder needed
+                            else:
+                                bucket_name = os.getenv("SUPABASE_BUCKET", "assets")  # Screenshots bucket
+                                storage_path = f"{folder}/{filename}"  # Use screenshots/ subfolder
                             
                             # Determine content type
                             content_type = "image/png" if filename.endswith('.png') else \
@@ -504,38 +509,57 @@ class BulkImportService:
             deleted_counts["deleted_assets"] = len(result.data) if result.data else 0
             logger.info(f"Deleted {deleted_counts['deleted_assets']} assets")
             
-            # Clear storage buckets - delete ALL files in screenshots/ and reports/
+            # Clear storage buckets
+            # - assets bucket: screenshots/ folder
+            # - reports bucket: root level (all files)
             logger.info("Clearing storage buckets...")
-            bucket_name = os.getenv("SUPABASE_BUCKET", "assets")
-            
-            folders_to_clear = ["screenshots", "reports"]
             total_deleted_files = 0
             
-            for folder in folders_to_clear:
+            # Define bucket+folder combinations to clear
+            buckets_to_clear = [
+                {"bucket": "assets", "folder": "screenshots"},
+                {"bucket": "reports", "folder": ""},  # Root level for reports bucket
+            ]
+            
+            for bucket_config in buckets_to_clear:
+                bucket_name = bucket_config["bucket"]
+                folder = bucket_config["folder"]
+                display_name = f"{bucket_name}/{folder}" if folder else bucket_name
+                
                 try:
-                    logger.info(f"Clearing {folder}/...")
+                    logger.info(f"Clearing {display_name}...")
                     
                     # Keep deleting until no more files found
-                    # (Supabase .list() returns max 100 items, so we need to loop)
                     while True:
-                        # List files in folder (max 100 per call)
-                        files = self.supabase.storage.from_(bucket_name).list(folder, {
-                            "limit": 1000,  # Try to get more items per call
-                            "offset": 0
-                        })
+                        # List files
+                        if folder:
+                            # List in subfolder
+                            files = self.supabase.storage.from_(bucket_name).list(folder, {
+                                "limit": 1000,
+                                "offset": 0
+                            })
+                        else:
+                            # List at root level
+                            files = self.supabase.storage.from_(bucket_name).list("", {
+                                "limit": 1000,
+                                "offset": 0
+                            })
                         
                         if not files or len(files) == 0:
-                            logger.info(f"No more files in {folder}/")
+                            logger.info(f"No more files in {display_name}")
                             break
                         
                         # Create list of file paths to delete
-                        file_paths = [f"{folder}/{file['name']}" for file in files if 'name' in file]
+                        if folder:
+                            file_paths = [f"{folder}/{file['name']}" for file in files if 'name' in file]
+                        else:
+                            file_paths = [file['name'] for file in files if 'name' in file]
                         
                         if not file_paths:
-                            logger.info(f"No more files in {folder}/")
+                            logger.info(f"No more files in {display_name}")
                             break
                         
-                        logger.info(f"Found {len(file_paths)} files in {folder}/, deleting...")
+                        logger.info(f"Found {len(file_paths)} files in {display_name}, deleting...")
                         
                         # Delete files in batches of 100 (Supabase limit for delete)
                         batch_size = 100
@@ -551,11 +575,11 @@ class BulkImportService:
                         
                         # If we got less than limit, we're done
                         if len(files) < 100:
-                            logger.info(f"Finished clearing {folder}/")
+                            logger.info(f"Finished clearing {display_name}")
                             break
                         
                 except Exception as e:
-                    logger.warning(f"Failed to clear {folder}/: {e}")
+                    logger.warning(f"Failed to clear {display_name}: {e}")
                     continue
             
             deleted_counts["deleted_files"] = total_deleted_files
