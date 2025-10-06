@@ -15,6 +15,7 @@ from app.api.inbox import router as inbox_router
 from app.api.exports import router as exports_router
 from app.api.health import router as health_router
 from app.api.bulk_import import router as bulk_import_router
+from app.api.assets import router as assets_router
 
 app = FastAPI(title="Private Mail SaaS API", version="0.1.0")
 
@@ -81,3 +82,4 @@ app.include_router(inbox_router, prefix="/api/v1")
 app.include_router(tracking_router, prefix="/api/v1")
 app.include_router(exports_router, prefix="/api/v1")
 app.include_router(bulk_import_router, prefix="/api/v1")
+app.include_router(assets_router, prefix="/api/v1")

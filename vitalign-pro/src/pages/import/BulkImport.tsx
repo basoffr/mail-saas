@@ -90,8 +90,9 @@ export default function BulkImport() {
       return;
     }
     
-    if (!excelFile) {
-      setError('Excel bestand is verplicht');
+    // At least one file must be provided
+    if (!excelFile && !screenshotsZip && !reportsZip) {
+      setError('Upload minimaal één bestand (Excel, Screenshots of Reports)');
       return;
     }
 
@@ -102,8 +103,11 @@ export default function BulkImport() {
 
       // Create FormData
       const formData = new FormData();
-      formData.append('excel_file', excelFile);
       formData.append('list_name', listName);
+      
+      if (excelFile) {
+        formData.append('excel_file', excelFile);
+      }
       
       if (screenshotsZip) {
         formData.append('screenshots_zip', screenshotsZip);
@@ -153,7 +157,7 @@ export default function BulkImport() {
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Bulk Import</h1>
         <p className="text-muted-foreground mt-2">
-          Upload leads, screenshots en reports in één keer. Alles wordt automatisch aan elkaar gelinkt.
+          Upload leads (Excel), screenshots en/of reports. Screenshots en reports worden automatisch gelinkt aan bestaande leads op basis van domain.
         </p>
       </div>
 
@@ -200,7 +204,7 @@ export default function BulkImport() {
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <FileSpreadsheet className="w-5 h-5 text-primary" />
-              <Label>Excel Bestand *</Label>
+              <Label>Excel Bestand (optioneel)</Label>
             </div>
             
             <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
@@ -384,7 +388,7 @@ export default function BulkImport() {
           type="submit" 
           className="w-full" 
           size="lg"
-          disabled={uploading || !listName || !excelFile}
+          disabled={uploading || !listName || (!excelFile && !screenshotsZip && !reportsZip)}
         >
           {uploading ? (
             <>
