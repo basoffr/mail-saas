@@ -772,13 +772,28 @@ function LeadDetails({ lead }: { lead: Lead }) {
       {/* Report Section */}
       <div>
         <label className="text-sm font-medium text-muted-foreground mb-2 block">Report</label>
-        {lead.hasReport ? (
+        {lead.hasReport && lead.vars?.report_filename ? (
           <div className="bg-muted/30 rounded-lg p-4">
-            <div className="flex items-center gap-2">
-              <span className="text-green-600">📄 ✅</span>
-              <span className="text-sm font-medium">Report attached</span>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-green-600">📄 ✅</span>
+                <div>
+                  <p className="text-sm font-medium">Report attached</p>
+                  <p className="text-xs text-muted-foreground font-mono">{lead.vars.report_filename}</p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  // Generate report URL and open in new tab
+                  const reportUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/reports/${lead.vars.report_filename}`;
+                  window.open(reportUrl, '_blank');
+                }}
+              >
+                <ExternalLink className="w-4 h-4" />
+              </Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Download available from reports tab</p>
           </div>
         ) : (
           <div className="bg-muted/30 rounded-lg p-4 text-center text-muted-foreground">

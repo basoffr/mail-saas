@@ -55,7 +55,11 @@ def enrich_lead_with_metadata(lead: Lead, include_completeness: bool = True) -> 
         lead_dict['list_name'] = lead.list_name
     
     # Computed fields
-    has_report = reports_store.get_report_for_lead(lead.id) is not None
+    # Check if report exists in vars (from bulk import) OR in reports_store
+    has_report_in_vars = lead.vars.get('report_filename') is not None if lead.vars else False
+    has_report_in_store = reports_store.get_report_for_lead(lead.id) is not None
+    has_report = has_report_in_vars or has_report_in_store
+    
     has_image = lead.image_key is not None and lead.image_key != ''
     
     # Variabelen compleetheid (optioneel, kan performance impact hebben)
@@ -151,7 +155,11 @@ def check_lead_is_complete(lead: Lead) -> bool:
     Returns:
         True als lead alle vars, report EN image heeft
     """
-    has_report = reports_store.get_report_for_lead(lead.id) is not None
+    # Check if report exists in vars (from bulk import) OR in reports_store
+    has_report_in_vars = lead.vars.get('report_filename') is not None if lead.vars else False
+    has_report_in_store = reports_store.get_report_for_lead(lead.id) is not None
+    has_report = has_report_in_vars or has_report_in_store
+    
     has_image = lead.image_key is not None and lead.image_key != ''
     vars_complete = len(template_variables_service.get_missing_variables(lead)) == 0
     
