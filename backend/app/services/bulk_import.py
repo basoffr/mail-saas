@@ -11,6 +11,7 @@ Functionaliteit:
 
 import io
 import zipfile
+import re
 import pandas as pd
 from typing import Dict, List, Optional, Tuple, Any
 from datetime import datetime
@@ -124,17 +125,58 @@ class BulkImportService:
             excel_content = await excel_file.read()
             df = pd.read_excel(io.BytesIO(excel_content))
             
+            # Log kolommen voor debugging
+            logger.info(f"Excel columns found: {list(df.columns)}")
+            logger.info(f"Total rows in Excel: {len(df)}")
+            
+            # Create case-insensitive column mapping
+            col_map = {col.lower().strip(): col for col in df.columns}
+            logger.info(f"Column mapping (lowercase): {list(col_map.keys())}")
+            
+            def get_col_value(row, *possible_names):
+                """Get value from row with case-insensitive column matching"""
+                for name in possible_names:
+                    # Try exact match first
+                    if name in row:
+                        val = row[name]
+                        if pd.notna(val) and str(val).strip():
+                            return str(val).strip()
+                    # Try lowercase match
+                    name_lower = name.lower().strip()
+                    if name_lower in col_map:
+                        actual_col = col_map[name_lower]
+                        val = row[actual_col]
+                        if pd.notna(val) and str(val).strip():
+                            return str(val).strip()
+                return ''
+            
             leads_data = []
             
             for idx, row in df.iterrows():
                 try:
-                    # Extract lead data
-                    domain = row.get('domain', row.get('Domain', ''))
-                    email = row.get('email', row.get('Email', ''))
-                    company = row.get('company', row.get('Company', row.get('Bedrijfsnaam', '')))
+                    # Extract lead data with flexible column matching
+                    email = get_col_value(row, 'email', 'Email', 'EMAIL', 'E-mail', 'e-mail', 'Mail')
+                    url = get_col_value(row, 'url', 'URL', 'website', 'Website', 'Link')
+                    domain = get_col_value(row, 'domain', 'Domain', 'DOMAIN')
+                    company = get_col_value(row, 'company', 'Company', 'COMPANY', 'Bedrijfsnaam', 'bedrijfsnaam', 'Bedrijf')
                     
-                    if not domain or not email:
-                        result["warnings"].append(f"Row {idx+2}: Missing domain or email")
+                    # Als geen domain kolom, extract uit URL of email
+                    if not domain:
+                        if url:
+                            # Extract domain from URL: https://example.com/path -> example.com
+                            match = re.search(r'(?:https?://)?(?:www\.)?([^/]+)', url)
+                            if match:
+                                domain = match.group(1)
+                        elif email:
+                            # Extract domain from email: user@example.com -> example.com
+                            domain = email.split('@')[-1] if '@' in email else ''
+                    
+                    if not email:
+                        result["warnings"].append(f"Row {idx+2}: Missing email")
+                        continue
+                    
+                    if not domain:
+                        result["warnings"].append(f"Row {idx+2}: Could not determine domain from URL or email")
                         continue
                     
                     # Normalize domain voor matching
@@ -159,30 +201,34 @@ class BulkImportService:
                     # Extract variables from Excel columns
                     vars_dict = {}
                     
-                    # Common variable mappings
+                    # Common variable mappings - gebruik flexible matching
                     var_mappings = {
-                        'keyword': ['keyword', 'Keyword', 'zoekwoord', 'Zoekwoord'],
-                        'google_rank': ['google_rank', 'Google Rank', 'ranking', 'Ranking'],
-                        'city': ['city', 'City', 'plaats', 'Plaats'],
-                        'phone': ['phone', 'Phone', 'telefoon', 'Telefoon'],
+                        'keyword': ['keyword', 'Keyword', 'zoekwoord', 'Zoekwoord', 'KEYWORD'],
+                        'google_rank': ['google_rank', 'Google Rank', 'ranking', 'Ranking', 'Positie', 'positie'],
+                        'seo_score': ['seo_score', 'SEO Score', 'SEO_Score', 'Score'],
+                        'city': ['city', 'City', 'plaats', 'Plaats', 'Stad', 'stad'],
+                        'phone': ['phone', 'Phone', 'telefoon', 'Telefoon', 'Tel', 'tel'],
                     }
                     
                     for var_name, possible_columns in var_mappings.items():
-                        for col in possible_columns:
-                            if col in df.columns and pd.notna(row.get(col)):
-                                vars_dict[var_name] = str(row[col])
-                                break
+                        value = get_col_value(row, *possible_columns)
+                        if value:
+                            vars_dict[var_name] = value
                     
                     # Add report filename to vars if found
                     if report_filename:
                         vars_dict['report_filename'] = report_filename
                     
                     # Create lead data (created_at and updated_at are auto-generated by Supabase)
+                    # Use URL from earlier or construct default
+                    if not url:
+                        url = f"https://{domain}"
+                    
                     lead_data = {
                         "email": email,
                         "domain": domain,
                         "company": company,
-                        "url": row.get('url', row.get('URL', f"https://{domain}")),
+                        "url": url,
                         "status": "active",
                         "image_key": image_key,
                         "list_name": list_name,
