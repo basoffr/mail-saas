@@ -275,11 +275,11 @@ class BulkImportService:
                                           "application/pdf" if filename.endswith('.pdf') else \
                                           "application/octet-stream"
                             
-                            # Upload file
-                            self.supabase.storage.from_('assets').upload(
+                            # Upload with upsert to overwrite existing files
+                            supabase_storage.upload(
                                 storage_path,
                                 file_content,
-                                {"content-type": content_type}
+                                {"content-type": content_type, "upsert": "true"}
                             )
                             
                             uploaded_files[filename] = storage_path
@@ -346,32 +346,46 @@ class BulkImportService:
             
             for folder in folders_to_clear:
                 try:
-                    # List all files in folder
-                    logger.info(f"Listing files in {folder}/...")
-                    files = self.supabase.storage.from_(bucket_name).list(folder)
+                    logger.info(f"Clearing {folder}/...")
                     
-                    if files:
+                    # Keep deleting until no more files found
+                    # (Supabase .list() returns max 100 items, so we need to loop)
+                    while True:
+                        # List files in folder (max 100 per call)
+                        files = self.supabase.storage.from_(bucket_name).list(folder, {
+                            "limit": 1000,  # Try to get more items per call
+                            "offset": 0
+                        })
+                        
+                        if not files or len(files) == 0:
+                            logger.info(f"No more files in {folder}/")
+                            break
+                        
                         # Create list of file paths to delete
                         file_paths = [f"{folder}/{file['name']}" for file in files if 'name' in file]
                         
-                        if file_paths:
-                            logger.info(f"Deleting {len(file_paths)} files from {folder}/...")
-                            
-                            # Delete files in batches of 100 (Supabase limit)
-                            batch_size = 100
-                            for i in range(0, len(file_paths), batch_size):
-                                batch = file_paths[i:i + batch_size]
-                                try:
-                                    self.supabase.storage.from_(bucket_name).remove(batch)
-                                    total_deleted_files += len(batch)
-                                    logger.info(f"Deleted batch of {len(batch)} files")
-                                except Exception as e:
-                                    logger.warning(f"Failed to delete batch: {e}")
-                                    continue
-                        else:
-                            logger.info(f"No files found in {folder}/")
-                    else:
-                        logger.info(f"Folder {folder}/ is empty or does not exist")
+                        if not file_paths:
+                            logger.info(f"No more files in {folder}/")
+                            break
+                        
+                        logger.info(f"Found {len(file_paths)} files in {folder}/, deleting...")
+                        
+                        # Delete files in batches of 100 (Supabase limit for delete)
+                        batch_size = 100
+                        for i in range(0, len(file_paths), batch_size):
+                            batch = file_paths[i:i + batch_size]
+                            try:
+                                self.supabase.storage.from_(bucket_name).remove(batch)
+                                total_deleted_files += len(batch)
+                                logger.info(f"Deleted batch of {len(batch)} files (total: {total_deleted_files})")
+                            except Exception as e:
+                                logger.warning(f"Failed to delete batch: {e}")
+                                continue
+                        
+                        # If we got less than limit, we're done
+                        if len(files) < 100:
+                            logger.info(f"Finished clearing {folder}/")
+                            break
                         
                 except Exception as e:
                     logger.warning(f"Failed to clear {folder}/: {e}")
