@@ -23,7 +23,7 @@ class BulkImportResult(BaseModel):
 
 @router.post("/bulk-import", response_model=DataResponse[BulkImportResult])
 async def bulk_import(
-    excel_file: UploadFile = File(...),
+    excel_file: Optional[UploadFile] = File(None),
     screenshots_zip: Optional[UploadFile] = File(None),
     reports_zip: Optional[UploadFile] = File(None),
     list_name: str = Form(...)
@@ -65,8 +65,15 @@ async def bulk_import(
     - → Auto-linked! ✅
     """
     try:
-        # Validate Excel file
-        if not excel_file.filename.endswith(('.xlsx', '.xls')):
+        # At least one file must be provided
+        if not excel_file and not screenshots_zip and not reports_zip:
+            raise HTTPException(
+                status_code=400,
+                detail="At least one file must be provided (Excel, Screenshots ZIP, or Reports ZIP)"
+            )
+        
+        # Validate Excel file if provided
+        if excel_file and not excel_file.filename.endswith(('.xlsx', '.xls')):
             raise HTTPException(
                 status_code=400,
                 detail="Invalid file type. Excel file (.xlsx or .xls) required."

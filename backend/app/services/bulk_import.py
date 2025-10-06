@@ -72,7 +72,7 @@ class BulkImportService:
     
     async def process_bulk_import(
         self,
-        excel_file: UploadFile,
+        excel_file: Optional[UploadFile],
         screenshots_zip: Optional[UploadFile],
         reports_zip: Optional[UploadFile],
         list_name: str
@@ -122,9 +122,20 @@ class BulkImportService:
                 )
                 result["reports_uploaded"] = len(report_files)
             
-            # Step 2: Parse Excel en create leads
-            excel_content = await excel_file.read()
-            df = pd.read_excel(io.BytesIO(excel_content))
+            # Step 2: Parse Excel OR fetch existing leads from database
+            if excel_file:
+                # New leads: Parse Excel en create leads
+                excel_content = await excel_file.read()
+                df = pd.read_excel(io.BytesIO(excel_content))
+            else:
+                # No Excel: Update existing leads with screenshots/reports
+                logger.info(f"No Excel file provided - updating existing leads in list: {list_name}")
+                return await self._update_existing_leads_assets(
+                    list_name=list_name,
+                    screenshot_files=screenshot_files,
+                    report_files=report_files,
+                    result=result
+                )
             
             # Log kolommen voor debugging
             logger.info(f"Excel columns found: {list(df.columns)}")
@@ -361,6 +372,95 @@ class BulkImportService:
             raise
         
         return uploaded_files
+    
+    async def _update_existing_leads_assets(
+        self,
+        list_name: str,
+        screenshot_files: Dict[str, str],
+        report_files: Dict[str, str],
+        result: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Update existing leads with screenshots/reports based on domain matching
+        
+        Args:
+            list_name: List name to filter leads
+            screenshot_files: Dict of screenshot filenames -> storage paths
+            report_files: Dict of report filenames -> storage paths
+            result: Result dict to update
+        """
+        if not self.supabase:
+            result["warnings"].append("Supabase not configured - cannot update leads")
+            return result
+        
+        try:
+            # Fetch existing leads from database for this list
+            logger.info(f"Fetching existing leads for list: {list_name}")
+            response = self.supabase.table('leads').select('*').eq('list_name', list_name).execute()
+            
+            if not response.data:
+                result["warnings"].append(f"No existing leads found for list: {list_name}")
+                return result
+            
+            existing_leads = response.data
+            logger.info(f"Found {len(existing_leads)} existing leads")
+            
+            # Update each lead with matched assets
+            updated_count = 0
+            for lead in existing_leads:
+                domain = lead.get('domain', '')
+                if not domain:
+                    continue
+                
+                normalized = self.normalize_domain(domain)
+                updated = False
+                vars_dict = lead.get('vars', {}) or {}
+                
+                # Match screenshot
+                if screenshot_files and not lead.get('image_key'):
+                    for filename in screenshot_files.keys():
+                        file_domain = self.extract_domain_from_filename(filename)
+                        if self.normalize_domain(file_domain) == normalized:
+                            lead['image_key'] = screenshot_files[filename]
+                            updated = True
+                            logger.info(f"Matched screenshot for {domain}: {filename}")
+                            break
+                
+                # Match report
+                if report_files and not vars_dict.get('report_filename'):
+                    for filename in report_files.keys():
+                        file_domain = self.extract_domain_from_filename(filename)
+                        if self.normalize_domain(file_domain) == normalized:
+                            vars_dict['report_filename'] = filename
+                            lead['vars'] = vars_dict
+                            updated = True
+                            logger.info(f"Matched report for {domain}: {filename}")
+                            break
+                
+                # Update lead in database if changed
+                if updated:
+                    try:
+                        self.supabase.table('leads').update({
+                            'image_key': lead.get('image_key'),
+                            'vars': lead.get('vars')
+                        }).eq('id', lead['id']).execute()
+                        updated_count += 1
+                    except Exception as e:
+                        logger.warning(f"Failed to update lead {lead.get('email')}: {e}")
+                        continue
+            
+            result["leads_imported"] = updated_count
+            logger.info(f"Updated {updated_count} leads with new assets")
+            
+            if updated_count == 0:
+                result["warnings"].append(f"No matching screenshots/reports found for leads in list: {list_name}")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Failed to update existing leads: {e}")
+            result["warnings"].append(f"Failed to update leads: {str(e)}")
+            return result
     
     async def clear_all_data(self):
         """
