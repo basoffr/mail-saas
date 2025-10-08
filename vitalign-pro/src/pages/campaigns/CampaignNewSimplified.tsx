@@ -79,16 +79,18 @@ export default function CampaignNewSimplified() {
   const [loading, setLoading] = useState(false);
   const [dryRunResult, setDryRunResult] = useState<DryRunResult | null>(null);
   const [availableLists, setAvailableLists] = useState<string[]>([]);
+  const [audienceLoading, setAudienceLoading] = useState(false);
+  const [audienceCount, setAudienceCount] = useState(0);
 
   // Handle incoming leads from URL params
   const source = searchParams.get('source');
   const leadIdsParam = searchParams.get('ids');
 
-  // Fetch available lists
+  // Fetch available lists from admin endpoint
   useEffect(() => {
     const fetchLists = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/lists`, {
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/list-names`, {
           headers: {
             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
           }
@@ -118,6 +120,60 @@ export default function CampaignNewSimplified() {
       });
     }
   }, [source, leadIdsParam, toast]);
+
+  // Fetch audience when list is selected
+  useEffect(() => {
+    if (!data.listName) {
+      setAudienceCount(0);
+      return;
+    }
+
+    const fetchAudience = async () => {
+      setAudienceLoading(true);
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_API_BASE_URL}/admin/audience-by-list?list_name=${encodeURIComponent(data.listName)}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+            }
+          }
+        );
+        const result = await response.json();
+        
+        if (result.data && result.data.lead_ids) {
+          // Update lead_ids with filtered audience
+          setData(prev => ({
+            ...prev,
+            leadIds: result.data.lead_ids
+          }));
+          setAudienceCount(result.data.eligible_count);
+          
+          toast({
+            title: '✅ Doelgroep geladen',
+            description: `${result.data.eligible_count} eligible leads uit "${data.listName}"`,
+          });
+        } else if (result.error) {
+          toast({
+            title: 'Fout bij laden doelgroep',
+            description: result.error,
+            variant: 'destructive'
+          });
+        }
+      } catch (err) {
+        console.error('Failed to fetch audience:', err);
+        toast({
+          title: 'Fout bij laden doelgroep',
+          description: 'Kon doelgroep niet ophalen',
+          variant: 'destructive'
+        });
+      } finally {
+        setAudienceLoading(false);
+      }
+    };
+
+    fetchAudience();
+  }, [data.listName, toast]);
 
   const updateData = (updates: Partial<WizardData>) => {
     setData(prev => ({ ...prev, ...updates }));
@@ -353,11 +409,35 @@ export default function CampaignNewSimplified() {
             </p>
           </div>
 
-          {data.listName && (
+          {audienceLoading && (
+            <Card className="p-4 bg-blue-50 border-blue-200">
+              <div className="flex items-center gap-2 text-blue-900">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span className="font-medium">Doelgroep laden...</span>
+              </div>
+            </Card>
+          )}
+
+          {!audienceLoading && data.listName && audienceCount > 0 && (
             <Card className="p-4 bg-green-50 border-green-200">
-              <div className="flex items-center gap-2 text-green-900">
-                <CheckCircle className="w-5 h-5" />
-                <span className="font-medium">Lijst geselecteerd: {data.listName}</span>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-green-900">
+                  <CheckCircle className="w-5 h-5" />
+                  <span className="font-medium">Lijst geselecteerd: {data.listName}</span>
+                </div>
+                <div className="flex items-center gap-2 text-green-800 text-sm">
+                  <Users className="w-4 h-4" />
+                  <span>{audienceCount} eligible leads (gefilterd op: active, not stopped, has image, has report)</span>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {!audienceLoading && data.listName && audienceCount === 0 && (
+            <Card className="p-4 bg-yellow-50 border-yellow-200">
+              <div className="flex items-center gap-2 text-yellow-900">
+                <Info className="w-5 h-5" />
+                <span className="font-medium">Geen eligible leads gevonden in "{data.listName}"</span>
               </div>
             </Card>
           )}
