@@ -23,10 +23,15 @@ class SupabaseStorage:
     
     def get_signed_url(self, image_key: str, expires_in: int = 3600) -> Optional[str]:
         """
-        Generate signed URL for image_key
+        Generate signed URL for image_key.
+        
+        FIX: Removed double 'screenshots/' prefix issue.
+        Key is now used EXACTLY as provided - no extra prefixing.
         
         Args:
-            image_key: The image key (e.g., "acme_picture")
+            image_key: The image key - can be:
+                     - Full path: "screenshots/filename.png" (used as-is)
+                     - Just filename: "filename.png" (screenshots/ prefix added)
             expires_in: URL expiration time in seconds (default: 1 hour)
         
         Returns:
@@ -37,17 +42,19 @@ class SupabaseStorage:
             return f"https://via.placeholder.com/200x200?text={image_key}"
         
         try:
-            # If image_key already has extension (e.g., "labelnoir_40e03960.png"), use as-is
-            # Otherwise try different extensions
-            
             paths_to_try = []
             
-            # Check if image_key already has an extension
-            if any(image_key.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.webp']):
-                # Use as-is in screenshots folder
+            # FIX: Check if key already contains 'screenshots/' prefix
+            if image_key.startswith('screenshots/'):
+                # Key already has full path - use as-is
+                paths_to_try.append(image_key)
+                logger.debug(f"Using key as-is (already has screenshots/ prefix): {image_key}")
+            elif any(image_key.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.webp']):
+                # Key is just filename - add screenshots/ prefix
                 paths_to_try.append(f"screenshots/{image_key}")
+                logger.debug(f"Adding screenshots/ prefix to: {image_key}")
             else:
-                # Try different extensions
+                # Key has no extension - try different extensions
                 extensions = ['.png', '.jpg', '.jpeg', '.webp']
                 for ext in extensions:
                     paths_to_try.append(f"screenshots/{image_key}{ext}")
@@ -61,14 +68,14 @@ class SupabaseStorage:
                     )
                     
                     if response and 'signedURL' in response:
-                        logger.debug(f"Generated signed URL for {file_path}")
+                        logger.info(f"✅ Generated signed URL for: {file_path}")
                         return response['signedURL']
                         
                 except Exception as e:
                     logger.debug(f"File not found: {file_path} - {e}")
                     continue
             
-            logger.warning(f"No image found for key: {image_key} in paths: {paths_to_try}")
+            logger.warning(f"❌ No image found for key: {image_key} | Tried paths: {paths_to_try}")
             return None
             
         except Exception as e:

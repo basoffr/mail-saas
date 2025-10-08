@@ -15,76 +15,41 @@ async def get_image_url_by_key(key: str = Query(..., description="Storage key (e
     """
     Get public URL for an image stored in Supabase Storage.
     
-    FIXED ISSUES:
-    - Verifies file exists in storage before returning URL
-    - Uses correct bucket: 'assets' (screenshots are in assets/screenshots/)
-    - No double encoding of key
-    - Returns proper error if file not found
+    FIX: Removed double 'screenshots/' prefix issue.
+    - Key is used EXACTLY as provided (no modifications)
+    - No file existence check (avoids folder parsing issues)
+    - Simple public URL generation for public buckets
+    - Bucket 'assets' is public, so direct URLs work
     
     Args:
-        key: Storage path (e.g., 'screenshots/labelnoir_40e03960.png')
+        key: Storage path EXACTLY as in database (e.g., 'screenshots/www_nttb_nl_webshop_.png')
     
     Returns:
         Public URL to the image
     
-    Raises:
-        404: If image not found in storage
-        500: If Supabase not configured or other error
+    Example:
+        Input:  key='screenshots/www_nttb_nl_webshop_.png'
+        Output: 'https://xxx.supabase.co/storage/v1/object/public/assets/screenshots/www_nttb_nl_webshop_.png'
     """
     try:
         supabase_url = os.getenv("SUPABASE_URL")
-        supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-        # Screenshots are in 'assets' bucket, not 'reports'
-        bucket_name = "assets"
+        bucket_name = "assets"  # Screenshots are in 'assets' bucket
         
-        if not supabase_url or not supabase_key:
-            logger.error("Supabase credentials missing")
+        if not supabase_url:
+            logger.error("SUPABASE_URL environment variable missing")
             raise HTTPException(status_code=500, detail="Supabase not configured")
         
-        # Initialize Supabase client
-        supabase = create_client(supabase_url, supabase_key)
-        
-        # Verify file exists before returning URL
-        try:
-            # List to check if file exists
-            # Extract folder and filename from key
-            if '/' in key:
-                folder = '/'.join(key.split('/')[:-1])
-                filename = key.split('/')[-1]
-            else:
-                folder = ''
-                filename = key
-            
-            # Check if file exists by trying to list it
-            storage_response = supabase.storage.from_(bucket_name).list(folder)
-            
-            # Check if our file is in the list
-            file_exists = any(item.get('name') == filename for item in storage_response)
-            
-            if not file_exists:
-                logger.warning(f"Image not found in storage: {key} in bucket: {bucket_name}")
-                raise HTTPException(
-                    status_code=404, 
-                    detail=f"Image not found for key: {key}"
-                )
-            
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error(f"Error checking file existence for {key}: {e}")
-            # Continue anyway and let the URL fail if needed
-        
-        # Generate public URL
-        # Supabase Storage public URLs: {supabase_url}/storage/v1/object/public/{bucket}/{path}
+        # FIX: Use key EXACTLY as provided - no parsing, no modifications
+        # Generate public URL for assets bucket (which is public)
         public_url = f"{supabase_url}/storage/v1/object/public/{bucket_name}/{key}"
         
-        logger.info(f"Generated image URL for key: {key} -> {public_url}")
+        logger.info(f"✅ Generated image URL | key: {key} | url: {public_url}")
         return public_url
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get image URL for key {key}: {e}")
+        logger.error(f"❌ Failed to generate image URL | key: {key} | error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get image URL: {str(e)}")
 
 
