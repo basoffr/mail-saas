@@ -50,7 +50,8 @@ async def get_audience_by_list_name(
     """
     try:
         # Get all leads from the list
-        all_leads = leads_store.query(
+        # query() returns (List[LeadOut], int) tuple
+        all_leads, _ = leads_store.query(
             list_name=list_name,
             include_deleted=False  # Exclude deleted leads
         )
@@ -117,7 +118,8 @@ async def get_list_names(user: Dict[str, Any] = Depends(require_auth)):
     """
     try:
         # Get all leads
-        all_leads = leads_store.query(include_deleted=False)
+        # query() returns (List[LeadOut], int) tuple
+        all_leads, _ = leads_store.query(include_deleted=False)
         
         # Extract unique list names
         list_names = set()
