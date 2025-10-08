@@ -9,7 +9,7 @@ from app.schemas.common import DataResponse
 from app.services.store_factory import leads_store
 from app.core.auth import require_auth
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(tags=["admin"])
 
 
 @router.get("/audience-by-list", response_model=DataResponse[Dict[str, Any]])
