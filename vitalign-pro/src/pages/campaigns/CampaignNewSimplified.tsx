@@ -56,7 +56,7 @@ interface WizardData {
   name: string;
   startMode: 'now' | 'scheduled';
   scheduledStart?: Date;
-  listName?: string;
+  listName: string;  // Changed from optional to required
   leadIds: string[];
   onePerDomain: boolean;
 }
@@ -64,7 +64,7 @@ interface WizardData {
 const defaultData: WizardData = {
   name: '',
   startMode: 'now',
-  listName: undefined,
+  listName: '',  // Changed from undefined to empty string
   leadIds: [],
   onePerDomain: false
 };
@@ -123,30 +123,43 @@ export default function CampaignNewSimplified() {
 
   // Fetch audience when list is selected
   useEffect(() => {
-    if (!data.listName) {
+    console.log('🔍 Audience useEffect triggered:', { listName: data.listName });
+    
+    if (!data.listName || data.listName === '') {
+      console.log('⚠️ No list name, skipping fetch');
       setAudienceCount(0);
       return;
     }
 
     const fetchAudience = async () => {
+      console.log('📡 Starting audience fetch for:', data.listName);
       setAudienceLoading(true);
       try {
-        const response = await fetch(
-          `${import.meta.env.VITE_API_BASE_URL}/admin/audience-by-list?list_name=${encodeURIComponent(data.listName)}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-            }
+        const url = `${import.meta.env.VITE_API_BASE_URL}/admin/audience-by-list?list_name=${encodeURIComponent(data.listName)}`;
+        console.log('🌐 Fetching from:', url);
+        
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
           }
-        );
+        });
+        
+        console.log('📥 Response status:', response.status);
         const result = await response.json();
+        console.log('📦 Response data:', result);
         
         if (result.data && result.data.lead_ids) {
+          console.log('✅ Got lead_ids:', result.data.lead_ids.length);
+          
           // Update lead_ids with filtered audience
-          setData(prev => ({
-            ...prev,
-            leadIds: result.data.lead_ids
-          }));
+          setData(prev => {
+            const newData = {
+              ...prev,
+              leadIds: result.data.lead_ids
+            };
+            console.log('🔄 Updating data.leadIds:', newData.leadIds.length);
+            return newData;
+          });
           setAudienceCount(result.data.eligible_count);
           
           toast({
@@ -154,14 +167,17 @@ export default function CampaignNewSimplified() {
             description: `${result.data.eligible_count} eligible leads uit "${data.listName}"`,
           });
         } else if (result.error) {
+          console.error('❌ API error:', result.error);
           toast({
             title: 'Fout bij laden doelgroep',
             description: result.error,
             variant: 'destructive'
           });
+        } else {
+          console.warn('⚠️ Unexpected response format:', result);
         }
       } catch (err) {
-        console.error('Failed to fetch audience:', err);
+        console.error('💥 Failed to fetch audience:', err);
         toast({
           title: 'Fout bij laden doelgroep',
           description: 'Kon doelgroep niet ophalen',
@@ -184,7 +200,7 @@ export default function CampaignNewSimplified() {
       case 'basic':
         return !!data.name;
       case 'audience':
-        return !!data.listName || data.leadIds.length > 0;
+        return (data.listName !== '' && data.listName !== undefined) || data.leadIds.length > 0;
       case 'review':
         return true;
       default:
@@ -492,14 +508,22 @@ export default function CampaignNewSimplified() {
     </Card>
   );
 
-  const renderReviewStep = () => (
-    <div className="space-y-6">
-      <Card className="p-6 shadow-card rounded-2xl">
-        <div className="space-y-6">
-          <div>
-            <h2 className="text-2xl font-bold mb-2">Review & Start</h2>
-            <p className="text-muted-foreground">Controleer je campagne instellingen</p>
-          </div>
+  const renderReviewStep = () => {
+    console.log('🎯 Review Step - Current data:', {
+      listName: data.listName,
+      leadIds: data.leadIds,
+      leadCount: data.leadIds.length,
+      audienceCount: audienceCount
+    });
+    
+    return (
+      <div className="space-y-6">
+        <Card className="p-6 shadow-card rounded-2xl">
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">Review & Start</h2>
+              <p className="text-muted-foreground">Controleer je campagne instellingen</p>
+            </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -623,6 +647,7 @@ export default function CampaignNewSimplified() {
       </div>
     </div>
   );
+  };  // Close renderReviewStep function
 
   return (
     <div className="min-h-screen bg-gradient-subtle p-6">
