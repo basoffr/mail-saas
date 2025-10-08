@@ -51,9 +51,11 @@ async def get_audience_by_list_name(
     try:
         # Get all leads from the list
         # query() returns (List[LeadOut], int) tuple
+        # Set page_size=999999 to get ALL leads (bypass pagination)
         all_leads, _ = leads_store.query(
             list_name=list_name,
-            include_deleted=False  # Exclude deleted leads
+            include_deleted=False,  # Exclude deleted leads
+            page_size=999999  # Get ALL leads, not just first page
         )
         
         total_in_list = len(all_leads)
@@ -119,7 +121,11 @@ async def get_list_names(user: Dict[str, Any] = Depends(require_auth)):
     try:
         # Get all leads
         # query() returns (List[LeadOut], int) tuple
-        all_leads, _ = leads_store.query(include_deleted=False)
+        # Set page_size=999999 to get ALL leads (bypass pagination)
+        all_leads, _ = leads_store.query(
+            include_deleted=False,
+            page_size=999999  # Get ALL leads, not just first page
+        )
         
         # Extract unique list names
         list_names = set()
