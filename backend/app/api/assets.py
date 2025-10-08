@@ -3,6 +3,7 @@ Assets API - Endpoints voor Supabase Storage assets (screenshots, reports, etc.)
 """
 
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import RedirectResponse
 from loguru import logger
 import os
 from supabase import create_client
@@ -10,26 +11,27 @@ from supabase import create_client
 router = APIRouter(prefix="/assets", tags=["assets"])
 
 
-@router.get("/image-by-key", response_model=str)
+@router.get("/image-by-key")
 async def get_image_url_by_key(key: str = Query(..., description="Storage key (e.g., 'screenshots/example.png')")):
     """
-    Get public URL for an image stored in Supabase Storage.
+    Redirect to image in Supabase Storage.
     
-    FIX: Removed double 'screenshots/' prefix issue.
+    FIX: Returns RedirectResponse instead of URL string.
+    - Frontend <img> tags can now load images directly
+    - Browser receives 307 redirect to actual image URL
     - Key is used EXACTLY as provided (no modifications)
-    - No file existence check (avoids folder parsing issues)
-    - Simple public URL generation for public buckets
     - Bucket 'assets' is public, so direct URLs work
+    - Cache headers for better performance
     
     Args:
         key: Storage path EXACTLY as in database (e.g., 'screenshots/www_nttb_nl_webshop_.png')
     
     Returns:
-        Public URL to the image
+        307 Temporary Redirect to the actual image
     
     Example:
         Input:  key='screenshots/www_nttb_nl_webshop_.png'
-        Output: 'https://xxx.supabase.co/storage/v1/object/public/assets/screenshots/www_nttb_nl_webshop_.png'
+        Output: Redirect to 'https://xxx.supabase.co/storage/v1/object/public/assets/screenshots/www_nttb_nl_webshop_.png'
     """
     try:
         supabase_url = os.getenv("SUPABASE_URL")
@@ -43,46 +45,63 @@ async def get_image_url_by_key(key: str = Query(..., description="Storage key (e
         # Generate public URL for assets bucket (which is public)
         public_url = f"{supabase_url}/storage/v1/object/public/{bucket_name}/{key}"
         
-        logger.info(f"✅ Generated image URL | key: {key} | url: {public_url}")
-        return public_url
+        logger.info(f"✅ Redirecting image | key: {key} → {public_url}")
+        
+        # Return redirect instead of URL string - this allows <img> tags to work!
+        return RedirectResponse(
+            url=public_url,
+            status_code=307,  # Temporary redirect
+            headers={
+                "Cache-Control": "public, max-age=3600",  # Cache for 1 hour
+            }
+        )
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Failed to generate image URL | key: {key} | error: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get image URL: {str(e)}")
+        logger.error(f"❌ Failed to redirect to image | key: {key} | error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get image: {str(e)}")
 
 
-@router.get("/report-by-key", response_model=str)
+@router.get("/report-by-key")
 async def get_report_url_by_key(key: str = Query(..., description="Storage key for report PDF")):
     """
-    Get public URL for a report stored in Supabase Storage.
+    Redirect to report PDF in Supabase Storage.
     
-    NOTE: Reports are in separate 'reports' bucket, not 'assets'!
+    FIX: Returns RedirectResponse instead of URL string.
+    - Frontend can now trigger direct downloads
+    - Browser receives 307 redirect to actual PDF URL
+    - Reports are in separate 'reports' bucket, not 'assets'
     
     Args:
         key: Filename only (e.g., 'labelnoir_report.pdf'), NOT full path
     
     Returns:
-        Public URL to the report PDF
+        307 Temporary Redirect to the actual PDF
     """
     try:
         supabase_url = os.getenv("SUPABASE_URL")
-        supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-        # Reports are in separate 'reports' bucket
-        bucket_name = "reports"
+        bucket_name = "reports"  # Reports are in separate 'reports' bucket
         
-        if not supabase_url or not supabase_key:
-            logger.error("Supabase credentials missing")
+        if not supabase_url:
+            logger.error("SUPABASE_URL environment variable missing")
             raise HTTPException(status_code=500, detail="Supabase not configured")
         
         # Generate public URL
         # Reports are directly in bucket root (no subdirectory)
         public_url = f"{supabase_url}/storage/v1/object/public/{bucket_name}/{key}"
         
-        logger.info(f"Generated report URL for key: {key} -> {public_url}")
-        return public_url
+        logger.info(f"✅ Redirecting report | key: {key} → {public_url}")
+        
+        # Return redirect instead of URL string
+        return RedirectResponse(
+            url=public_url,
+            status_code=307,  # Temporary redirect
+            headers={
+                "Cache-Control": "public, max-age=3600",  # Cache for 1 hour
+            }
+        )
         
     except Exception as e:
-        logger.error(f"Failed to get report URL for key {key}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get report URL: {str(e)}")
+        logger.error(f"❌ Failed to redirect to report | key: {key} | error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get report: {str(e)}")
