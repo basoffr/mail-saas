@@ -46,12 +46,15 @@ class TestsendService:
         subject: str, 
         html_body: str, 
         text_body: str,
-        user_id: str = "default"
+        user_id: str = "default",
+        mail_number: int = 1,
+        domain: str = "punthelder-marketing.nl"
     ) -> Dict[str, Any]:
         """
-        Send test email via SMTP with proper logging.
+        Send test email via SMTP with proper logging and assets.
         
         Uses real SMTP if configured, otherwise falls back to simulation.
+        Includes signature CID embedding like production campaigns.
         Logs all send attempts as mail_send_ok or mail_send_err.
         """
         
@@ -64,31 +67,52 @@ class TestsendService:
             }
         
         try:
+            # Inject signature CID (same as campaigns)
+            from app.services.signature_injector import inject_signature_cid, get_alias_from_mail_number
+            alias = get_alias_from_mail_number(mail_number)
+            html_body = inject_signature_cid(html_body, alias)
+            logger.debug(f"Injected {alias} signature for test email")
+            
             # Get SMTP configuration from environment
             smtp_host = os.getenv('SMTP_HOST', '')
             smtp_port = int(os.getenv('SMTP_PORT', '587'))
             smtp_user = os.getenv('SMTP_USER', '')
             smtp_pass = os.getenv('SMTP_PASS', '')
-            mail_from = os.getenv('MAIL_FROM', 'noreply@punthelder-marketing.nl')
-            mail_from_name = os.getenv('MAIL_FROM_NAME', 'Punthelder Marketing')
+            mail_from = os.getenv('MAIL_FROM', f'christian@{domain}')
+            mail_from_name = os.getenv('MAIL_FROM_NAME', 'Christian')
             
-            # Create message
-            msg = MIMEMultipart('alternative')
+            # Create message with 'related' multipart for CID images
+            msg = MIMEMultipart('related')  # Changed from 'alternative' to support CID
             msg['Subject'] = subject
             msg['From'] = f"{mail_from_name} <{mail_from}>"
             msg['To'] = to_email
             
             # Add unsubscribe headers (compliance)
-            unsubscribe_email = os.getenv('UNSUBSCRIBE_EMAIL', 'unsubscribe@punthelder-marketing.nl')
+            unsubscribe_email = os.getenv('UNSUBSCRIBE_EMAIL', f'unsubscribe@{domain}')
             msg['List-Unsubscribe'] = f'<mailto:{unsubscribe_email}>'
             msg['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click'
             
-            # Add text and HTML parts
-            text_part = MIMEText(text_body, 'plain', 'utf-8')
+            # Add HTML part
             html_part = MIMEText(html_body, 'html', 'utf-8')
-            
-            msg.attach(text_part)
             msg.attach(html_part)
+            
+            # Attach signature image as CID (same as campaigns)
+            from email.mime.image import MIMEImage
+            from pathlib import Path
+            
+            signature_filename = f"{alias.capitalize()} Handtekening.png"
+            signature_path = Path(__file__).parent.parent / "assets" / "signatures" / signature_filename
+            
+            if signature_path.exists():
+                with open(signature_path, 'rb') as img_file:
+                    img_data = img_file.read()
+                    image = MIMEImage(img_data)
+                    image.add_header('Content-ID', f'<signature_{alias}>')
+                    image.add_header('Content-Disposition', 'inline', filename=signature_filename)
+                    msg.attach(image)
+                    logger.debug(f"Attached {alias} signature image as CID for test email")
+            else:
+                logger.warning(f"Signature image not found: {signature_path}")
             
             # Determine if we should use real SMTP or simulation
             use_real_smtp = bool(smtp_host and smtp_user and smtp_pass)

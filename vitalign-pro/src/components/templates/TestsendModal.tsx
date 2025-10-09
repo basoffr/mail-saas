@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Send } from 'lucide-react';
+import { Send, Search, Check, ChevronsUpDown } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { templatesService } from '@/services/templates';
 import { leadsService } from '@/services/leads';
@@ -20,13 +22,20 @@ export function TestsendModal({ open, onOpenChange, templateId }: TestsendModalP
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [selectedLeadId, setSelectedLeadId] = useState<string>('');
+  const [leadSearchOpen, setLeadSearchOpen] = useState(false);
   const [errors, setErrors] = useState<{ email?: string }>({});
 
+  // Fetch ALL leads for search (no limit)
   const { data: leads } = useQuery({
     queryKey: ['leads-for-test'],
-    queryFn: () => leadsService.getLeads({ limit: 10 }),
+    queryFn: () => leadsService.getLeads({ limit: 1000 }), // Get many leads for search
     enabled: open
   });
+
+  // Find selected lead for display
+  const selectedLead = useMemo(() => {
+    return leads?.items.find(lead => lead.id === selectedLeadId);
+  }, [leads, selectedLeadId]);
 
   const sendTestMutation = useMutation({
     mutationFn: (payload: { to: string; leadId?: string | null }) =>
@@ -116,19 +125,73 @@ export function TestsendModal({ open, onOpenChange, templateId }: TestsendModalP
 
           <div className="space-y-2">
             <Label htmlFor="lead">Test lead (optioneel)</Label>
-            <Select value={selectedLeadId} onValueChange={setSelectedLeadId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecteer lead voor variabelen" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">Geen lead (toon placeholders)</SelectItem>
-                {leads?.items.map((lead) => (
-                  <SelectItem key={lead.id} value={lead.id}>
-                    {lead.email} {lead.companyName ? `(${lead.companyName})` : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={leadSearchOpen} onOpenChange={setLeadSearchOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={leadSearchOpen}
+                  className="w-full justify-between"
+                >
+                  {selectedLead ? (
+                    <span className="truncate">
+                      {selectedLead.email} {selectedLead.companyName ? `(${selectedLead.companyName})` : ''}
+                    </span>
+                  ) : (
+                    "Zoek lead..."
+                  )}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[400px] p-0">
+                <Command>
+                  <CommandInput placeholder="Zoek op email of bedrijf..." />
+                  <CommandList>
+                    <CommandEmpty>Geen leads gevonden</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value="__none__"
+                        onSelect={() => {
+                          setSelectedLeadId('');
+                          setLeadSearchOpen(false);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            selectedLeadId === '' ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        Geen lead (toon placeholders)
+                      </CommandItem>
+                      {leads?.items.map((lead) => (
+                        <CommandItem
+                          key={lead.id}
+                          value={`${lead.email} ${lead.companyName || ''}`}
+                          onSelect={() => {
+                            setSelectedLeadId(lead.id);
+                            setLeadSearchOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              selectedLeadId === lead.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          <div className="flex flex-col">
+                            <span className="font-medium">{lead.email}</span>
+                            {lead.companyName && (
+                              <span className="text-xs text-muted-foreground">{lead.companyName}</span>
+                            )}
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
             <p className="text-xs text-muted-foreground">
               Selecteer een lead om variabelen te vervangen met echte data
             </p>

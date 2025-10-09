@@ -301,6 +301,8 @@ async def send_test_email(
         
         # Get lead data if provided
         lead_data = {}
+        lead_domain = "punthelder-marketing.nl"  # Default
+        
         if payload.leadId:
             lead = leads_store.get_by_id(payload.leadId)
             if not lead:
@@ -315,6 +317,7 @@ async def send_test_email(
                 'image_key': lead.image_key,
                 'vars': lead.vars
             }
+            lead_domain = lead.domain  # Use lead's domain for From address
         else:
             # Use dummy lead data
             lead_data = {
@@ -346,13 +349,15 @@ async def send_test_email(
             "lead_id": payload.leadId
         })
         
-        # Send email
+        # Send email with mail_number and domain for signature/assets
         send_result = await testsend_service.send_test_email(
             to_email=str(payload.to),
             subject=result.get('subject', template_name),
             html_body=result['html'],
             text_body=result['text'],
-            user_id=user.get("sub", "default")
+            user_id=user.get("sub", "default"),
+            mail_number=template.mail_number,
+            domain=lead_domain
         )
         
         if send_result['success']:
