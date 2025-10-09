@@ -82,13 +82,10 @@ class TemplateRenderer:
                 if slot == 'dashboard':
                     domain = context.get('domain', '')
                     if domain:
-                        # Lazy import to avoid circular imports
-                        from app.services.asset_resolver import asset_resolver
-                        if asset_resolver.has_dashboard_image(domain):
-                            return f"cid:dashboard_{domain.replace('.', '_')}"
-                        else:
-                            warnings.append(f"Dashboard image not found for domain: {domain}")
-                            return ""  # Return empty as per plan (permissive)
+                        # Generate CID name that matches testsend attachment
+                        cid_name = f"dashboard_{domain.replace('.', '_')}"
+                        # Return full <img> tag for inline display
+                        return f'<img src="cid:{cid_name}" alt="Dashboard Analytics" style="max-width: 100%; height: auto; display: block; margin: 20px 0;" />'
                     else:
                         warnings.append("No domain provided for dashboard image")
                         return ""
