@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Request, HTTPException
+import os
+from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from loguru import logger
@@ -17,6 +18,7 @@ from app.api.health import router as health_router
 from app.api.bulk_import import router as bulk_import_router
 from app.api.assets import router as assets_router
 from app.api.admin import router as admin_router
+from app.api.auth import router as auth_router
 
 app = FastAPI(title="Private Mail SaaS API", version="0.1.0")
 
@@ -62,26 +64,107 @@ async def global_exception_handler(request: Request, exc: Exception):
         }
     )
 
-# Basic CORS (adjust in production)
+# CORS configuration
+frontend_origin = os.getenv("FRONTEND_ORIGIN", "*")
+if frontend_origin == "*":
+    logger.warning("⚠️  CORS allowing all origins (set FRONTEND_ORIGIN for production)")
+    allowed_origins = ["*"]
+else:
+    allowed_origins = [frontend_origin]
+    logger.info(f"✅ CORS restricted to: {frontend_origin}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
-# Include routers
-app.include_router(health_router, prefix="/api/v1")
-app.include_router(leads_router, prefix="/api/v1")
-app.include_router(templates_router, prefix="/api/v1")
-app.include_router(campaigns_router, prefix="/api/v1")
-app.include_router(reports_router, prefix="/api/v1")
-app.include_router(stats_router, prefix="/api/v1/stats")
-app.include_router(settings_router, prefix="/api/v1/settings")
-app.include_router(inbox_router, prefix="/api/v1")
-app.include_router(tracking_router, prefix="/api/v1")
-app.include_router(exports_router, prefix="/api/v1/exports")
-app.include_router(bulk_import_router, prefix="/api/v1")
-app.include_router(assets_router, prefix="/api/v1")
-app.include_router(admin_router, prefix="/api/v1/admin")
+# Check if RBAC is enabled
+use_rbac = os.getenv("USE_RBAC", "false").lower() == "true"
+
+if use_rbac:
+    logger.info("🔒 RBAC enabled - applying role-based access control")
+    from app.security.rbac import require_role
+    
+    # Public routes (no auth)
+    app.include_router(health_router, prefix="/api/v1")
+    app.include_router(tracking_router, prefix="/api/v1")  # Open tracking needs public access
+    app.include_router(assets_router, prefix="/api/v1")    # Public asset access
+    
+    # Auth routes (uses its own auth dependency)
+    app.include_router(auth_router)
+    
+    # Read-only routes (admin + viewer)
+    app.include_router(
+        stats_router, 
+        prefix="/api/v1/stats",
+        dependencies=[Depends(require_role("admin", "viewer"))]
+    )
+    app.include_router(
+        inbox_router, 
+        prefix="/api/v1",
+        dependencies=[Depends(require_role("admin", "viewer"))]
+    )
+    app.include_router(
+        exports_router, 
+        prefix="/api/v1/exports",
+        dependencies=[Depends(require_role("admin", "viewer"))]
+    )
+    
+    # Mutating routes (admin only)
+    app.include_router(
+        leads_router, 
+        prefix="/api/v1",
+        dependencies=[Depends(require_role("admin"))]
+    )
+    app.include_router(
+        templates_router, 
+        prefix="/api/v1",
+        dependencies=[Depends(require_role("admin"))]
+    )
+    app.include_router(
+        campaigns_router, 
+        prefix="/api/v1",
+        dependencies=[Depends(require_role("admin"))]
+    )
+    app.include_router(
+        reports_router, 
+        prefix="/api/v1",
+        dependencies=[Depends(require_role("admin"))]
+    )
+    app.include_router(
+        settings_router, 
+        prefix="/api/v1/settings",
+        dependencies=[Depends(require_role("admin"))]
+    )
+    app.include_router(
+        bulk_import_router, 
+        prefix="/api/v1",
+        dependencies=[Depends(require_role("admin"))]
+    )
+    app.include_router(
+        admin_router, 
+        prefix="/api/v1/admin",
+        dependencies=[Depends(require_role("admin"))]
+    )
+    
+else:
+    logger.warning("⚠️  RBAC disabled - all routes are open (set USE_RBAC=true for production)")
+    
+    # Include all routers without auth (legacy mode)
+    app.include_router(health_router, prefix="/api/v1")
+    app.include_router(auth_router)  # Still include for /me endpoint
+    app.include_router(leads_router, prefix="/api/v1")
+    app.include_router(templates_router, prefix="/api/v1")
+    app.include_router(campaigns_router, prefix="/api/v1")
+    app.include_router(reports_router, prefix="/api/v1")
+    app.include_router(stats_router, prefix="/api/v1/stats")
+    app.include_router(settings_router, prefix="/api/v1/settings")
+    app.include_router(inbox_router, prefix="/api/v1")
+    app.include_router(tracking_router, prefix="/api/v1")
+    app.include_router(exports_router, prefix="/api/v1/exports")
+    app.include_router(bulk_import_router, prefix="/api/v1")
+    app.include_router(assets_router, prefix="/api/v1")
+    app.include_router(admin_router, prefix="/api/v1/admin")
