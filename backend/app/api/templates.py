@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Dict, Any, Optional, List
 import logging
 import os
+from datetime import datetime
 
 from app.core.auth import require_auth
 from app.core.template_id_normalizer import normalize_template_id, validate_template_id
@@ -35,14 +36,14 @@ async def list_templates(
             TemplateOut(
                 id=t.id,
                 name=f"V{t.version} Mail {t.mail_number}",
-                version=t.version,
-                mail_number=t.mail_number,
-                subject=t.subject
+                subject_template=t.subject,
+                updated_at=datetime(2025, 9, 26, 0, 0, 0),  # Default timestamp for hard-coded templates
+                required_vars=t.placeholders
             )
             for t in templates
         ]
         
-        template_list.sort(key=lambda x: (x.version, x.mail_number))
+        template_list.sort(key=lambda x: x.id)  # Sort by ID (v1_mail1, v1_mail2, etc.)
         
         logger.info(f"[HYBRID] Templates list requested: {len(template_list)} templates")
         
@@ -102,7 +103,7 @@ async def get_template_detail(
             name=f"V{template.version} Mail {template.mail_number}",
             subject_template=template.subject,
             body_template=template.body,
-            updated_at="2025-09-26T00:00:00Z",
+            updated_at=datetime(2025, 9, 26, 0, 0, 0),
             required_vars=template.placeholders,
             assets=assets,
             variables=variables
