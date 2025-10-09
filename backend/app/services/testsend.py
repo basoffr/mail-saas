@@ -5,6 +5,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 import logging
 import os
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,8 @@ class TestsendService:
         text_body: str,
         user_id: str = "default",
         mail_number: int = 1,
-        domain: str = "punthelder-marketing.nl"
+        domain: str = "punthelder-marketing.nl",
+        image_key: Optional[str] = None  # Lead's dashboard screenshot key
     ) -> Dict[str, Any]:
         """
         Send test email via SMTP with proper logging and assets.
@@ -99,7 +101,7 @@ class TestsendService:
             # Attach signature image as CID (same as campaigns)
             from email.mime.image import MIMEImage
             from pathlib import Path
-            from app.services.asset_resolver import asset_resolver
+            from app.services.supabase_storage import supabase_storage
             
             signature_filename = f"{alias.capitalize()} Handtekening.png"
             signature_path = Path(__file__).parent.parent / "assets" / "signatures" / signature_filename
@@ -115,20 +117,33 @@ class TestsendService:
             else:
                 logger.warning(f"Signature image not found: {signature_path}")
             
-            # Attach dashboard image as CID if available
-            dashboard_path = asset_resolver.get_dashboard_image_path(domain)
-            if dashboard_path and dashboard_path.exists():
-                with open(dashboard_path, 'rb') as img_file:
-                    img_data = img_file.read()
-                    dashboard_image = MIMEImage(img_data)
-                    # Content-ID must match template: cid:dashboard_{domain.replace('.', '_')}
-                    cid_name = f"dashboard_{domain.replace('.', '_')}"
-                    dashboard_image.add_header('Content-ID', f'<{cid_name}>')
-                    dashboard_image.add_header('Content-Disposition', 'inline', filename=dashboard_path.name)
-                    msg.attach(dashboard_image)
-                    logger.debug(f"Attached dashboard image as CID for domain: {domain}")
+            # Attach dashboard image from Supabase Storage (same as campaigns)
+            if image_key:
+                try:
+                    # Get signed URL from Supabase
+                    signed_url = supabase_storage.get_signed_url(image_key, expires_in=3600)
+                    
+                    if signed_url:
+                        # Download image from Supabase
+                        response = requests.get(signed_url, timeout=10)
+                        if response.status_code == 200:
+                            img_data = response.content
+                            dashboard_image = MIMEImage(img_data)
+                            
+                            # Content-ID must match template: cid:dashboard_{domain.replace('.', '_')}
+                            cid_name = f"dashboard_{domain.replace('.', '_')}"
+                            dashboard_image.add_header('Content-ID', f'<{cid_name}>')
+                            dashboard_image.add_header('Content-Disposition', 'inline', filename=f"dashboard_{domain}.png")
+                            msg.attach(dashboard_image)
+                            logger.info(f"✅ Attached dashboard image from Supabase: {image_key}")
+                        else:
+                            logger.warning(f"Failed to download dashboard image: HTTP {response.status_code}")
+                    else:
+                        logger.debug(f"No signed URL for image_key: {image_key}")
+                except Exception as e:
+                    logger.error(f"Error attaching dashboard image from Supabase: {str(e)}")
             else:
-                logger.debug(f"No dashboard image found for domain: {domain}")
+                logger.debug("No image_key provided, skipping dashboard image")
             
             # Determine if we should use real SMTP or simulation
             use_real_smtp = bool(smtp_host and smtp_user and smtp_pass)

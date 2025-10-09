@@ -349,7 +349,7 @@ async def send_test_email(
             "lead_id": payload.leadId
         })
         
-        # Send email with mail_number and domain for signature/assets
+        # Send email with mail_number, domain, and image_key for dashboard screenshot
         send_result = await testsend_service.send_test_email(
             to_email=str(payload.to),
             subject=result.get('subject', template_name),
@@ -357,7 +357,8 @@ async def send_test_email(
             text_body=result['text'],
             user_id=user.get("sub", "default"),
             mail_number=template.mail_number,
-            domain=lead_domain
+            domain=lead_domain,
+            image_key=lead_data.get('image_key')  # Dashboard screenshot from Supabase
         )
         
         if send_result['success']:
