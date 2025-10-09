@@ -4,9 +4,9 @@ import logging
 import os
 
 from app.core.auth import require_auth
-from app.core.templates_store import get_all_templates, get_template, get_templates_summary
 from app.core.template_id_normalizer import normalize_template_id, validate_template_id
-from app.services.store_factory import templates_store, leads_store
+from app.services.hybrid_template_service import hybrid_template_service
+from app.services.store_factory import leads_store
 from app.schemas.common import DataResponse
 from app.schemas.template import (
     TemplateOut, TemplateDetail, TemplatePreviewResponse, 
@@ -26,50 +26,30 @@ logger = logging.getLogger(__name__)
 async def list_templates(
     user: Dict[str, Any] = Depends(require_auth)
 ):
-    """Get list of all templates (from DB or hard-coded)"""
+    """Get all templates (hybrid: DB first, then hard-coded fallback)"""
     try:
-        use_in_memory = os.getenv("USE_IN_MEMORY_STORES", "true").lower() == "true"
+        # Use hybrid service (database-first with fallback)
+        templates = hybrid_template_service.get_all_templates()
         
-        if use_in_memory:
-            # Use hard-coded templates
-            templates = get_all_templates()
-            template_outs = [
-                TemplateOut(
-                    id=t.id,
-                    name=f"V{t.version} Mail {t.mail_number}",
-                    subject_template=t.subject,
-                    updated_at="2025-09-26T00:00:00Z",
-                    required_vars=t.placeholders
-                )
-                for t in templates.values()
-            ]
-            count = len(templates)
-        else:
-            # Use database templates
-            db_templates = templates_store.get_all()
-            template_outs = [
-                TemplateOut(
-                    id=t.get('id'),
-                    name=t.get('name'),
-                    subject_template=t.get('subject_template'),
-                    updated_at=t.get('updated_at', ''),
-                    required_vars=t.get('required_vars', [])
-                )
-                for t in db_templates
-            ]
-            count = len(db_templates)
+        template_list = [
+            TemplateOut(
+                id=t.id,
+                name=f"V{t.version} Mail {t.mail_number}",
+                version=t.version,
+                mail_number=t.mail_number,
+                subject=t.subject
+            )
+            for t in templates
+        ]
         
-        logger.info("templates_listed", extra={
-            "user": user.get("sub"), 
-            "count": count,
-            "source": "in-memory" if use_in_memory else "database"
-        })
+        template_list.sort(key=lambda x: (x.version, x.mail_number))
         
-        return DataResponse(
-            data=TemplatesResponse(items=template_outs, total=count),
-            error=None
-        )
+        logger.info(f"[HYBRID] Templates list requested: {len(template_list)} templates")
         
+        return DataResponse(data=TemplatesResponse(items=template_list), error=None)
+        
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error listing templates: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -80,107 +60,55 @@ async def get_template_detail(
     template_id: str,
     user: Dict[str, Any] = Depends(require_auth)
 ):
-    """Get detailed template information (from DB or hard-coded)"""
+    """Get detailed template information (hybrid: DB first, then hard-coded fallback)"""
     try:
         # Normalize template ID (v1m1 -> v1_mail1)
         normalized_id = normalize_template_id(template_id)
-        print(f"[NORMALIZE DEBUG] {template_id} -> {normalized_id}")  # Force stdout
-        logger.info(f"Template detail requested: {template_id} -> normalized: {normalized_id}")
+        logger.info(f"[HYBRID] Template detail requested: {template_id} -> normalized: {normalized_id}")
         
-        use_in_memory = os.getenv("USE_IN_MEMORY_STORES", "true").lower() == "true"
+        # Use hybrid service (database-first with fallback)
+        template = hybrid_template_service.get_template(normalized_id)
+        if not template:
+            raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
         
-        if use_in_memory:
-            # Use hard-coded template
-            template = get_template(normalized_id)
-            if not template:
-                raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
-            
-            assets = [{"key": "dashboard", "type": "image"}]
-            placeholder_strings = template.get_placeholders()
-            
-            variables = []
-            for placeholder in placeholder_strings:
-                if placeholder.startswith('lead.'):
-                    source = 'lead'
-                    example = 'Example Company' if 'company' in placeholder else 'https://example.com'
-                elif placeholder.startswith('vars.'):
-                    source = 'vars'
-                    example = 'example value'
-                elif placeholder.startswith('image.'):
-                    source = 'image'
-                    example = 'cid:image123'
-                else:
-                    source = 'campaign'
-                    example = 'example'
-                
-                variables.append(TemplateVarItem(
-                    key=placeholder,
-                    required=True,
-                    source=source,
-                    example=example
-                ))
-            
-            detail = TemplateDetail(
-                id=template.id,
-                name=f"V{template.version} Mail {template.mail_number}",
-                subject_template=template.subject,
-                body_template=template.body,
-                updated_at="2025-09-26T00:00:00Z",
-                required_vars=template.placeholders,
-                assets=assets,
-                variables=variables
-            )
-        else:
-            # Use database template
-            db_template = templates_store.get_by_id(normalized_id)
-            if not db_template:
-                raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
-            
-            # Parse assets from JSONB
-            assets_dict = db_template.get('assets', {})
-            assets = [{"key": k, "type": "image"} for k, v in assets_dict.items() if v]
-            
-            # Parse required_vars from JSONB array
-            required_vars = db_template.get('required_vars', [])
-            
-            variables = []
-            for var in required_vars:
-                if var.startswith('lead.'):
-                    source = 'lead'
-                    example = 'Example Company' if 'company' in var else 'https://example.com'
-                elif var.startswith('vars.'):
-                    source = 'vars'
-                    example = 'example value'
-                elif var.startswith('image.'):
-                    source = 'image'
-                    example = 'cid:image123'
-                else:
-                    source = 'campaign'
-                    example = 'example'
-                
-                variables.append(TemplateVarItem(
-                    key=var,
-                    required=True,
-                    source=source,
-                    example=example
-                ))
-            
-            detail = TemplateDetail(
-                id=db_template.get('id'),
-                name=db_template.get('name'),
-                subject_template=db_template.get('subject_template'),
-                body_template=db_template.get('body_template'),
-                updated_at=db_template.get('updated_at', ''),
-                required_vars=required_vars,
-                assets=assets,
-                variables=variables
-            )
+        # Extract assets and variables from template
+        assets = [{"key": "dashboard", "type": "image"}]
+        placeholder_strings = template.get_placeholders()
         
-        logger.info("template_detail_requested", extra={
-            "user": user.get("sub"), 
-            "template_id": template_id,
-            "source": "in-memory" if use_in_memory else "database"
-        })
+        variables = []
+        for placeholder in placeholder_strings:
+            if placeholder.startswith('lead.'):
+                source = 'lead'
+                example = 'Example Company' if 'company' in placeholder else 'https://example.com'
+            elif placeholder.startswith('vars.'):
+                source = 'vars'
+                example = 'example value'
+            elif placeholder.startswith('image.'):
+                source = 'image'
+                example = 'cid:image123'
+            else:
+                source = 'campaign'
+                example = 'example'
+            
+            variables.append(TemplateVarItem(
+                key=placeholder,
+                required=True,
+                source=source,
+                example=example
+            ))
+        
+        detail = TemplateDetail(
+            id=template.id,
+            name=f"V{template.version} Mail {template.mail_number}",
+            subject_template=template.subject,
+            body_template=template.body,
+            updated_at="2025-09-26T00:00:00Z",
+            required_vars=template.placeholders,
+            assets=assets,
+            variables=variables
+        )
+        
+        logger.info(f"[HYBRID] Template detail returned for '{template_id}'")
         
         return DataResponse(data=detail, error=None)
         
@@ -197,28 +125,19 @@ async def preview_template(
     lead_id: Optional[str] = Query(None),
     user: Dict[str, Any] = Depends(require_auth)
 ):
-    """Preview template with lead data"""
+    """Preview template with lead data (hybrid: DB first, then hard-coded fallback)"""
     try:
         # Normalize template ID (v1m1 -> v1_mail1)
         normalized_id = normalize_template_id(template_id)
-        print(f"[NORMALIZE DEBUG] {template_id} -> {normalized_id}")  # Force stdout
-        logger.info(f"Template preview requested: {template_id} -> normalized: {normalized_id}")
+        logger.info(f"[HYBRID] Template preview requested: {template_id} -> normalized: {normalized_id}")
         
-        use_in_memory = os.getenv("USE_IN_MEMORY_STORES", "true").lower() == "true"
+        # Use hybrid service (database-first with fallback)
+        template = hybrid_template_service.get_template(normalized_id)
+        if not template:
+            raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
         
-        # Get template from appropriate source
-        if use_in_memory:
-            template = get_template(normalized_id)
-            if not template:
-                raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
-            template_subject = template.subject
-            template_body = template.body
-        else:
-            db_template = templates_store.get_by_id(normalized_id)
-            if not db_template:
-                raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
-            template_subject = db_template.get('subject_template')
-            template_body = db_template.get('body_template')
+        template_subject = template.subject
+        template_body = template.body
         
         # Get lead data if provided
         lead_data = {}
@@ -311,13 +230,14 @@ async def get_template_variables(
     template_id: str,
     user: Dict[str, Any] = Depends(require_auth)
 ):
-    """Get template variables list"""
+    """Get template variables list (hybrid: DB first, then hard-coded fallback)"""
     try:
-        # Normalize template ID (v1m1 -> v1_mail1) - THIS IS THE KEY FIX!
+        # Normalize template ID (v1m1 -> v1_mail1)
         normalized_id = normalize_template_id(template_id)
-        logger.info(f"Template variables requested: {template_id} -> normalized: {normalized_id}")
+        logger.info(f"[HYBRID] Template variables requested: {template_id} -> normalized: {normalized_id}")
         
-        template = get_template(normalized_id)
+        # Use hybrid service (database-first with fallback)
+        template = hybrid_template_service.get_template(normalized_id)
         if not template:
             raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
         
@@ -363,29 +283,20 @@ async def send_test_email(
     payload: TestsendPayload,
     user: Dict[str, Any] = Depends(require_auth)
 ):
-    """Send test email"""
+    """Send test email (hybrid: DB first, then hard-coded fallback)"""
     try:
         # Normalize template ID (v1m1 -> v1_mail1)
         normalized_id = normalize_template_id(template_id)
-        logger.info(f"Template testsend requested: {template_id} -> normalized: {normalized_id}")
+        logger.info(f"[HYBRID] Template testsend requested: {template_id} -> normalized: {normalized_id}")
         
-        use_in_memory = os.getenv("USE_IN_MEMORY_STORES", "true").lower() == "true"
+        # Use hybrid service (database-first with fallback)
+        template = hybrid_template_service.get_template(normalized_id)
+        if not template:
+            raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
         
-        # Get template from appropriate source
-        if use_in_memory:
-            template = get_template(normalized_id)
-            if not template:
-                raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
-            template_subject = template.subject
-            template_body = template.body
-            template_name = f"V{template.version} Mail {template.mail_number}"
-        else:
-            db_template = templates_store.get_by_id(normalized_id)
-            if not db_template:
-                raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
-            template_subject = db_template.get('subject_template')
-            template_body = db_template.get('body_template')
-            template_name = db_template.get('name')
+        template_subject = template.subject
+        template_body = template.body
+        template_name = f"V{template.version} Mail {template.mail_number}"
         
         # Get lead data if provided
         lead_data = {}
