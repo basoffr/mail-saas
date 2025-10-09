@@ -65,13 +65,22 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 # CORS configuration
-frontend_origin = os.getenv("FRONTEND_ORIGIN", "*")
-if frontend_origin == "*":
-    logger.warning("⚠️  CORS allowing all origins (set FRONTEND_ORIGIN for production)")
-    allowed_origins = ["*"]
-else:
+# Support both CORS_ORIGINS (comma-separated) and FRONTEND_ORIGIN (single)
+cors_origins = os.getenv("CORS_ORIGINS")
+frontend_origin = os.getenv("FRONTEND_ORIGIN")
+
+if cors_origins:
+    # Multiple origins (comma-separated)
+    allowed_origins = [origin.strip() for origin in cors_origins.split(",")]
+    logger.info(f"✅ CORS restricted to: {allowed_origins}")
+elif frontend_origin:
+    # Single origin (backward compatibility)
     allowed_origins = [frontend_origin]
     logger.info(f"✅ CORS restricted to: {frontend_origin}")
+else:
+    # Fallback to allow all (development only)
+    allowed_origins = ["*"]
+    logger.warning("⚠️  CORS allowing all origins (set CORS_ORIGINS for production)")
 
 app.add_middleware(
     CORSMiddleware,
