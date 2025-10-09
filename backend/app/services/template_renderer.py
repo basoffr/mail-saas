@@ -197,7 +197,8 @@ def render_template_with_lead(template_body: str, subject_template: str, lead_da
     context = {
         'lead': lead_data,
         'vars': lead_data.get('vars', {}),
-        'campaign': campaign_data or {'name': 'Test Campaign', 'id': 'test'}
+        'campaign': campaign_data or {'name': 'Test Campaign', 'id': 'test'},
+        'domain': lead_data.get('domain', '')  # Add domain to root for dashboard images
     }
     
     # Render subject and body

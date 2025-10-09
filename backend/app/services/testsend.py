@@ -99,6 +99,7 @@ class TestsendService:
             # Attach signature image as CID (same as campaigns)
             from email.mime.image import MIMEImage
             from pathlib import Path
+            from app.services.asset_resolver import asset_resolver
             
             signature_filename = f"{alias.capitalize()} Handtekening.png"
             signature_path = Path(__file__).parent.parent / "assets" / "signatures" / signature_filename
@@ -113,6 +114,21 @@ class TestsendService:
                     logger.debug(f"Attached {alias} signature image as CID for test email")
             else:
                 logger.warning(f"Signature image not found: {signature_path}")
+            
+            # Attach dashboard image as CID if available
+            dashboard_path = asset_resolver.get_dashboard_image_path(domain)
+            if dashboard_path and dashboard_path.exists():
+                with open(dashboard_path, 'rb') as img_file:
+                    img_data = img_file.read()
+                    dashboard_image = MIMEImage(img_data)
+                    # Content-ID must match template: cid:dashboard_{domain.replace('.', '_')}
+                    cid_name = f"dashboard_{domain.replace('.', '_')}"
+                    dashboard_image.add_header('Content-ID', f'<{cid_name}>')
+                    dashboard_image.add_header('Content-Disposition', 'inline', filename=dashboard_path.name)
+                    msg.attach(dashboard_image)
+                    logger.debug(f"Attached dashboard image as CID for domain: {domain}")
+            else:
+                logger.debug(f"No dashboard image found for domain: {domain}")
             
             # Determine if we should use real SMTP or simulation
             use_real_smtp = bool(smtp_host and smtp_user and smtp_pass)
