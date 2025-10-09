@@ -77,31 +77,6 @@
      p.user_id,
      u.email,
      p.role
-   FROM profiles p
-   JOIN auth.users u ON p.user_id = u.id;
-   ```
-
----
-
-### **STAP 2: Backend Environment Variables**
-
-Update Render environment variables:
-
-```bash
-# Supabase Auth
-SUPABASE_URL=https://<project>.supabase.co
-SUPABASE_ANON_KEY=<your-anon-key>
-SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>  # For role lookups
-SUPABASE_JWKS_URL=${SUPABASE_URL}/auth/v1/.well-known/jwks.json
-
-# CORS & Security
-FRONTEND_ORIGIN=https://mail-saas-xi.vercel.app
-
-# RBAC Feature Flag
-USE_RBAC=true  # Set to false for testing without auth
-
-# Optional: Mock auth for local development
-USE_AUTH_MOCK=false  # Set to true for local dev without Supabase
 ```
 
 **Waar vind je deze keys?**

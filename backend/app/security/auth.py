@@ -1,72 +1,40 @@
 """
 Supabase JWT Authentication
-Verifies JWT tokens via JWKS endpoint
+Verifies JWT tokens using HS256 algorithm with JWT secret
 """
 import os
-import time
 from functools import lru_cache
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
-import requests
 from jose import jwt, JWTError
 from fastapi import Depends, HTTPException, Request, status
 from loguru import logger
 
 
-class JWKSCache:
-    """
-    Cache for JWKS (JSON Web Key Set) from Supabase.
-    Reduces external calls by caching keys with TTL.
-    """
-    
-    def __init__(self, url: str, ttl: int = 3600):
-        """
-        Args:
-            url: JWKS endpoint URL (e.g., https://xxx.supabase.co/auth/v1/.well-known/jwks.json)
-            ttl: Time to live in seconds (default: 1 hour)
-        """
-        self.url = url
-        self.ttl = ttl
-        self._exp = 0
-        self._jwks: Optional[Dict[str, Any]] = None
-    
-    def get(self) -> Dict[str, Any]:
-        """Get JWKS, fetching from remote if expired"""
-        now = time.time()
-        
-        if not self._jwks or now > self._exp:
-            try:
-                logger.debug(f"Fetching JWKS from {self.url}")
-                response = requests.get(self.url, timeout=5)
-                response.raise_for_status()
-                self._jwks = response.json()
-                self._exp = now + self.ttl
-                logger.info(f"✅ JWKS cached (expires in {self.ttl}s)")
-            except Exception as e:
-                logger.error(f"Failed to fetch JWKS: {e}")
-                if not self._jwks:
-                    raise HTTPException(
-                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                        detail="Cannot verify tokens: JWKS unavailable"
-                    )
-        
-        return self._jwks
-
-
 @lru_cache(maxsize=1)
-def get_jwks_cache() -> JWKSCache:
-    """Singleton JWKS cache instance"""
-    jwks_url = os.getenv("SUPABASE_JWKS_URL")
+def get_jwt_secret() -> str:
+    """
+    Get JWT secret for Supabase token verification.
     
-    if not jwks_url:
-        # Fallback: construct from SUPABASE_URL
-        supabase_url = os.getenv("SUPABASE_URL")
-        if not supabase_url:
-            raise ValueError("SUPABASE_URL or SUPABASE_JWKS_URL must be set")
-        jwks_url = f"{supabase_url}/auth/v1/.well-known/jwks.json"
+    Supabase Auth uses HS256 (symmetric signing) with a shared secret.
+    This is different from RS256/JWKS which uses public/private key pairs.
     
-    logger.info(f"Initialized JWKS cache: {jwks_url}")
-    return JWKSCache(jwks_url)
+    Returns:
+        JWT secret from environment
+    
+    Raises:
+        ValueError if not configured
+    """
+    jwt_secret = os.getenv("SUPABASE_JWT_SECRET")
+    
+    if not jwt_secret:
+        raise ValueError(
+            "SUPABASE_JWT_SECRET must be set. "
+            "Find it in Supabase Dashboard → Settings → API → JWT Secret"
+        )
+    
+    logger.info("✅ JWT secret configured for HS256 verification")
+    return jwt_secret
 
 
 def bearer_token(request: Request) -> str:
@@ -88,53 +56,45 @@ def bearer_token(request: Request) -> str:
     return auth_header.split(" ", 1)[1]
 
 
-def verify_supabase_jwt(token: str, jwks_cache: JWKSCache) -> Dict[str, Any]:
+def verify_supabase_jwt(token: str, jwt_secret: str) -> Dict[str, Any]:
     """
-    Verify Supabase JWT using JWKS.
+    Verify Supabase JWT using HS256 algorithm.
+    
+    Supabase Auth tokens are signed with HS256 (symmetric key),
+    not RS256 (asymmetric JWKS). We verify using the JWT secret.
     
     Args:
         token: Access token from Supabase Auth
-        jwks_cache: JWKS cache instance
+        jwt_secret: JWT secret from Supabase project settings
     
     Returns:
-        Decoded JWT payload
+        Decoded JWT payload containing user info
     
     Raises:
-        HTTPException 401 if invalid
+        HTTPException 401 if invalid or expired
     """
     try:
-        # Get JWKS keys
-        jwks = jwks_cache.get()
-        
-        # Get token header to find matching key
-        header = jwt.get_unverified_header(token)
-        kid = header.get("kid")
-        
-        if not kid:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token: missing kid"
-            )
-        
-        # Find matching key
-        key = next((k for k in jwks.get("keys", []) if k.get("kid") == kid), None)
-        
-        if not key:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token: unknown key ID"
-            )
-        
-        # Verify and decode token
+        # Decode and verify token with HS256
         payload = jwt.decode(
             token,
-            key,
-            algorithms=[key.get("alg", "RS256")],
-            options={"verify_aud": False}  # Supabase doesn't use aud claim
+            jwt_secret,
+            algorithms=["HS256"],
+            options={
+                "verify_signature": True,
+                "verify_exp": True,
+                "verify_aud": False,  # Supabase doesn't require aud verification
+            }
         )
         
+        logger.debug(f"✅ JWT verified for user: {payload.get('email', 'unknown')}")
         return payload
         
+    except jwt.ExpiredSignatureError:
+        logger.warning("JWT verification failed: token expired")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token expired"
+        )
     except JWTError as e:
         logger.warning(f"JWT verification failed: {e}")
         raise HTTPException(
@@ -151,18 +111,20 @@ def verify_supabase_jwt(token: str, jwks_cache: JWKSCache) -> Dict[str, Any]:
 
 async def get_current_user(
     token: str = Depends(bearer_token),
-    jwks_cache: JWKSCache = Depends(get_jwks_cache)
+    jwt_secret: str = Depends(get_jwt_secret)
 ) -> Dict[str, Any]:
     """
-    Dependency to get current authenticated user.
+    Dependency to get current authenticated user from JWT.
+    
+    Verifies Supabase JWT token and extracts user information.
     
     Returns:
-        Dict with user_id and email
+        Dict with user_id and email from JWT payload
     
     Raises:
-        HTTPException 401 if invalid token
+        HTTPException 401 if invalid or expired token
     """
-    payload = verify_supabase_jwt(token, jwks_cache)
+    payload = verify_supabase_jwt(token, jwt_secret)
     
     user_id = payload.get("sub")
     email = payload.get("email") or payload.get("user_metadata", {}).get("email")
