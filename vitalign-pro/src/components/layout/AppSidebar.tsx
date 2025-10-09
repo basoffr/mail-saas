@@ -18,6 +18,7 @@ import {
 import { SidebarItem } from './SidebarItem';
 import { SidebarFooter } from './SidebarFooter';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface AppSidebarProps {
   collapsed?: boolean;
@@ -37,14 +38,14 @@ interface MobileSidebarProps extends AppSidebarProps {
 }
 
 const navigationItems = [
-  { href: '/import/bulk', icon: Upload, label: 'Bulk Import' },
-  { href: '/leads', icon: Contact2, label: 'Leads' },
-  { href: '/campaigns', icon: Send, label: 'Campagnes' },
-  { href: '/templates', icon: FileCode2, label: 'Templates' },
-  { href: '/reports', icon: FolderUp, label: 'Rapporten' },
-  { href: '/stats', icon: BarChart3, label: 'Statistieken' },
-  { href: '/inbox', icon: Mail, label: 'Inbox' },
-  { href: '/settings', icon: Settings, label: 'Instellingen' },
+  { href: '/import/bulk', icon: Upload, label: 'Bulk Import', adminOnly: true },
+  { href: '/leads', icon: Contact2, label: 'Leads', adminOnly: true },
+  { href: '/campaigns', icon: Send, label: 'Campagnes', adminOnly: true },
+  { href: '/templates', icon: FileCode2, label: 'Templates', adminOnly: true },
+  { href: '/reports', icon: FolderUp, label: 'Rapporten', adminOnly: true },
+  { href: '/stats', icon: BarChart3, label: 'Statistieken', adminOnly: false },
+  { href: '/inbox', icon: Mail, label: 'Inbox', adminOnly: false },
+  { href: '/settings', icon: Settings, label: 'Instellingen', adminOnly: true },
 ];
 
 const STORAGE_KEY = 'ui.sidebar.collapsed';
@@ -67,6 +68,13 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   });
 
   const collapsed = controlledCollapsed !== undefined ? controlledCollapsed : internalCollapsed;
+  const { user } = useAuth();
+  
+  // Filter navigation items based on user role
+  const visibleNavigationItems = navigationItems.filter(item => {
+    if (!item.adminOnly) return true;
+    return user?.role === 'admin';
+  });
 
   useEffect(() => {
     if (controlledCollapsed === undefined) {
@@ -131,7 +139,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
       {/* Navigation */}
       <ScrollArea className="flex-1 px-3">
         <nav className="space-y-1 py-3" role="navigation" aria-label="Hoofdnavigatie">
-          {navigationItems.map((item) => (
+          {visibleNavigationItems.map((item) => (
             <SidebarItem
               key={item.href}
               href={item.href}

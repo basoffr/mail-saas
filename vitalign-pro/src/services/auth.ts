@@ -1,6 +1,8 @@
 // Centralized Authentication Service
 // Provides consistent JWT token management across all API calls
 
+import { supabase } from '@/lib/supabase';
+
 export interface AuthConfig {
   token: string;
   baseUrl: string;
@@ -13,38 +15,46 @@ export interface ApiResponse<T> {
 }
 
 class AuthService {
-  private token: string;
   private baseUrl: string;
   private timeout: number;
 
   constructor() {
-    // Use Supabase anon key as auth token for production
-    this.token = import.meta.env.VITE_SUPABASE_ANON_KEY || 'mock-jwt-token-for-development';
     this.baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
     this.timeout = parseInt(import.meta.env.VITE_API_TIMEOUT || '30000');
     
     console.log('Auth Service initialized:', {
       baseUrl: this.baseUrl,
-      hasToken: !!this.token,
       timeout: this.timeout
     });
   }
 
-  getAuthHeaders(): Record<string, string> {
-    return {
+  async getToken(): Promise<string | null> {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token || null;
+  }
+
+  async getAuthHeaders(): Promise<Record<string, string>> {
+    const token = await this.getToken();
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${this.token}`,
     };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    return headers;
   }
 
-  getAuthHeadersForFormData(): Record<string, string> {
-    return {
-      'Authorization': `Bearer ${this.token}`,
-    };
-  }
-
-  getToken(): string {
-    return this.token;
+  async getAuthHeadersForFormData(): Promise<Record<string, string>> {
+    const token = await this.getToken();
+    const headers: Record<string, string> = {};
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    return headers;
   }
 
   async apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -53,13 +63,15 @@ class AuthService {
 
     try {
       const url = `${this.baseUrl}${endpoint}`;
-      console.log('API Call:', { method: options.method || 'GET', url, hasAuth: !!this.token });
+      const token = await this.getToken();
+      console.log('API Call:', { method: options.method || 'GET', url, hasAuth: !!token });
 
+      const authHeaders = await this.getAuthHeaders();
       const response = await fetch(url, {
         ...options,
         signal: controller.signal,
         headers: {
-          ...this.getAuthHeaders(),
+          ...authHeaders,
           ...options.headers,
         },
       });
@@ -143,21 +155,17 @@ class AuthService {
     return searchParams.toString();
   }
 
-  // Method to update token if needed
-  updateToken(newToken: string): void {
-    this.token = newToken;
-    console.log('Auth token updated');
-  }
-
   // Method to check if we have a valid token
-  hasValidToken(): boolean {
-    return !!this.token && this.token !== 'mock-jwt-token-for-development';
+  async hasValidToken(): Promise<boolean> {
+    const token = await this.getToken();
+    return !!token;
   }
 
   // Get current configuration for debugging
-  getConfig(): AuthConfig {
+  async getConfig(): Promise<AuthConfig> {
+    const token = await this.getToken();
     return {
-      token: this.token.substring(0, 20) + '...', // Only show first 20 chars for security
+      token: token ? token.substring(0, 20) + '...' : 'No token', // Only show first 20 chars for security
       baseUrl: this.baseUrl,
       timeout: this.timeout
     };
