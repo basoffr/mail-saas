@@ -88,55 +88,103 @@ class DBLeadsStore:
         sort_order: Optional[str] = None,
         include_deleted: bool = False,
     ) -> Tuple[List[LeadOut], int]:
-        """Query leads with filters and pagination."""
+        """Query leads with filters and pagination.
+        
+        NOTE: Supabase has a 1000 row limit per .range() call.
+        If page_size > 1000, we automatically fetch in batches.
+        """
         if not self.supabase:
             logger.warning("Supabase not initialized")
             return [], 0
         
         try:
-            # Start query
-            query = self.supabase.table('leads').select('*', count='exact')
-            
-            # Filter out deleted unless explicitly requested
-            if not include_deleted:
-                query = query.is_('deleted_at', 'null')
-            
-            # Apply filters
-            if search:
-                query = query.or_(f'email.ilike.%{search}%,company.ilike.%{search}%,domain.ilike.%{search}%')
-            
-            if status:
-                query = query.eq('status', status.value)
-            
-            if list_name:
-                query = query.eq('list_name', list_name)
-            
-            if tld:
-                query = query.ilike('domain', f'%.{tld}')
-            
-            if has_image is not None:
-                if has_image:
-                    query = query.not_.is_('image_key', 'null')
+            # Build base query with filters
+            def build_query():
+                q = self.supabase.table('leads').select('*', count='exact')
+                
+                # Filter out deleted unless explicitly requested
+                if not include_deleted:
+                    q = q.is_('deleted_at', 'null')
+                
+                # Apply filters
+                if search:
+                    q = q.or_(f'email.ilike.%{search}%,company.ilike.%{search}%,domain.ilike.%{search}%')
+                
+                if status:
+                    q = q.eq('status', status.value)
+                
+                if list_name:
+                    q = q.eq('list_name', list_name)
+                
+                if tld:
+                    q = q.ilike('domain', f'%.{tld}')
+                
+                if has_image is not None:
+                    if has_image:
+                        q = q.not_.is_('image_key', 'null')
+                    else:
+                        q = q.is_('image_key', 'null')
+                
+                # Sorting
+                if sort_by:
+                    ascending = (sort_order != 'desc')
+                    q = q.order(sort_by, desc=not ascending)
                 else:
-                    query = query.is_('image_key', 'null')
+                    q = q.order('created_at', desc=True)
+                
+                return q
             
-            # Sorting
-            if sort_by:
-                ascending = (sort_order != 'desc')
-                query = query.order(sort_by, desc=not ascending)
+            # Supabase range() has max 1000 rows per call
+            SUPABASE_MAX_ROWS = 1000
+            
+            if page_size <= SUPABASE_MAX_ROWS:
+                # Simple case: single query
+                query = build_query()
+                start = (page - 1) * page_size
+                end = start + page_size - 1
+                query = query.range(start, end)
+                
+                response = query.execute()
+                leads = [self._row_to_lead(row) for row in (response.data or [])]
+                total = response.count or 0
             else:
-                query = query.order('created_at', desc=True)
-            
-            # Pagination
-            start = (page - 1) * page_size
-            end = start + page_size - 1
-            query = query.range(start, end)
-            
-            # Execute
-            response = query.execute()
-            
-            leads = [self._row_to_lead(row) for row in (response.data or [])]
-            total = response.count or 0
+                # Complex case: fetch in batches of 1000
+                logger.info(f"Large page_size ({page_size}) detected, fetching in batches...")
+                all_leads = []
+                total = 0
+                batch_num = 0
+                
+                # Calculate how many batches we need
+                start_offset = (page - 1) * page_size
+                remaining = page_size
+                
+                while remaining > 0:
+                    batch_size = min(remaining, SUPABASE_MAX_ROWS)
+                    batch_start = start_offset + (batch_num * SUPABASE_MAX_ROWS)
+                    batch_end = batch_start + batch_size - 1
+                    
+                    logger.info(f"Fetching batch {batch_num + 1}: rows {batch_start}-{batch_end}")
+                    
+                    query = build_query()
+                    query = query.range(batch_start, batch_end)
+                    response = query.execute()
+                    
+                    batch_leads = [self._row_to_lead(row) for row in (response.data or [])]
+                    all_leads.extend(batch_leads)
+                    
+                    # Total count is same for all batches
+                    if batch_num == 0:
+                        total = response.count or 0
+                    
+                    # If we got fewer rows than requested, we've hit the end
+                    if len(batch_leads) < batch_size:
+                        break
+                    
+                    remaining -= batch_size
+                    batch_num += 1
+                
+                leads = all_leads
+                logger.info(f"Fetched {len(leads)} leads in {batch_num + 1} batches (total available: {total})")
             
             return leads, total
             
