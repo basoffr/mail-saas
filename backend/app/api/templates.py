@@ -5,6 +5,7 @@ import os
 
 from app.core.auth import require_auth
 from app.core.templates_store import get_all_templates, get_template, get_templates_summary
+from app.core.template_id_normalizer import normalize_template_id, validate_template_id
 from app.services.store_factory import templates_store, leads_store
 from app.schemas.common import DataResponse
 from app.schemas.template import (
@@ -81,13 +82,17 @@ async def get_template_detail(
 ):
     """Get detailed template information (from DB or hard-coded)"""
     try:
+        # Normalize template ID (v1m1 -> v1_mail1)
+        normalized_id = normalize_template_id(template_id)
+        logger.info(f"Template detail requested: {template_id} -> normalized: {normalized_id}")
+        
         use_in_memory = os.getenv("USE_IN_MEMORY_STORES", "true").lower() == "true"
         
         if use_in_memory:
             # Use hard-coded template
-            template = get_template(template_id)
+            template = get_template(normalized_id)
             if not template:
-                raise HTTPException(status_code=404, detail="Template not found")
+                raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
             
             assets = [{"key": "dashboard", "type": "image"}]
             placeholder_strings = template.get_placeholders()
@@ -126,9 +131,9 @@ async def get_template_detail(
             )
         else:
             # Use database template
-            db_template = templates_store.get_by_id(template_id)
+            db_template = templates_store.get_by_id(normalized_id)
             if not db_template:
-                raise HTTPException(status_code=404, detail="Template not found")
+                raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
             
             # Parse assets from JSONB
             assets_dict = db_template.get('assets', {})
@@ -193,19 +198,23 @@ async def preview_template(
 ):
     """Preview template with lead data"""
     try:
+        # Normalize template ID (v1m1 -> v1_mail1)
+        normalized_id = normalize_template_id(template_id)
+        logger.info(f"Template preview requested: {template_id} -> normalized: {normalized_id}")
+        
         use_in_memory = os.getenv("USE_IN_MEMORY_STORES", "true").lower() == "true"
         
         # Get template from appropriate source
         if use_in_memory:
-            template = get_template(template_id)
+            template = get_template(normalized_id)
             if not template:
-                raise HTTPException(status_code=404, detail="Template not found")
+                raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
             template_subject = template.subject
             template_body = template.body
         else:
-            db_template = templates_store.get_by_id(template_id)
+            db_template = templates_store.get_by_id(normalized_id)
             if not db_template:
-                raise HTTPException(status_code=404, detail="Template not found")
+                raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
             template_subject = db_template.get('subject_template')
             template_body = db_template.get('body_template')
         
@@ -302,9 +311,13 @@ async def get_template_variables(
 ):
     """Get template variables list"""
     try:
-        template = get_template(template_id)
+        # Normalize template ID (v1m1 -> v1_mail1) - THIS IS THE KEY FIX!
+        normalized_id = normalize_template_id(template_id)
+        logger.info(f"Template variables requested: {template_id} -> normalized: {normalized_id}")
+        
+        template = get_template(normalized_id)
         if not template:
-            raise HTTPException(status_code=404, detail="Template not found")
+            raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
         
         # Extract variables from template placeholders
         placeholder_strings = template.get_placeholders()
@@ -350,20 +363,24 @@ async def send_test_email(
 ):
     """Send test email"""
     try:
+        # Normalize template ID (v1m1 -> v1_mail1)
+        normalized_id = normalize_template_id(template_id)
+        logger.info(f"Template testsend requested: {template_id} -> normalized: {normalized_id}")
+        
         use_in_memory = os.getenv("USE_IN_MEMORY_STORES", "true").lower() == "true"
         
         # Get template from appropriate source
         if use_in_memory:
-            template = get_template(template_id)
+            template = get_template(normalized_id)
             if not template:
-                raise HTTPException(status_code=404, detail="Template not found")
+                raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
             template_subject = template.subject
             template_body = template.body
             template_name = f"V{template.version} Mail {template.mail_number}"
         else:
-            db_template = templates_store.get_by_id(template_id)
+            db_template = templates_store.get_by_id(normalized_id)
             if not db_template:
-                raise HTTPException(status_code=404, detail="Template not found")
+                raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
             template_subject = db_template.get('subject_template')
             template_body = db_template.get('body_template')
             template_name = db_template.get('name')

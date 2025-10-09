@@ -4,6 +4,7 @@ from email.mime.multipart import MIMEMultipart
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -47,24 +48,39 @@ class TestsendService:
         text_body: str,
         user_id: str = "default"
     ) -> Dict[str, Any]:
-        """Send test email via SMTP"""
+        """
+        Send test email via SMTP with proper logging.
+        
+        Uses real SMTP if configured, otherwise falls back to simulation.
+        Logs all send attempts as mail_send_ok or mail_send_err.
+        """
         
         # Check rate limit
         if not self.check_rate_limit(user_id):
+            logger.warning(f"❌ mail_send_err: Rate limit exceeded for user {user_id}")
             return {
                 'success': False,
                 'error': f'Rate limit exceeded. Maximum {self.max_sends_per_minute} test emails per minute.'
             }
         
         try:
+            # Get SMTP configuration from environment
+            smtp_host = os.getenv('SMTP_HOST', '')
+            smtp_port = int(os.getenv('SMTP_PORT', '587'))
+            smtp_user = os.getenv('SMTP_USER', '')
+            smtp_pass = os.getenv('SMTP_PASS', '')
+            mail_from = os.getenv('MAIL_FROM', 'noreply@punthelder-marketing.nl')
+            mail_from_name = os.getenv('MAIL_FROM_NAME', 'Punthelder Marketing')
+            
             # Create message
             msg = MIMEMultipart('alternative')
             msg['Subject'] = subject
-            msg['From'] = 'noreply@example.com'  # TODO: Get from settings
+            msg['From'] = f"{mail_from_name} <{mail_from}>"
             msg['To'] = to_email
             
-            # Add unsubscribe header (required)
-            msg['List-Unsubscribe'] = '<mailto:unsubscribe@example.com>, <https://example.com/unsubscribe>'
+            # Add unsubscribe headers (compliance)
+            unsubscribe_email = os.getenv('UNSUBSCRIBE_EMAIL', 'unsubscribe@punthelder-marketing.nl')
+            msg['List-Unsubscribe'] = f'<mailto:{unsubscribe_email}>'
             msg['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click'
             
             # Add text and HTML parts
@@ -74,20 +90,32 @@ class TestsendService:
             msg.attach(text_part)
             msg.attach(html_part)
             
-            # For MVP, we'll simulate sending (no real SMTP)
-            # In production, replace with actual SMTP sending
-            success = await self._simulate_smtp_send(msg, to_email)
+            # Determine if we should use real SMTP or simulation
+            use_real_smtp = bool(smtp_host and smtp_user and smtp_pass)
+            
+            if use_real_smtp:
+                logger.info(f"📧 Attempting real SMTP send to {to_email} via {smtp_host}")
+                success = await self._real_smtp_send(msg, {
+                    'host': smtp_host,
+                    'port': smtp_port,
+                    'username': smtp_user,
+                    'password': smtp_pass,
+                    'use_tls': True
+                })
+            else:
+                logger.warning(f"⚠️  No SMTP config found, using simulation mode for {to_email}")
+                success = await self._simulate_smtp_send(msg, to_email)
             
             if success:
                 self.record_send(user_id)
-                logger.info(f"Test email sent successfully to {to_email}")
+                logger.info(f"✅ mail_send_ok: Test email sent to {to_email} from {mail_from}")
                 return {'success': True, 'message': 'Test email sent successfully'}
             else:
-                logger.error(f"Failed to send test email to {to_email}")
+                logger.error(f"❌ mail_send_err: SMTP delivery failed to {to_email}")
                 return {'success': False, 'error': 'SMTP delivery failed'}
                 
         except Exception as e:
-            logger.error(f"Error sending test email: {str(e)}")
+            logger.error(f"❌ mail_send_err: Exception sending to {to_email}: {str(e)}")
             return {'success': False, 'error': f'Email sending failed: {str(e)}'}
     
     async def _simulate_smtp_send(self, msg: MIMEMultipart, to_email: str) -> bool:
@@ -108,20 +136,40 @@ class TestsendService:
             return False
     
     async def _real_smtp_send(self, msg: MIMEMultipart, smtp_config: Dict[str, str]) -> bool:
-        """Real SMTP sending (for production)"""
+        """
+        Real SMTP sending with detailed logging.
+        
+        Logs each step of the SMTP process for debugging.
+        """
         try:
-            server = smtplib.SMTP(smtp_config['host'], smtp_config['port'])
+            logger.info(f"🔌 Connecting to SMTP: {smtp_config['host']}:{smtp_config['port']}")
+            server = smtplib.SMTP(smtp_config['host'], smtp_config['port'], timeout=30)
+            
             if smtp_config.get('use_tls'):
+                logger.info("🔒 Starting TLS encryption...")
                 server.starttls()
+            
             if smtp_config.get('username'):
+                logger.info(f"🔑 Authenticating as {smtp_config['username']}")
                 server.login(smtp_config['username'], smtp_config['password'])
             
+            logger.info(f"📧 Sending message to {msg['To']}")
             server.send_message(msg)
+            
+            logger.info("✅ SMTP send successful, closing connection")
             server.quit()
+            
             return True
             
+        except smtplib.SMTPAuthenticationError as e:
+            logger.error(f"❌ SMTP Authentication failed: {str(e)}")
+            logger.error(f"   Check SMTP_USER and SMTP_PASS environment variables")
+            return False
+        except smtplib.SMTPException as e:
+            logger.error(f"❌ SMTP error: {str(e)}")
+            return False
         except Exception as e:
-            logger.error(f"SMTP error: {str(e)}")
+            logger.error(f"❌ Unexpected error during SMTP send: {type(e).__name__}: {str(e)}")
             return False
 
 
