@@ -35,7 +35,7 @@ store = leads_store
 @router.get("/leads")
 async def list_leads(
     page: int = Query(1, ge=1),
-    page_size: int = Query(25, ge=1, le=100),
+    page_size: int = Query(25, ge=1, le=1000),  # Increased for search/select scenarios
     status: Optional[List[LeadStatus]] = Query(default=None),
     domain_tld: Optional[List[str]] = Query(default=None),
     has_image: Optional[bool] = None,
@@ -261,7 +261,7 @@ async def restore_leads(payload: LeadDeleteRequest):
 @router.get("/leads/deleted", response_model=DataResponse[LeadsListResponse])
 async def list_deleted_leads(
     page: int = Query(1, ge=1),
-    page_size: int = Query(25, ge=1, le=100),
+    page_size: int = Query(25, ge=1, le=1000),  # Increased for consistency
     search: Optional[str] = None,
 ):
     """Get all soft-deleted leads (trash view).
