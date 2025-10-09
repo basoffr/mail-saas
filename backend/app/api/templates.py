@@ -84,6 +84,7 @@ async def get_template_detail(
     try:
         # Normalize template ID (v1m1 -> v1_mail1)
         normalized_id = normalize_template_id(template_id)
+        print(f"[NORMALIZE DEBUG] {template_id} -> {normalized_id}")  # Force stdout
         logger.info(f"Template detail requested: {template_id} -> normalized: {normalized_id}")
         
         use_in_memory = os.getenv("USE_IN_MEMORY_STORES", "true").lower() == "true"
@@ -200,6 +201,7 @@ async def preview_template(
     try:
         # Normalize template ID (v1m1 -> v1_mail1)
         normalized_id = normalize_template_id(template_id)
+        print(f"[NORMALIZE DEBUG] {template_id} -> {normalized_id}")  # Force stdout
         logger.info(f"Template preview requested: {template_id} -> normalized: {normalized_id}")
         
         use_in_memory = os.getenv("USE_IN_MEMORY_STORES", "true").lower() == "true"
