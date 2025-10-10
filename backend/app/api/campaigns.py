@@ -163,12 +163,21 @@ async def get_campaign_detail(
         messages, _ = campaign_store.list_messages(MessageQuery(campaign_id=campaign_id, page_size=1000))
         domains_used = list(set(m.domain_used for m in messages))
         
+        # Auto-assigned fields (for simplified flow)
+        # These are derived/hardcoded values, not stored in DB
+        flow_version = 1  # Default flow version
+        templates = ["v1m1", "v1m2", "v1m3", "v1m4"]  # Standard 4-template flow
+        estimated_duration_days = 9  # Standard 9 workdays
+        
         detail = CampaignDetail(
             **campaign.__dict__,
             kpis=kpis,
             timeline=timeline,
             domains_used=domains_used,
-            audience_count=audience_count
+            audience_count=audience_count,
+            flow_version=flow_version,
+            templates=templates,
+            estimated_duration_days=estimated_duration_days
         )
         
         return DataResponse(data=detail)
