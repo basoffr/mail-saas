@@ -559,18 +559,18 @@ export default function CampaignDetail() {
                 <div>
                   <div className="font-medium">Follow-ups Enabled</div>
                   <div className="text-sm text-muted-foreground">
-                    {campaign.settings.followUp.enabled ? 'Yes' : 'No'}
+                    {campaign.settings?.followUp?.enabled ? 'Yes' : 'No'}
                   </div>
                 </div>
-                <div className={`w-3 h-3 rounded-full ${campaign.settings.followUp.enabled ? 'bg-accent' : 'bg-muted'}`} />
+                <div className={`w-3 h-3 rounded-full ${campaign.settings?.followUp?.enabled ? 'bg-accent' : 'bg-muted'}`} />
               </div>
 
-              {campaign.settings.followUp.enabled && (
+              {campaign.settings?.followUp?.enabled && (
                 <>
                   <div className="text-sm space-y-2">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Delay:</span>
-                      <span className="font-medium">{campaign.settings.followUp.days} days</span>
+                      <span className="font-medium">{campaign.settings?.followUp?.days || 0} days</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Scheduled:</span>
@@ -578,7 +578,7 @@ export default function CampaignDetail() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Attachment required:</span>
-                      <span className="font-medium">{campaign.settings.followUp.attachmentRequired ? 'Yes' : 'No'}</span>
+                      <span className="font-medium">{campaign.settings?.followUp?.attachmentRequired ? 'Yes' : 'No'}</span>
                     </div>
                   </div>
 
