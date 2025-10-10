@@ -17,6 +17,14 @@ class CampaignOut(BaseModel):
     followup_attach_report: bool
     created_at: datetime
     updated_at: datetime
+    
+    # Count fields for UI display (computed from messages)
+    target_count: int = 0
+    sent_count: int = 0
+    open_count: int = 0
+    click_count: int = 0
+    bounce_count: int = 0
+    reply_count: int = 0
 
 
 class MessageOut(BaseModel):

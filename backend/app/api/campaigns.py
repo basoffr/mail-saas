@@ -42,8 +42,32 @@ async def list_campaigns(
         
         campaigns, total = campaign_store.list_campaigns(query)
         
+        # Enrich campaigns with count fields
+        enriched_campaigns = []
+        for c in campaigns:
+            # Get message counts for this campaign
+            messages, _ = campaign_store.list_messages(MessageQuery(campaign_id=c.id, page_size=10000))
+            
+            # Calculate counts
+            target_count = len(messages)
+            sent_count = len([m for m in messages if m.sent_at is not None])
+            open_count = len([m for m in messages if m.open_at is not None])
+            bounce_count = len([m for m in messages if m.status == MessageStatus.bounced])
+            
+            # Create enriched campaign dict
+            campaign_dict = c.__dict__.copy()
+            campaign_dict.update({
+                'target_count': target_count,
+                'sent_count': sent_count,
+                'open_count': open_count,
+                'click_count': 0,  # Not implemented yet
+                'bounce_count': bounce_count,
+                'reply_count': 0,  # Not implemented yet
+            })
+            enriched_campaigns.append(CampaignOut.model_validate(campaign_dict))
+        
         response = CampaignsResponse(
-            items=[CampaignOut.model_validate(c.__dict__) for c in campaigns],
+            items=enriched_campaigns,
             total=total
         )
         
