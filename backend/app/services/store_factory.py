@@ -59,15 +59,22 @@ except Exception as e:
     logger.warning("Emergency fallback: using in-memory TemplateStore")
 
 # ============================================================================
-# CAMPAIGNS STORE - TODO: Create DBCampaignStore
+# CAMPAIGNS STORE
 # ============================================================================
 try:
-    from app.services.campaign_store import CampaignStore
-    campaigns_store = CampaignStore()
     if USE_DB:
-        logger.warning("⚠️  DBCampaignStore not implemented yet, using in-memory CampaignStore")
+        try:
+            from app.services.db_campaign_store import DBCampaignStore
+            campaigns_store = DBCampaignStore()
+            logger.info("✅ Using DBCampaignStore (Supabase database)")
+        except Exception as e:
+            logger.error(f"Failed to initialize DBCampaignStore: {e}, falling back to in-memory")
+            from app.services.campaign_store import CampaignStore
+            campaigns_store = CampaignStore()
     else:
-        logger.info("Using in-memory CampaignStore (development mode)")
+        from app.services.campaign_store import CampaignStore
+        campaigns_store = CampaignStore()
+        logger.warning("⚠️  Using in-memory CampaignStore (development mode)")
 except Exception as e:
     logger.critical(f"CRITICAL: Failed to initialize campaigns store: {e}")
     # Create minimal fallback
