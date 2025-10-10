@@ -161,9 +161,9 @@ export default function Campaigns() {
   const getTotalStats = () => {
     const totals = campaigns.reduce((acc, campaign) => ({
       campaigns: acc.campaigns + 1,
-      sent: acc.sent + campaign.sentCount,
-      opens: acc.opens + campaign.openCount,
-      replies: acc.replies + campaign.replyCount
+      sent: acc.sent + (campaign.sentCount || 0),
+      opens: acc.opens + (campaign.openCount || 0),
+      replies: acc.replies + (campaign.replyCount || 0)
     }), { campaigns: 0, sent: 0, opens: 0, replies: 0 });
 
     return totals;
@@ -212,7 +212,7 @@ export default function Campaigns() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Emails Sent</p>
-                <p className="text-2xl font-bold">{stats.sent.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{(stats.sent || 0).toLocaleString()}</p>
               </div>
               <div className="h-12 w-12 bg-accent/10 rounded-2xl flex items-center justify-center">
                 <Users className="h-6 w-6 text-accent" />
@@ -224,9 +224,9 @@ export default function Campaigns() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Opens</p>
-                <p className="text-2xl font-bold">{stats.opens.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{(stats.opens || 0).toLocaleString()}</p>
                 <p className="text-xs text-muted-foreground">
-                  {calculateRate(stats.opens, stats.sent)} open rate
+                  {calculateRate(stats.opens || 0, stats.sent || 0)} open rate
                 </p>
               </div>
               <div className="h-12 w-12 bg-warning/10 rounded-2xl flex items-center justify-center">
@@ -239,9 +239,9 @@ export default function Campaigns() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Replies</p>
-                <p className="text-2xl font-bold">{stats.replies.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{(stats.replies || 0).toLocaleString()}</p>
                 <p className="text-xs text-muted-foreground">
-                  {calculateRate(stats.replies, stats.sent)} reply rate
+                  {calculateRate(stats.replies || 0, stats.sent || 0)} reply rate
                 </p>
               </div>
               <div className="h-12 w-12 bg-success/10 rounded-2xl flex items-center justify-center">
@@ -307,33 +307,33 @@ export default function Campaigns() {
                       </Badge>
                     </TableCell>
                     <TableCell>{campaign.templateName}</TableCell>
-                    <TableCell>{campaign.targetCount.toLocaleString()}</TableCell>
+                    <TableCell>{(campaign.targetCount || 0).toLocaleString()}</TableCell>
                     <TableCell>
                       <div>
-                        <p className="font-medium">{campaign.sentCount.toLocaleString()}</p>
-                        {campaign.targetCount > 0 && (
+                        <p className="font-medium">{(campaign.sentCount || 0).toLocaleString()}</p>
+                        {(campaign.targetCount || 0) > 0 && (
                           <p className="text-xs text-muted-foreground">
-                            {calculateRate(campaign.sentCount, campaign.targetCount)}
+                            {calculateRate(campaign.sentCount || 0, campaign.targetCount || 0)}
                           </p>
                         )}
                       </div>
                     </TableCell>
                     <TableCell>
                       <div>
-                        <p className="font-medium">{campaign.openCount.toLocaleString()}</p>
-                        {campaign.sentCount > 0 && (
+                        <p className="font-medium">{(campaign.openCount || 0).toLocaleString()}</p>
+                        {(campaign.sentCount || 0) > 0 && (
                           <p className="text-xs text-muted-foreground">
-                            {calculateRate(campaign.openCount, campaign.sentCount)}
+                            {calculateRate(campaign.openCount || 0, campaign.sentCount || 0)}
                           </p>
                         )}
                       </div>
                     </TableCell>
                     <TableCell>
                       <div>
-                        <p className="font-medium">{campaign.replyCount.toLocaleString()}</p>
-                        {campaign.sentCount > 0 && (
+                        <p className="font-medium">{(campaign.replyCount || 0).toLocaleString()}</p>
+                        {(campaign.sentCount || 0) > 0 && (
                           <p className="text-xs text-muted-foreground">
-                            {calculateRate(campaign.replyCount, campaign.sentCount)}
+                            {calculateRate(campaign.replyCount || 0, campaign.sentCount || 0)}
                           </p>
                         )}
                       </div>
