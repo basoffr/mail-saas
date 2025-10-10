@@ -125,11 +125,15 @@ async def create_campaign(
             f"templates: {templates}"
         )
         
+        # Template ID is nullable - templates are determined per message, not per campaign
+        # The campaign uses templates array stored in detail response
+        template_id = None  # Templates handled at message level
+        
         # Create campaign with auto-assigned values
         campaign = Campaign(
             id=str(uuid.uuid4()),
             name=payload.name,
-            template_id=templates[0],  # Use first template (v{X}m1)
+            template_id=template_id,  # Nullable - templates per message
             domain=domain,
             start_at=payload.schedule.start_at if payload.schedule.start_mode == "scheduled" else None,
             status=CampaignStatus.draft,

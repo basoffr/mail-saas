@@ -8,7 +8,7 @@ from app.models.campaign import CampaignStatus, MessageStatus, MessageEventType
 class CampaignOut(BaseModel):
     id: str
     name: str
-    template_id: str
+    template_id: Optional[str] = None  # Nullable - templates handled per message
     domain: str
     start_at: Optional[datetime]
     status: CampaignStatus

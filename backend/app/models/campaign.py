@@ -35,7 +35,7 @@ class Campaign(SQLModel, table=True):
     
     id: str = Field(primary_key=True)
     name: str = Field(sa_column=Column(Text, index=True))
-    template_id: str = Field(sa_column=Column(String, ForeignKey("templates.id")))
+    template_id: Optional[str] = Field(default=None, sa_column=Column(String, ForeignKey("templates.id", ondelete="RESTRICT"), nullable=True))
     domain: Optional[str] = Field(default=None, sa_column=Column(String, index=True))  # Optional for backward compatibility
     start_at: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True)))
     status: CampaignStatus = Field(default=CampaignStatus.draft, sa_column=Column(String, index=True))
