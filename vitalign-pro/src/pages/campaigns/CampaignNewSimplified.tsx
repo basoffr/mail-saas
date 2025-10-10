@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -90,9 +91,18 @@ export default function CampaignNewSimplified() {
   useEffect(() => {
     const fetchLists = async () => {
       try {
+        // Get user's JWT token from Supabase session
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        
+        if (!token) {
+          console.warn('No auth token available');
+          return;
+        }
+        
         const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/list-names`, {
           headers: {
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+            'Authorization': `Bearer ${token}`
           }
         });
         const result = await response.json();
