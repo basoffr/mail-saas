@@ -337,7 +337,7 @@ class DBCampaignStore:
                 "created_at": audience.created_at.isoformat() if audience.created_at else datetime.utcnow().isoformat(),
             }
             
-            self.supabase.table("campaign_audiences").insert(data).execute()
+            self.supabase.table("campaign_audience").insert(data).execute()
             return audience
             
         except Exception as e:
@@ -350,7 +350,7 @@ class DBCampaignStore:
             return None
         
         try:
-            response = self.supabase.table("campaign_audiences")\
+            response = self.supabase.table("campaign_audience")\
                 .select("*")\
                 .eq("campaign_id", campaign_id)\
                 .execute()
