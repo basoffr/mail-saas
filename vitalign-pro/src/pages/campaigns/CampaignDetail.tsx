@@ -411,7 +411,7 @@ export default function CampaignDetail() {
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={campaign.stats.sentByDay}>
+              <LineChart data={campaign.stats?.sentByDay || []}>
                 <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                 <XAxis 
                   dataKey="date" 
@@ -574,7 +574,7 @@ export default function CampaignDetail() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Scheduled:</span>
-                      <span className="font-medium">{campaign.stats.followUpCount}</span>
+                      <span className="font-medium">{campaign.stats?.followUpCount || 0}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Attachment required:</span>
@@ -586,7 +586,7 @@ export default function CampaignDetail() {
                     <h3 className="font-medium mb-2">Today's Activity</h3>
                     <div className="flex items-center gap-2">
                       <Mail className="w-4 h-4 text-primary" />
-                      <span className="text-sm">{campaign.stats.sentToday} emails sent today</span>
+                      <span className="text-sm">{campaign.stats?.sentToday || 0} emails sent today</span>
                     </div>
                   </div>
                 </>
