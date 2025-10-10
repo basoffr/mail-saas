@@ -344,57 +344,57 @@ export default function CampaignDetail() {
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
           <Card className="p-4 shadow-card rounded-2xl">
             <div className="text-center">
-              <div className="text-2xl font-bold text-primary">{campaign.targetCount.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-primary">{(campaign.targetCount || 0).toLocaleString()}</div>
               <div className="text-sm text-muted-foreground">Target</div>
             </div>
           </Card>
 
           <Card className="p-4 shadow-card rounded-2xl">
             <div className="text-center">
-              <div className="text-2xl font-bold text-accent">{campaign.sentCount.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-accent">{(campaign.sentCount || 0).toLocaleString()}</div>
               <div className="text-sm text-muted-foreground">Sent</div>
               <div className="text-xs text-muted-foreground">
-                {calculateRate(campaign.sentCount, campaign.targetCount)}
+                {calculateRate(campaign.sentCount || 0, campaign.targetCount || 0)}
               </div>
             </div>
           </Card>
 
           <Card className="p-4 shadow-card rounded-2xl">
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{campaign.openCount.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-blue-600">{(campaign.openCount || 0).toLocaleString()}</div>
               <div className="text-sm text-muted-foreground">Opens</div>
               <div className="text-xs text-muted-foreground">
-                {calculateRate(campaign.openCount, campaign.sentCount)}
+                {calculateRate(campaign.openCount || 0, campaign.sentCount || 0)}
               </div>
             </div>
           </Card>
 
           <Card className="p-4 shadow-card rounded-2xl">
             <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">{campaign.clickCount.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-purple-600">{(campaign.clickCount || 0).toLocaleString()}</div>
               <div className="text-sm text-muted-foreground">Clicks</div>
               <div className="text-xs text-muted-foreground">
-                {calculateRate(campaign.clickCount, campaign.sentCount)}
+                {calculateRate(campaign.clickCount || 0, campaign.sentCount || 0)}
               </div>
             </div>
           </Card>
 
           <Card className="p-4 shadow-card rounded-2xl">
             <div className="text-center">
-              <div className="text-2xl font-bold text-success">{campaign.replyCount.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-success">{(campaign.replyCount || 0).toLocaleString()}</div>
               <div className="text-sm text-muted-foreground">Replies</div>
               <div className="text-xs text-muted-foreground">
-                {calculateRate(campaign.replyCount, campaign.sentCount)}
+                {calculateRate(campaign.replyCount || 0, campaign.sentCount || 0)}
               </div>
             </div>
           </Card>
 
           <Card className="p-4 shadow-card rounded-2xl">
             <div className="text-center">
-              <div className="text-2xl font-bold text-destructive">{campaign.bounceCount.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-destructive">{(campaign.bounceCount || 0).toLocaleString()}</div>
               <div className="text-sm text-muted-foreground">Bounces</div>
               <div className="text-xs text-muted-foreground">
-                {calculateRate(campaign.bounceCount, campaign.sentCount)}
+                {calculateRate(campaign.bounceCount || 0, campaign.sentCount || 0)}
               </div>
             </div>
           </Card>
