@@ -145,12 +145,22 @@ export default function CampaignNewSimplified() {
       console.log('📡 Starting audience fetch for:', data.listName);
       setAudienceLoading(true);
       try {
+        // Get user's JWT token from Supabase session
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        
+        if (!token) {
+          console.warn('No auth token available');
+          setAudienceLoading(false);
+          return;
+        }
+        
         const url = `${import.meta.env.VITE_API_BASE_URL}/admin/audience-by-list?list_name=${encodeURIComponent(data.listName)}`;
         console.log('🌐 Fetching from:', url);
         
         const response = await fetch(url, {
           headers: {
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+            'Authorization': `Bearer ${token}`
           }
         });
         
