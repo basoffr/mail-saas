@@ -68,9 +68,8 @@ async def get_user_role(user_id: str) -> str | None:
     
     # Fetch from database
     try:
-        from app.services.store_factory import get_supabase_client
-        
-        supabase = get_supabase_client()
+        # Use local get_supabase_client function (defined below)
+        supabase = _get_supabase_client()
         if not supabase:
             # Fallback: no Supabase connection
             logger.warning("Supabase not available for role lookup")
@@ -149,9 +148,13 @@ require_admin = require_role("admin")
 require_admin_or_viewer = require_role("admin", "viewer")
 
 
-# Optional: Helper to get Supabase client
-def get_supabase_client():
-    """Get Supabase client for role lookups"""
+# Helper to get Supabase client for role lookups
+def _get_supabase_client():
+    """
+    Get Supabase client for role lookups.
+    
+    Uses service role key for admin access to profiles table.
+    """
     try:
         from supabase import create_client
         
