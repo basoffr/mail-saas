@@ -149,8 +149,13 @@ export default function Campaigns() {
     }
   };
 
-  const formatDate = (date: Date) => {
-    return format(date, 'dd MMM yyyy HH:mm', { locale: nl });
+  const formatDate = (date: Date | null | undefined) => {
+    if (!date) return '-';
+    try {
+      return format(new Date(date), 'dd MMM yyyy HH:mm', { locale: nl });
+    } catch {
+      return '-';
+    }
   };
 
   const calculateRate = (numerator: number, denominator: number) => {
