@@ -589,3 +589,223 @@ class DBCampaignStore:
         except Exception as e:
             logger.error(f"Error getting campaign timeline: {e}")
             return []
+    
+    def soft_delete_campaign(self, campaign_id: str) -> bool:
+        """V2.2: Soft delete campaign and cancel future messages."""
+        if not self.supabase:
+            return False
+        
+        try:
+            # Update campaign status
+            self.supabase.table("campaigns")\
+                .update({
+                    "status": CampaignStatus.deleted.value,
+                    "deleted_at": datetime.utcnow().isoformat()
+                })\
+                .eq("id", campaign_id)\
+                .execute()
+            
+            # Cancel all queued future messages
+            now = datetime.utcnow()
+            self.supabase.table("messages")\
+                .update({
+                    "status": MessageStatus.canceled.value,
+                    "cancel_reason": "campaign_deleted"
+                })\
+                .eq("campaign_id", campaign_id)\
+                .eq("status", MessageStatus.queued.value)\
+                .gt("scheduled_at", now.isoformat())\
+                .execute()
+            
+            logger.info(f"Soft deleted campaign {campaign_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error soft deleting campaign: {e}")
+            return False
+    
+    def pause_campaign(self, campaign_id: str) -> bool:
+        """V2.2: Pause campaign."""
+        if not self.supabase:
+            return False
+        
+        try:
+            self.supabase.table("campaigns")\
+                .update({
+                    "status": CampaignStatus.paused.value,
+                    "paused_at": datetime.utcnow().isoformat()
+                })\
+                .eq("id", campaign_id)\
+                .execute()
+            
+            logger.info(f"Paused campaign {campaign_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error pausing campaign: {e}")
+            return False
+    
+    def resume_campaign(self, campaign_id: str) -> bool:
+        """V2.2: Resume paused campaign."""
+        if not self.supabase:
+            return False
+        
+        try:
+            self.supabase.table("campaigns")\
+                .update({
+                    "status": CampaignStatus.active.value,
+                    "paused_at": None
+                })\
+                .eq("id", campaign_id)\
+                .eq("status", CampaignStatus.paused.value)\
+                .execute()
+            
+            logger.info(f"Resumed campaign {campaign_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error resuming campaign: {e}")
+            return False
+    
+    def stop_lead_flow(self, campaign_id: str, lead_id: str, reason: str) -> Dict[str, Any]:
+        """V2.2: Stop all future messages for a lead in this campaign."""
+        if not self.supabase:
+            return {"ok": False, "lead_id": lead_id, "canceled_count": 0, "reason": reason}
+        
+        try:
+            # Cancel future messages
+            now = datetime.utcnow()
+            response = self.supabase.table("messages")\
+                .update({
+                    "status": MessageStatus.canceled.value,
+                    "cancel_reason": f"stopped_{reason}"
+                })\
+                .eq("campaign_id", campaign_id)\
+                .eq("lead_id", lead_id)\
+                .eq("status", MessageStatus.queued.value)\
+                .gt("scheduled_at", now.isoformat())\
+                .execute()
+            
+            canceled_count = len(response.data) if response.data else 0
+            
+            logger.info(f"Stopped lead {lead_id} in campaign {campaign_id}: {canceled_count} messages canceled (reason: {reason})")
+            
+            return {
+                "ok": True,
+                "lead_id": lead_id,
+                "canceled_count": canceled_count,
+                "reason": reason
+            }
+            
+        except Exception as e:
+            logger.error(f"Error stopping lead flow: {e}")
+            return {"ok": False, "lead_id": lead_id, "canceled_count": 0, "reason": reason}
+    
+    def get_schedule(
+        self,
+        campaign_id: str,
+        limit: int = 200,
+        domain: Optional[str] = None,
+        from_ts: Optional[datetime] = None
+    ) -> List[Message]:
+        """V2.2: Get scheduled messages for timeline view."""
+        if not self.supabase:
+            return []
+        
+        try:
+            # Build query
+            query = self.supabase.table("messages")\
+                .select("*")\
+                .eq("campaign_id", campaign_id)
+            
+            # Apply filters
+            if domain:
+                query = query.eq("domain_used", domain)
+            
+            if from_ts:
+                query = query.gte("scheduled_at", from_ts.isoformat())
+            else:
+                # Default: from 1 day ago
+                from datetime import timedelta
+                from_ts = datetime.utcnow() - timedelta(days=1)
+                query = query.gte("scheduled_at", from_ts.isoformat())
+            
+            # Order and limit
+            query = query.order("scheduled_at", desc=False)\
+                .order("domain_used", desc=False)\
+                .limit(limit)
+            
+            response = query.execute()
+            
+            # Convert to Message objects
+            messages = [self._row_to_message(row) for row in response.data]
+            
+            # Sort by priority (M4 > M3 > M2 > M1)
+            mail_priority = {4: 0, 3: 1, 2: 2, 1: 3}
+            messages.sort(key=lambda m: (
+                m.scheduled_at,
+                m.domain_used,
+                mail_priority.get(m.mail_number, 99),
+                m.lead_id
+            ))
+            
+            return messages
+            
+        except Exception as e:
+            logger.error(f"Error getting schedule: {e}")
+            return []
+    
+    def get_stats_breakdown(self, campaign_id: str) -> Dict[str, Any]:
+        """V2.2: Get detailed stats breakdown including stop reasons."""
+        if not self.supabase:
+            return {
+                "total": 0,
+                "queued": 0,
+                "sent": 0,
+                "opened": 0,
+                "failed": 0,
+                "canceled": 0,
+                "bounced": 0,
+                "cancel_reasons": {}
+            }
+        
+        try:
+            # Get all messages for campaign
+            response = self.supabase.table("messages")\
+                .select("status, cancel_reason")\
+                .eq("campaign_id", campaign_id)\
+                .execute()
+            
+            messages = response.data
+            
+            stats = {
+                "total": len(messages),
+                "queued": len([m for m in messages if m.get('status') == MessageStatus.queued.value]),
+                "sent": len([m for m in messages if m.get('status') == MessageStatus.sent.value]),
+                "opened": len([m for m in messages if m.get('status') == MessageStatus.opened.value]),
+                "failed": len([m for m in messages if m.get('status') == MessageStatus.failed.value]),
+                "canceled": len([m for m in messages if m.get('status') == MessageStatus.canceled.value]),
+                "bounced": len([m for m in messages if m.get('status') == MessageStatus.bounced.value]),
+                "cancel_reasons": {}
+            }
+            
+            # Breakdown of cancel reasons
+            canceled_messages = [m for m in messages if m.get('status') == MessageStatus.canceled.value]
+            for msg in canceled_messages:
+                reason = msg.get('cancel_reason') or 'unknown'
+                stats["cancel_reasons"][reason] = stats["cancel_reasons"].get(reason, 0) + 1
+            
+            return stats
+            
+        except Exception as e:
+            logger.error(f"Error getting stats breakdown: {e}")
+            return {
+                "total": 0,
+                "queued": 0,
+                "sent": 0,
+                "opened": 0,
+                "failed": 0,
+                "canceled": 0,
+                "bounced": 0,
+                "cancel_reasons": {}
+            }
