@@ -9,7 +9,9 @@ from app.schemas.common import DataResponse
 from app.schemas.campaign import (
     CampaignOut, CampaignDetail, CampaignCreatePayload, CampaignsResponse,
     MessageOut, MessagesResponse, CampaignActionResponse, DryRunResponse,
-    ResendPayload, CampaignQuery, MessageQuery
+    ResendPayload, CampaignQuery, MessageQuery,
+    CampaignControlResponse, StopLeadRequest, StopLeadResponse, 
+    ScheduleResponse, ScheduledMessageOut
 )
 from app.models.campaign import Campaign, CampaignAudience, CampaignStatus, MessageStatus
 from app.services.store_factory import campaigns_store as campaign_store, leads_store
@@ -464,6 +466,172 @@ async def resend_message(
         raise
     except Exception as e:
         logger.error(f"Error resending message: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# V2.2: Campaign Controls
+@router.delete("/{campaign_id}", response_model=DataResponse[CampaignControlResponse])
+async def delete_campaign(
+    campaign_id: str,
+    user: Dict[str, Any] = Depends(require_auth)
+):
+    """V2.2: Soft delete campaign and cancel future messages (admin only)."""
+    try:
+        # TODO: Add RBAC check for admin role
+        # if user.get("role") != "admin":
+        #     raise HTTPException(status_code=403, detail="Admin only")
+        
+        success = campaign_store.soft_delete_campaign(campaign_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+        
+        logger.info(f"Soft deleted campaign {campaign_id} by user {user.get('sub')}")
+        return DataResponse(data=CampaignControlResponse(ok=True, message="Campaign deleted"))
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting campaign: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/{campaign_id}/pause", response_model=DataResponse[CampaignControlResponse])
+async def pause_campaign(
+    campaign_id: str,
+    user: Dict[str, Any] = Depends(require_auth)
+):
+    """V2.2: Pause campaign (admin only)."""
+    try:
+        # TODO: Add RBAC check for admin role
+        
+        success = campaign_store.pause_campaign(campaign_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+        
+        logger.info(f"Paused campaign {campaign_id}")
+        return DataResponse(data=CampaignControlResponse(ok=True, message="Campaign paused"))
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error pausing campaign: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/{campaign_id}/resume", response_model=DataResponse[CampaignControlResponse])
+async def resume_campaign(
+    campaign_id: str,
+    user: Dict[str, Any] = Depends(require_auth)
+):
+    """V2.2: Resume paused campaign (admin only)."""
+    try:
+        # TODO: Add RBAC check for admin role
+        
+        success = campaign_store.resume_campaign(campaign_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Campaign not found or not paused")
+        
+        logger.info(f"Resumed campaign {campaign_id}")
+        return DataResponse(data=CampaignControlResponse(ok=True, message="Campaign resumed"))
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error resuming campaign: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/{campaign_id}/leads/{lead_id}/stop", response_model=DataResponse[StopLeadResponse])
+async def stop_lead_flow(
+    campaign_id: str,
+    lead_id: str,
+    request: StopLeadRequest,
+    user: Dict[str, Any] = Depends(require_auth)
+):
+    """V2.2: Stop lead's campaign flow with reason (admin only)."""
+    try:
+        # TODO: Add RBAC check for admin role
+        
+        # Validate reason
+        if request.reason not in ["unsubscribe", "bounce", "manual"]:
+            raise HTTPException(status_code=400, detail="Invalid reason. Must be: unsubscribe, bounce, or manual")
+        
+        # Update lead flags
+        if request.reason == "unsubscribe":
+            leads_store.mark_unsubscribed(lead_id)
+        elif request.reason == "bounce":
+            leads_store.mark_bounced(lead_id)
+        # For 'manual', no global lead flags (campaign-scope only)
+        
+        # Cancel future messages
+        result = campaign_store.stop_lead_flow(campaign_id, lead_id, request.reason)
+        
+        logger.info(f"Stopped lead {lead_id} in campaign {campaign_id}: {result['canceled_count']} messages canceled (reason: {request.reason})")
+        
+        return DataResponse(data=StopLeadResponse(**result))
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error stopping lead flow: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/{campaign_id}/schedule", response_model=DataResponse[ScheduleResponse])
+async def get_schedule(
+    campaign_id: str,
+    limit: int = Query(200, ge=1, le=500),
+    domain: Optional[str] = Query(None),
+    from_ts: Optional[datetime] = Query(None),
+    user: Dict[str, Any] = Depends(require_auth)
+):
+    """V2.2: Get campaign scheduling timeline (admin & viewer)."""
+    try:
+        # Get campaign
+        campaign = campaign_store.get_campaign(campaign_id)
+        if not campaign:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+        
+        # Get scheduled messages
+        messages = campaign_store.get_schedule(
+            campaign_id=campaign_id,
+            limit=limit,
+            domain=domain,
+            from_ts=from_ts
+        )
+        
+        # Convert to ScheduledMessageOut
+        slots = [
+            ScheduledMessageOut(
+                message_id=m.id,
+                lead_id=m.lead_id,
+                mail_number=m.mail_number,
+                alias=m.alias,
+                domain_used=m.domain_used,
+                scheduled_at=m.scheduled_at,
+                status=m.status,
+                cancel_reason=getattr(m, 'cancel_reason', None)
+            )
+            for m in messages
+        ]
+        
+        response = ScheduleResponse(
+            campaign_id=campaign_id,
+            effective_start=campaign.start_at or campaign.created_at,
+            slots=slots,
+            total_count=len(slots)
+        )
+        
+        logger.info(f"Retrieved schedule for campaign {campaign_id}: {len(slots)} slots")
+        return DataResponse(data=response)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting schedule: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 

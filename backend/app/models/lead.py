@@ -28,7 +28,14 @@ class Lead(SQLModel, table=True):
     last_emailed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), index=True))
     last_open_at: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True)))
     vars: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    
+    # Stop criteria (V2.2)
     stopped: bool = Field(default=False, index=True)
+    is_unsubscribed: bool = Field(default=False, index=True)
+    is_hard_bounce: bool = Field(default=False, index=True)
+    unsubscribed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    bounced_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    
     deleted_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), index=True))
     created_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(DateTime(timezone=True)))
     updated_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(DateTime(timezone=True)))

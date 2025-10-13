@@ -43,7 +43,9 @@ import {
   Clock,
   AlertTriangle,
   Loader2,
-  RotateCcw
+  RotateCcw,
+  Trash2,
+  Calendar
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -65,14 +67,18 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
 import { RepliesPanel } from '@/components/inbox/RepliesPanel';
+import { ScheduleTimeline } from '@/components/campaigns/ScheduleTimeline';
+import { StopLeadDialog } from '@/components/campaigns/StopLeadDialog';
 
 const statusColors = {
   [CampaignStatus.DRAFT]: 'bg-gray-100 text-gray-800',
   [CampaignStatus.SCHEDULED]: 'bg-blue-100 text-blue-800',
+  [CampaignStatus.ACTIVE]: 'bg-green-100 text-green-800',
   [CampaignStatus.RUNNING]: 'bg-green-100 text-green-800',
   [CampaignStatus.PAUSED]: 'bg-yellow-100 text-yellow-800',
   [CampaignStatus.COMPLETED]: 'bg-emerald-100 text-emerald-800',
   [CampaignStatus.STOPPED]: 'bg-red-100 text-red-800',
+  [CampaignStatus.DELETED]: 'bg-red-200 text-red-900',
 };
 
 const messageStatusColors = {
@@ -144,7 +150,7 @@ export default function CampaignDetail() {
     }
   };
 
-  const handleAction = async (action: 'pause' | 'resume' | 'stop') => {
+  const handleAction = async (action: 'pause' | 'resume' | 'stop' | 'delete') => {
     if (!id) return;
     
     setActionLoading(action);
@@ -153,25 +159,32 @@ export default function CampaignDetail() {
       switch (action) {
         case 'pause':
           response = await campaignsService.pauseCampaign(id);
-          toast({ title: 'Campaign paused successfully' });
+          toast({ title: 'Campaign gepauzeerd' });
           break;
         case 'resume':
           response = await campaignsService.resumeCampaign(id);
-          toast({ title: 'Campaign resumed successfully' });
+          toast({ title: 'Campaign hervat' });
           break;
         case 'stop':
           response = await campaignsService.stopCampaign(id);
-          toast({ title: 'Campaign stopped successfully' });
+          toast({ title: 'Campaign gestopt' });
+          break;
+        case 'delete':
+          response = await campaignsService.deleteCampaign(id);
+          toast({ title: 'Campaign verwijderd' });
           break;
       }
       
       if (response?.ok) {
         await fetchCampaignDetail();
+        if (action === 'delete') {
+          setTimeout(() => navigate('/campaigns'), 1500);
+        }
       }
     } catch (error) {
       toast({
         title: 'Error',
-        description: `Failed to ${action} campaign`,
+        description: `Kon campaign niet ${action === 'delete' ? 'verwijderen' : action}`,
         variant: 'destructive'
       });
     } finally {
@@ -334,6 +347,39 @@ export default function CampaignDetail() {
               </AlertDialog>
             )}
 
+            {campaign.status !== CampaignStatus.DELETED && campaign.status !== CampaignStatus.COMPLETED && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm">
+                    {actionLoading === 'delete' ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                    <span className="ml-1">Verwijderen</span>
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Campaign Verwijderen</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Weet je zeker dat je deze campaign wilt verwijderen? Alle toekomstige geplande mails worden geannuleerd.
+                      Deze actie kan niet ongedaan worden gemaakt.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Annuleren</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => handleAction('delete')}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Ja, Verwijderen
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+
             <Button variant="outline" size="sm" onClick={fetchCampaignDetail}>
               <RefreshCw className="w-4 h-4" />
             </Button>
@@ -479,6 +525,25 @@ export default function CampaignDetail() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
+                        {/* V2.2: Stop Lead Flow */}
+                        {message.status === MessageStatus.PENDING && id && (
+                          <StopLeadDialog
+                            campaignId={id}
+                            leadId={message.leadId}
+                            leadEmail={message.leadEmail}
+                            onSuccess={fetchMessages}
+                            trigger={
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2 text-xs"
+                              >
+                                Stop
+                              </Button>
+                            }
+                          />
+                        )}
+
                         {(message.status === MessageStatus.FAILED || message.status === MessageStatus.BOUNCED) && (
                           <Button
                             variant="ghost"
@@ -597,6 +662,15 @@ export default function CampaignDetail() {
 
         {/* Replies Panel - Full Width */}
         <RepliesPanel campaignId={campaign.id} campaignName={campaign.name} />
+
+        {/* V2.2: Schedule Timeline */}
+        <div className="mt-6">
+          <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+            <Calendar className="w-6 h-6" />
+            Schedule Timeline
+          </h2>
+          <ScheduleTimeline campaignId={campaign.id} />
+        </div>
       </div>
     </div>
   );

@@ -264,6 +264,169 @@ class CampaignStore:
         
         return timeline
     
+    def soft_delete_campaign(self, campaign_id: str) -> bool:
+        """V2.2: Soft delete campaign and cancel future messages."""
+        campaign = self.campaigns.get(campaign_id)
+        if not campaign:
+            return False
+        
+        # Update campaign status
+        campaign.status = CampaignStatus.deleted
+        campaign.deleted_at = datetime.utcnow()
+        
+        # Cancel all queued future messages
+        now = datetime.utcnow()
+        canceled_count = 0
+        
+        for message in self.messages.values():
+            if (message.campaign_id == campaign_id and 
+                message.status == MessageStatus.queued and
+                message.scheduled_at > now):
+                
+                message.status = MessageStatus.canceled
+                message.cancel_reason = "campaign_deleted"
+                canceled_count += 1
+        
+        logger.info(f"Soft deleted campaign {campaign_id}, canceled {canceled_count} future messages")
+        return True
+    
+    def pause_campaign(self, campaign_id: str) -> bool:
+        """V2.2: Pause campaign (messages stay queued but won't send)."""
+        campaign = self.campaigns.get(campaign_id)
+        if not campaign:
+            return False
+        
+        campaign.status = CampaignStatus.paused
+        campaign.paused_at = datetime.utcnow()
+        
+        logger.info(f"Paused campaign {campaign_id}")
+        return True
+    
+    def resume_campaign(self, campaign_id: str) -> bool:
+        """V2.2: Resume paused campaign."""
+        campaign = self.campaigns.get(campaign_id)
+        if not campaign:
+            return False
+        
+        if campaign.status == CampaignStatus.paused:
+            campaign.status = CampaignStatus.active
+            campaign.paused_at = None
+            logger.info(f"Resumed campaign {campaign_id}")
+            return True
+        
+        return False
+    
+    def stop_lead_flow(self, campaign_id: str, lead_id: str, reason: str) -> Dict[str, Any]:
+        """V2.2: Stop all future messages for a lead in this campaign.
+        
+        Args:
+            campaign_id: Campaign UUID
+            lead_id: Lead UUID
+            reason: 'unsubscribe', 'bounce', or 'manual'
+            
+        Returns:
+            Dict with ok, canceled_count, reason
+        """
+        # Update lead flags (done in leads_store separately)
+        # Here we just cancel messages
+        
+        now = datetime.utcnow()
+        canceled_count = 0
+        
+        for message in self.messages.values():
+            if (message.campaign_id == campaign_id and
+                message.lead_id == lead_id and
+                message.status == MessageStatus.queued and
+                message.scheduled_at > now):
+                
+                message.status = MessageStatus.canceled
+                message.cancel_reason = f"stopped_{reason}"
+                canceled_count += 1
+        
+        # V2.2: Update campaign statistics (for reason tracking)
+        # Note: In production, this would be a proper campaign_stats table
+        # For MVP, we calculate stats on-the-fly in get_kpis()
+        
+        logger.info(f"Stopped lead {lead_id} in campaign {campaign_id}: {canceled_count} messages canceled (reason: {reason})")
+        
+        return {
+            "ok": True,
+            "lead_id": lead_id,
+            "canceled_count": canceled_count,
+            "reason": reason
+        }
+    
+    def get_stats_breakdown(self, campaign_id: str) -> Dict[str, Any]:
+        """V2.2: Get detailed stats breakdown including stop reasons.
+        
+        Returns:
+            Dict with counts by status and cancel reasons
+        """
+        messages = [m for m in self.messages.values() if m.campaign_id == campaign_id]
+        
+        stats = {
+            "total": len(messages),
+            "queued": len([m for m in messages if m.status == MessageStatus.queued]),
+            "sent": len([m for m in messages if m.status == MessageStatus.sent]),
+            "opened": len([m for m in messages if m.status == MessageStatus.opened]),
+            "failed": len([m for m in messages if m.status == MessageStatus.failed]),
+            "canceled": len([m for m in messages if m.status == MessageStatus.canceled]),
+            "bounced": len([m for m in messages if m.status == MessageStatus.bounced]),
+            "cancel_reasons": {}
+        }
+        
+        # Breakdown of cancel reasons
+        canceled_messages = [m for m in messages if m.status == MessageStatus.canceled]
+        for msg in canceled_messages:
+            reason = getattr(msg, 'cancel_reason', 'unknown') or 'unknown'
+            stats["cancel_reasons"][reason] = stats["cancel_reasons"].get(reason, 0) + 1
+        
+        return stats
+    
+    def get_schedule(
+        self,
+        campaign_id: str,
+        limit: int = 200,
+        domain: Optional[str] = None,
+        from_ts: Optional[datetime] = None
+    ) -> List[Message]:
+        """V2.2: Get scheduled messages for timeline view.
+        
+        Returns messages ordered by:
+        1. scheduled_at ASC
+        2. domain_used ASC
+        3. Priority (M4 > M3 > M2 > M1)
+        4. lead_id ASC
+        """
+        # Filter messages for this campaign
+        campaign_messages = [
+            m for m in self.messages.values()
+            if m.campaign_id == campaign_id
+        ]
+        
+        # Apply filters
+        if domain:
+            campaign_messages = [m for m in campaign_messages if m.domain_used == domain]
+        
+        if from_ts:
+            campaign_messages = [m for m in campaign_messages if m.scheduled_at >= from_ts]
+        else:
+            # Default: from 1 day ago
+            from_ts = datetime.utcnow() - timedelta(days=1)
+            campaign_messages = [m for m in campaign_messages if m.scheduled_at >= from_ts]
+        
+        # Sort by priority
+        mail_priority = {4: 0, 3: 1, 2: 2, 1: 3}
+        
+        campaign_messages.sort(key=lambda m: (
+            m.scheduled_at,
+            m.domain_used,
+            mail_priority.get(m.mail_number, 99),
+            m.lead_id
+        ))
+        
+        # Limit results
+        return campaign_messages[:limit]
 
 
 # Global store instance

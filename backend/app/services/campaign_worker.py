@@ -137,9 +137,16 @@ class CampaignWorker:
             
             # Get campaign to find template
             from app.services.campaign_store import campaign_store
+            from app.models.campaign import CampaignStatus
+            
             campaign = campaign_store.get_campaign(message.campaign_id)
             if not campaign:
                 logger.error(f"Campaign {message.campaign_id} not found")
+                return False
+            
+            # V2.2: Check campaign status (paused/deleted guard)
+            if campaign.status in [CampaignStatus.paused, CampaignStatus.deleted]:
+                logger.info(f"Campaign {campaign.id} is {campaign.status}, skipping message {message.id}")
                 return False
             
             # Render template

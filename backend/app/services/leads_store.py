@@ -25,7 +25,14 @@ class _LeadRec:
     last_emailed_at: Optional[datetime] = None
     last_open_at: Optional[datetime] = None
     vars: dict = field(default_factory=dict)
+    
+    # Stop criteria (V2.2)
     stopped: bool = False
+    is_unsubscribed: bool = False
+    is_hard_bounce: bool = False
+    unsubscribed_at: Optional[datetime] = None
+    bounced_at: Optional[datetime] = None
+    
     deleted_at: Optional[datetime] = None
     created_at: datetime = field(default_factory=_now)
     updated_at: datetime = field(default_factory=_now)
@@ -322,6 +329,36 @@ class LeadsStore:
         end = start + page_size
         
         return [r.to_out() for r in data[start:end]], total
+    
+    def mark_unsubscribed(self, lead_id: str) -> bool:
+        """V2.2: Mark lead as unsubscribed."""
+        rec = self._by_id.get(lead_id)
+        if not rec:
+            return False
+        
+        rec.is_unsubscribed = True
+        rec.unsubscribed_at = _now()
+        rec.updated_at = _now()
+        return True
+    
+    def mark_bounced(self, lead_id: str) -> bool:
+        """V2.2: Mark lead as hard bounced."""
+        rec = self._by_id.get(lead_id)
+        if not rec:
+            return False
+        
+        rec.is_hard_bounce = True
+        rec.bounced_at = _now()
+        rec.updated_at = _now()
+        return True
+    
+    def is_stopped(self, lead_id: str) -> bool:
+        """V2.2: Check if lead should be stopped (for worker guard)."""
+        rec = self._by_id.get(lead_id)
+        if not rec:
+            return True  # Treat missing lead as stopped
+        
+        return rec.stopped or rec.is_unsubscribed or rec.is_hard_bounce
 
 
 # Global instance

@@ -19,10 +19,12 @@ export interface Campaign {
 export enum CampaignStatus {
   DRAFT = 'draft',
   SCHEDULED = 'scheduled',
+  ACTIVE = 'active',
   RUNNING = 'running',
   PAUSED = 'paused',
   COMPLETED = 'completed',
-  STOPPED = 'stopped'
+  STOPPED = 'stopped',
+  DELETED = 'deleted'
 }
 
 export enum MessageStatus {
@@ -147,4 +149,45 @@ export interface DryRunResult {
   totalPlanned: number;
   byDay: { date: string; planned: number }[];
   warnings: string[];
+}
+
+// V2.2: Campaign Controls
+export interface CampaignControlResponse {
+  ok: boolean;
+  message?: string;
+}
+
+export interface StopLeadRequest {
+  reason: 'unsubscribe' | 'bounce' | 'manual';
+}
+
+export interface StopLeadResponse {
+  ok: boolean;
+  leadId: string;
+  canceledCount: number;
+  reason: string;
+}
+
+// V2.2: Scheduling View
+export interface ScheduledMessage {
+  messageId: string;
+  leadId: string;
+  mailNumber: number;
+  alias: string;
+  domainUsed: string;
+  scheduledAt: Date;
+  status: string;
+  cancelReason?: string;
+}
+
+export interface ScheduleResponse {
+  campaignId: string;
+  effectiveStart: Date;
+  window: string;
+  streams: {
+    A: number[];
+    B: number[];
+  };
+  slots: ScheduledMessage[];
+  totalCount: number;
 }

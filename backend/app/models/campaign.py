@@ -7,10 +7,12 @@ from sqlalchemy import DateTime, String, Integer, ForeignKey
 
 class CampaignStatus(str, Enum):
     draft = "draft"
-    running = "running"
+    active = "active"  # V2.2: unified 'running' -> 'active'
+    running = "running"  # Kept for backward compatibility
     paused = "paused"
     completed = "completed"
     stopped = "stopped"
+    deleted = "deleted"  # V2.2: soft delete status
 
 
 class MessageStatus(str, Enum):
@@ -44,6 +46,10 @@ class Campaign(SQLModel, table=True):
     followup_enabled: bool = Field(default=True)
     followup_days: int = Field(default=3)
     followup_attach_report: bool = Field(default=False)
+    
+    # Control timestamps (V2.2)
+    paused_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    deleted_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), index=True))
     
     # Metadata
     created_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(DateTime(timezone=True)))
@@ -87,6 +93,7 @@ class Message(SQLModel, table=True):
     
     # Status tracking
     status: MessageStatus = Field(default=MessageStatus.queued, sa_column=Column(String, index=True))
+    cancel_reason: Optional[str] = Field(default=None, sa_column=Column(String))  # V2.2: stopped_bounce, stopped_unsubscribe, campaign_deleted
     last_error: Optional[str] = Field(sa_column=Column(Text))
     open_at: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True)))
     

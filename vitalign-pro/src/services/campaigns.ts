@@ -3,7 +3,11 @@ import {
   CampaignDetail, 
   CampaignCreatePayload, 
   CampaignMessage, 
-  DryRunResult 
+  DryRunResult,
+  CampaignControlResponse,
+  StopLeadRequest,
+  StopLeadResponse,
+  ScheduleResponse
 } from '@/types/campaign';
 import { authService } from './auth';
 
@@ -69,5 +73,34 @@ export const campaignsService = {
     return await authService.apiCall<{ ok: boolean }>(`/messages/${messageId}/resend`, {
       method: 'POST',
     });
+  },
+
+  // V2.2: Campaign Controls
+  async deleteCampaign(id: string): Promise<CampaignControlResponse> {
+    return await authService.apiCall<CampaignControlResponse>(`/campaigns/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async stopLeadFlow(campaignId: string, leadId: string, request: StopLeadRequest): Promise<StopLeadResponse> {
+    return await authService.apiCall<StopLeadResponse>(`/campaigns/${campaignId}/leads/${leadId}/stop`, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  // V2.2: Scheduling View
+  async getSchedule(campaignId: string, options?: {
+    limit?: number;
+    domain?: string;
+    fromTs?: string;
+  }): Promise<ScheduleResponse> {
+    const params = new URLSearchParams();
+    if (options?.limit) params.append('limit', options.limit.toString());
+    if (options?.domain) params.append('domain', options.domain);
+    if (options?.fromTs) params.append('from_ts', options.fromTs);
+    
+    const url = `/campaigns/${campaignId}/schedule${params.toString() ? `?${params.toString()}` : ''}`;
+    return await authService.apiCall<ScheduleResponse>(url);
   }
 };

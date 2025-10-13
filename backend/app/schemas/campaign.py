@@ -176,3 +176,49 @@ class MessageQuery(BaseModel):
     campaign_id: Optional[str] = None
     status: Optional[List[MessageStatus]] = None
     lead_id: Optional[str] = None
+
+
+# V2.2: Campaign Controls
+class CampaignControlResponse(BaseModel):
+    """Generic response for delete/pause/resume actions."""
+    ok: bool = True
+    message: Optional[str] = None
+
+
+class StopLeadRequest(BaseModel):
+    """Request to stop a lead's campaign flow."""
+    reason: str = Field(..., description="unsubscribe | bounce | manual")
+
+
+class StopLeadResponse(BaseModel):
+    """Response after stopping a lead."""
+    ok: bool = True
+    lead_id: str
+    canceled_count: int = 0
+    reason: str
+
+
+# V2.2: Scheduling View
+class ScheduledMessageOut(BaseModel):
+    """Simplified message for scheduling timeline."""
+    message_id: str
+    lead_id: str
+    mail_number: int
+    alias: str
+    domain_used: str
+    scheduled_at: datetime
+    status: MessageStatus
+    cancel_reason: Optional[str] = None
+
+
+class ScheduleResponse(BaseModel):
+    """Schedule view response."""
+    campaign_id: str
+    effective_start: datetime
+    window: str = "08:00-17:00"
+    streams: Dict[str, List[int]] = Field(default_factory=lambda: {
+        "A": [0, 20, 40],
+        "B": [10, 30, 50]
+    })
+    slots: List[ScheduledMessageOut]
+    total_count: int
