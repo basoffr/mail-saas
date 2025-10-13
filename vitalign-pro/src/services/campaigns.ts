@@ -19,16 +19,45 @@ export const campaignsService = {
   async createCampaign(payload: CampaignCreatePayload): Promise<{ id: string }> {
     // V2.2: Debug logging
     console.log('Creating campaign with payload:', payload);
+    const leadCount = payload.audience?.lead_ids?.length || 0;
+    console.log(`Creating campaign with ${leadCount} leads (${leadCount * 4} messages will be scheduled)`);
     
     try {
-      const result = await authService.apiCall<{ id: string }>('/campaigns', {
+      // V2.2: Extended timeout for large campaigns (2100 leads × 4 = 8400 messages!)
+      // Use custom timeout: 2 minutes for campaigns
+      const controller = new AbortController();
+      const timeoutMs = 120000; // 120 seconds
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+      const token = await authService.getToken();
+      
+      const response = await fetch(`${baseUrl}/campaigns`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const result = data.data || data;
       
       console.log('Campaign created successfully:', result);
       return result;
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error(`Campaign creation timeout after 120 seconds. This may indicate a backend issue with ${leadCount} leads.`);
+      }
       console.error('Campaign creation failed in service:', error);
       throw error;
     }

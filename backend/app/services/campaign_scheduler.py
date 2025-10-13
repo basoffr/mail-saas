@@ -71,9 +71,17 @@ class CampaignScheduler:
         # Calculate start time
         start_at = campaign.start_at or datetime.now(ZoneInfo(SENDING_POLICY.timezone))
         
-        # Filter out stopped leads (use factory to get correct store)
+        # V2.2: PERFORMANCE - Batch check stopped leads (1 query vs 2100 queries!)
         from app.services.store_factory import leads_store
-        active_lead_ids = [lead_id for lead_id in lead_ids if not leads_store.is_stopped(lead_id)]
+        
+        # Use batch_is_stopped for performance with large campaigns
+        if hasattr(leads_store, 'batch_is_stopped'):
+            stopped_map = leads_store.batch_is_stopped(lead_ids)
+            active_lead_ids = [lead_id for lead_id, is_stopped in stopped_map.items() if not is_stopped]
+            logger.info(f"Batch filtered {len(lead_ids)} leads -> {len(active_lead_ids)} active")
+        else:
+            # Fallback to individual checks (in-memory store)
+            active_lead_ids = [lead_id for lead_id in lead_ids if not leads_store.is_stopped(lead_id)]
         
         if not active_lead_ids:
             logger.warning(f"All leads are stopped for campaign {campaign.id}")
@@ -199,9 +207,17 @@ class CampaignScheduler:
         # Calculate effective start time
         effective_start = start_at or datetime.now(ZoneInfo(SENDING_POLICY.timezone))
         
-        # Filter out stopped leads (use factory to get correct store)
+        # V2.2: PERFORMANCE - Batch check stopped leads (1 query vs N queries!)
         from app.services.store_factory import leads_store
-        active_lead_ids = [lead_id for lead_id in lead_ids if not leads_store.is_stopped(lead_id)]
+        
+        # Use batch_is_stopped for performance with large campaigns
+        if hasattr(leads_store, 'batch_is_stopped'):
+            stopped_map = leads_store.batch_is_stopped(lead_ids)
+            active_lead_ids = [lead_id for lead_id, is_stopped in stopped_map.items() if not is_stopped]
+            logger.info(f"Batch filtered {len(lead_ids)} leads -> {len(active_lead_ids)} active (create_messages)")
+        else:
+            # Fallback to individual checks (in-memory store)
+            active_lead_ids = [lead_id for lead_id in lead_ids if not leads_store.is_stopped(lead_id)]
         
         if not active_lead_ids:
             logger.warning(f"All leads are stopped for campaign {campaign.id}")

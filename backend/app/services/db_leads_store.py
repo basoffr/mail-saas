@@ -348,3 +348,49 @@ class DBLeadsStore:
         except Exception as e:
             logger.error(f"Error checking if lead is stopped: {e}")
             return False
+    
+    def batch_is_stopped(self, lead_ids: List[str]) -> Dict[str, bool]:
+        """V2.2: Batch check if leads are stopped (PERFORMANCE OPTIMIZATION).
+        
+        Instead of 2100 individual queries, this does 1 batch query.
+        Critical for large campaign creation performance.
+        
+        Args:
+            lead_ids: List of lead IDs to check
+            
+        Returns:
+            Dict mapping lead_id -> is_stopped (True/False)
+        """
+        if not self.supabase or not lead_ids:
+            return {lead_id: False for lead_id in lead_ids}
+        
+        try:
+            # Single batch query for all leads
+            response = self.supabase.table('leads')\
+                .select('id, is_unsubscribed, is_hard_bounce')\
+                .in_('id', lead_ids)\
+                .execute()
+            
+            # Build result dict
+            result = {}
+            stopped_set = set()
+            
+            for lead_data in response.data:
+                lead_id = lead_data['id']
+                is_unsub = lead_data.get('is_unsubscribed', False)
+                is_bounce = lead_data.get('is_hard_bounce', False)
+                
+                if is_unsub or is_bounce:
+                    stopped_set.add(lead_id)
+            
+            # Map all lead_ids (even those not in DB) to boolean
+            for lead_id in lead_ids:
+                result[lead_id] = lead_id in stopped_set
+            
+            logger.info(f"Batch checked {len(lead_ids)} leads, {len(stopped_set)} stopped")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error in batch is_stopped check: {e}")
+            # Fallback: assume all leads are not stopped
+            return {lead_id: False for lead_id in lead_ids}

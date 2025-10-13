@@ -359,6 +359,28 @@ class LeadsStore:
             return True  # Treat missing lead as stopped
         
         return rec.stopped or rec.is_unsubscribed or rec.is_hard_bounce
+    
+    def batch_is_stopped(self, lead_ids: List[str]) -> Dict[str, bool]:
+        """V2.2: Batch check if leads are stopped (PERFORMANCE OPTIMIZATION).
+        
+        For in-memory store, this is just a convenience wrapper that checks
+        all leads in one pass through the dict.
+        
+        Args:
+            lead_ids: List of lead IDs to check
+            
+        Returns:
+            Dict mapping lead_id -> is_stopped (True/False)
+        """
+        result = {}
+        for lead_id in lead_ids:
+            rec = self._by_id.get(lead_id)
+            if not rec:
+                result[lead_id] = True  # Missing = stopped
+            else:
+                result[lead_id] = rec.stopped or rec.is_unsubscribed or rec.is_hard_bounce
+        
+        return result
 
 
 # Global instance
