@@ -174,6 +174,106 @@ class CampaignScheduler:
             "leads_per_domain": domain_distribution
         }
     
+    def create_campaign_messages(
+        self,
+        campaign: Campaign,
+        lead_ids: List[str],
+        domains: List[str],
+        start_at: Optional[datetime] = None
+    ) -> List[Message]:
+        """V2.2: Create and schedule messages for a campaign.
+        
+        Args:
+            campaign: Campaign object
+            lead_ids: List of lead UUIDs to schedule
+            domains: List of domains (not used - kept for backwards compat)
+            start_at: Optional start datetime. If None, uses next available slot.
+        
+        Returns:
+            List of Message objects ready to be stored
+        """
+        # Update campaign with start_at if provided
+        if start_at:
+            campaign.start_at = start_at
+        
+        # Calculate effective start time
+        effective_start = start_at or datetime.now(ZoneInfo(SENDING_POLICY.timezone))
+        
+        # Filter out stopped leads
+        from app.services.leads_store import leads_store
+        active_lead_ids = [lead_id for lead_id in lead_ids if not leads_store.is_stopped(lead_id)]
+        
+        if not active_lead_ids:
+            logger.warning(f"All leads are stopped for campaign {campaign.id}")
+            return []
+        
+        # V2.2: Assign domain to each lead (modulo 4 pattern)
+        lead_domain_map = assign_lead_domains(active_lead_ids)
+        
+        # Create messages for each lead
+        messages = []
+        
+        for lead_id in active_lead_ids:
+            # Get assigned domain for this lead
+            lead_domain = lead_domain_map[lead_id]
+            
+            # Get flow for this domain
+            flow = get_flow_for_domain(lead_domain)
+            if not flow:
+                logger.error(f"No flow for domain {lead_domain}")
+                continue
+            
+            # Schedule each mail (M1-M4) for this lead
+            for step in flow.steps:
+                mail_number = step.mail_number
+                
+                # Calculate target date (workdays offset from start)
+                target_date = effective_start
+                workdays_added = 0
+                
+                while workdays_added < step.workdays_offset:
+                    target_date += timedelta(days=1)
+                    if SENDING_POLICY.is_valid_sending_day(target_date):
+                        workdays_added += 1
+                
+                # V2.2: Determine stream for this mail
+                stream = get_stream_for_mail(mail_number)
+                
+                # Snap to valid slot in correct stream
+                scheduled_at = snap_to_stream_slot(target_date, stream)
+                
+                # Ensure it's during work hours
+                scheduled_at = SENDING_POLICY.get_next_valid_slot(scheduled_at)
+                
+                # Get alias and headers
+                alias = flow.get_alias_for_mail(mail_number)
+                from_email = f"{alias}@{lead_domain}"
+                reply_to_email = f"christian@{lead_domain}"
+                
+                # Create message
+                message = Message(
+                    id=str(uuid.uuid4()),
+                    campaign_id=campaign.id,
+                    lead_id=lead_id,
+                    domain_used=lead_domain,
+                    mail_number=mail_number,
+                    alias=alias,
+                    from_email=from_email,
+                    reply_to_email=reply_to_email,
+                    scheduled_at=scheduled_at,
+                    status=MessageStatus.queued,
+                    is_followup=(mail_number > 1),
+                    retry_count=0
+                )
+                messages.append(message)
+        
+        logger.info(
+            f"Created {len(messages)} messages for campaign {campaign.id} "
+            f"({len(active_lead_ids)} leads, start: {effective_start.strftime('%Y-%m-%d %H:%M')})"
+        )
+        
+        return messages
+    
     def get_next_messages_to_send(self, domain: str, current_time: Optional[datetime] = None) -> List[Message]:
         """V2.2: Get next messages using dual-lane (alias-based) priority selection.
         

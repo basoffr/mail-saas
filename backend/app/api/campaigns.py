@@ -158,11 +158,16 @@ async def create_campaign(
         
         campaign_store.create_audience(audience)
         
-        # If starting now, create and schedule messages
+        # V2.2: ALWAYS create and schedule messages at campaign creation
+        # This makes the schedule timeline immediately visible
         if payload.schedule.start_mode == "now":
-            await _start_campaign(campaign, audience, [domain])
+            # Start immediately: scheduler determines next available slot
+            await _start_campaign(campaign, audience, [domain], start_now=True)
+        else:
+            # Start scheduled: use provided start_at date
+            await _start_campaign(campaign, audience, [domain], start_now=False)
         
-        logger.info(f"Created campaign {campaign.id}: {campaign.name}")
+        logger.info(f"Created campaign {campaign.id}: {campaign.name} with {len(audience.lead_ids)} leads scheduled")
         return DataResponse(data={"id": campaign.id})
         
     except Exception as e:
@@ -635,21 +640,40 @@ async def get_schedule(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-async def _start_campaign(campaign: Campaign, audience: CampaignAudience, domains: List[str]):
-    """Start campaign by creating and scheduling messages."""
+async def _start_campaign(
+    campaign: Campaign, 
+    audience: CampaignAudience, 
+    domains: List[str],
+    start_now: bool = True
+):
+    """V2.2: Create and schedule messages for campaign.
     
-    # Create messages
+    Args:
+        campaign: Campaign object
+        audience: Audience with lead_ids
+        domains: List of domains to use
+        start_now: If True, start immediately (status=active). If False, keep draft status.
+    """
+    
+    # Determine start_at based on mode
+    start_at = None if start_now else campaign.start_at
+    
+    # Create messages with scheduler
     messages = scheduler.create_campaign_messages(
         campaign=campaign,
         lead_ids=audience.lead_ids,
         domains=domains,
-        start_at=campaign.start_at
+        start_at=start_at
     )
     
-    # Store messages
+    # Store messages in database
     campaign_store.create_messages(messages)
     
     # Update campaign status
-    campaign_store.update_campaign_status(campaign.id, CampaignStatus.running)
-    
-    logger.info(f"Started campaign {campaign.id} with {len(messages)} messages")
+    if start_now:
+        # Starting now: set to active/running
+        campaign_store.update_campaign_status(campaign.id, CampaignStatus.active)
+        logger.info(f"Started campaign {campaign.id} with {len(messages)} messages (immediate start)")
+    else:
+        # Scheduled start: keep as draft until start_at
+        logger.info(f"Scheduled campaign {campaign.id} with {len(messages)} messages (starts at {campaign.start_at})")
