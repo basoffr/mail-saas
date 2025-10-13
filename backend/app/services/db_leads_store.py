@@ -278,3 +278,73 @@ class DBLeadsStore:
             logger.error(f"Error upserting lead: {e}")
         
         return None
+    
+    def mark_unsubscribed(self, lead_id: str) -> bool:
+        """V2.2: Mark lead as unsubscribed (global flag)."""
+        if not self.supabase:
+            return False
+        
+        try:
+            self.supabase.table('leads')\
+                .update({
+                    'is_unsubscribed': True,
+                    'unsubscribed_at': datetime.utcnow().isoformat()
+                })\
+                .eq('id', lead_id)\
+                .execute()
+            
+            logger.info(f"Marked lead {lead_id} as unsubscribed")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error marking lead as unsubscribed: {e}")
+            return False
+    
+    def mark_bounced(self, lead_id: str) -> bool:
+        """V2.2: Mark lead as hard bounce (global flag)."""
+        if not self.supabase:
+            return False
+        
+        try:
+            self.supabase.table('leads')\
+                .update({
+                    'is_hard_bounce': True,
+                    'bounced_at': datetime.utcnow().isoformat()
+                })\
+                .eq('id', lead_id)\
+                .execute()
+            
+            logger.info(f"Marked lead {lead_id} as hard bounced")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error marking lead as bounced: {e}")
+            return False
+    
+    def is_stopped(self, lead_id: str) -> bool:
+        """V2.2: Check if lead should be stopped (unsubscribed OR hard bounced).
+        
+        Returns:
+            True if lead is unsubscribed or hard bounced, False otherwise
+        """
+        if not self.supabase:
+            return False
+        
+        try:
+            response = self.supabase.table('leads')\
+                .select('is_unsubscribed, is_hard_bounce')\
+                .eq('id', lead_id)\
+                .execute()
+            
+            if not response.data or len(response.data) == 0:
+                return False
+            
+            lead_data = response.data[0]
+            is_unsub = lead_data.get('is_unsubscribed', False)
+            is_bounce = lead_data.get('is_hard_bounce', False)
+            
+            return is_unsub or is_bounce
+            
+        except Exception as e:
+            logger.error(f"Error checking if lead is stopped: {e}")
+            return False
