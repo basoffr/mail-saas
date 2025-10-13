@@ -90,6 +90,7 @@ class Message(SQLModel, table=True):
     alias: str = Field(default="christian", sa_column=Column(String))  # christian or victor
     from_email: Optional[str] = Field(default=None, sa_column=Column(String))
     reply_to_email: Optional[str] = Field(default=None, sa_column=Column(String))
+    template_version: int = Field(default=1, sa_column=Column(Integer))  # V2.2: Which template version (v1=1, v2=2, etc.)
     
     # Status tracking
     status: MessageStatus = Field(default=MessageStatus.queued, sa_column=Column(String, index=True))

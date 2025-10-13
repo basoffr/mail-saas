@@ -352,7 +352,7 @@ class DBLeadsStore:
     def batch_is_stopped(self, lead_ids: List[str]) -> Dict[str, bool]:
         """V2.2: Batch check if leads are stopped (PERFORMANCE OPTIMIZATION).
         
-        Instead of 2100 individual queries, this does 1 batch query.
+        Instead of 2100 individual queries, this chunks into batches to avoid URL length limits.
         Critical for large campaign creation performance.
         
         Args:
@@ -365,29 +365,34 @@ class DBLeadsStore:
             return {lead_id: False for lead_id in lead_ids}
         
         try:
-            # Single batch query for all leads
-            response = self.supabase.table('leads')\
-                .select('id, is_unsubscribed, is_hard_bounce')\
-                .in_('id', lead_ids)\
-                .execute()
-            
-            # Build result dict
-            result = {}
+            # Chunk into batches of 500 to avoid Supabase URL length limit
+            chunk_size = 500
             stopped_set = set()
             
-            for lead_data in response.data:
-                lead_id = lead_data['id']
-                is_unsub = lead_data.get('is_unsubscribed', False)
-                is_bounce = lead_data.get('is_hard_bounce', False)
+            for i in range(0, len(lead_ids), chunk_size):
+                chunk = lead_ids[i:i + chunk_size]
                 
-                if is_unsub or is_bounce:
-                    stopped_set.add(lead_id)
+                # Batch query for this chunk
+                response = self.supabase.table('leads')\
+                    .select('id, is_unsubscribed, is_hard_bounce')\
+                    .in_('id', chunk)\
+                    .execute()
+                
+                # Collect stopped leads
+                for lead_data in response.data:
+                    lead_id = lead_data['id']
+                    is_unsub = lead_data.get('is_unsubscribed', False)
+                    is_bounce = lead_data.get('is_hard_bounce', False)
+                    
+                    if is_unsub or is_bounce:
+                        stopped_set.add(lead_id)
             
-            # Map all lead_ids (even those not in DB) to boolean
+            # Map all lead_ids to boolean
+            result = {}
             for lead_id in lead_ids:
                 result[lead_id] = lead_id in stopped_set
             
-            logger.info(f"Batch checked {len(lead_ids)} leads, {len(stopped_set)} stopped")
+            logger.info(f"Batch checked {len(lead_ids)} leads in {(len(lead_ids) + chunk_size - 1) // chunk_size} chunks, {len(stopped_set)} stopped")
             return result
             
         except Exception as e:
