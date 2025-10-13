@@ -15,7 +15,7 @@ from loguru import logger
 
 from app.services.campaign_scheduler import campaign_scheduler, DOMAINS
 from app.services.message_sender import MessageSender
-from app.services.leads_store import leads_store
+from app.services.store_factory import leads_store
 from app.services.template_renderer import TemplateRenderer
 
 
@@ -136,7 +136,7 @@ class CampaignWorker:
                 return False
             
             # Get campaign to find template
-            from app.services.campaign_store import campaign_store
+            from app.services.store_factory import campaigns_store as campaign_store
             from app.models.campaign import CampaignStatus
             
             campaign = campaign_store.get_campaign(message.campaign_id)

@@ -71,8 +71,8 @@ class CampaignScheduler:
         # Calculate start time
         start_at = campaign.start_at or datetime.now(ZoneInfo(SENDING_POLICY.timezone))
         
-        # Filter out stopped leads (lazy import to avoid circular imports)
-        from app.services.leads_store import leads_store
+        # Filter out stopped leads (use factory to get correct store)
+        from app.services.store_factory import leads_store
         active_lead_ids = [lead_id for lead_id in lead_ids if not leads_store.is_stopped(lead_id)]
         
         if not active_lead_ids:
@@ -199,8 +199,8 @@ class CampaignScheduler:
         # Calculate effective start time
         effective_start = start_at or datetime.now(ZoneInfo(SENDING_POLICY.timezone))
         
-        # Filter out stopped leads
-        from app.services.leads_store import leads_store
+        # Filter out stopped leads (use factory to get correct store)
+        from app.services.store_factory import leads_store
         active_lead_ids = [lead_id for lead_id in lead_ids if not leads_store.is_stopped(lead_id)]
         
         if not active_lead_ids:

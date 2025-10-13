@@ -3,9 +3,9 @@ from fastapi.responses import Response, HTMLResponse
 from loguru import logger
 from datetime import datetime
 
-from app.services.campaign_store import campaign_store
+from app.services.store_factory import campaigns_store as campaign_store
 from app.services.message_sender import MessageSender
-from app.services.leads_store import leads_store
+from app.services.store_factory import leads_store
 from app.models.lead import LeadStatus
 
 router = APIRouter(prefix="/track", tags=["tracking"])

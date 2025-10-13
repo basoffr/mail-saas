@@ -5,7 +5,7 @@ import io
 from datetime import datetime
 
 from app.core.auth import require_auth
-from app.services.campaign_store import campaign_store
+from app.services.store_factory import campaigns_store as campaign_store
 
 router = APIRouter(dependencies=[Depends(require_auth)])
 
