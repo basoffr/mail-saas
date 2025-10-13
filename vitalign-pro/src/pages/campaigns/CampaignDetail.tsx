@@ -176,9 +176,17 @@ export default function CampaignDetail() {
       }
       
       if (response?.ok) {
-        await fetchCampaignDetail();
+        // V2.2: For delete, navigate immediately (campaign is soft deleted)
         if (action === 'delete') {
-          setTimeout(() => navigate('/campaigns'), 1500);
+          toast({ 
+            title: 'Campaign verwijderd',
+            description: 'Campaign is verwijderd uit de lijst'
+          });
+          // Navigate immediately, no need to fetch details of deleted campaign
+          navigate('/campaigns');
+        } else {
+          // For pause/resume, refresh the campaign details
+          await fetchCampaignDetail();
         }
       }
     } catch (error) {

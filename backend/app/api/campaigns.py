@@ -33,7 +33,10 @@ async def list_campaigns(
     search: str = Query(None),
     user: Dict[str, Any] = Depends(require_auth)
 ):
-    """List campaigns with filtering and pagination."""
+    """List campaigns with filtering and pagination.
+    
+    V2.2: Automatically excludes deleted campaigns unless explicitly requested.
+    """
     try:
         query = CampaignQuery(
             page=page,
@@ -43,6 +46,10 @@ async def list_campaigns(
         )
         
         campaigns, total = campaign_store.list_campaigns(query)
+        
+        # V2.2: Filter out deleted campaigns from list view
+        campaigns = [c for c in campaigns if c.status != CampaignStatus.deleted]
+        total = len(campaigns)  # Update total count after filtering
         
         # Enrich campaigns with count fields
         enriched_campaigns = []

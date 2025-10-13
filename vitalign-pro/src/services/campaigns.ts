@@ -17,10 +17,21 @@ export const campaignsService = {
   },
 
   async createCampaign(payload: CampaignCreatePayload): Promise<{ id: string }> {
-    return await authService.apiCall<{ id: string }>('/campaigns', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    // V2.2: Debug logging
+    console.log('Creating campaign with payload:', payload);
+    
+    try {
+      const result = await authService.apiCall<{ id: string }>('/campaigns', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      
+      console.log('Campaign created successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('Campaign creation failed in service:', error);
+      throw error;
+    }
   },
 
   async getCampaign(id: string): Promise<CampaignDetail | null> {

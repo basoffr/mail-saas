@@ -268,6 +268,12 @@ export default function CampaignNewSimplified() {
       
       const result = await campaignsService.createCampaign(payload);
       
+      // V2.2: Check if result has id
+      if (!result || !result.id) {
+        console.error('Campaign created but no ID returned:', result);
+        throw new Error('No campaign ID returned from server');
+      }
+      
       toast({
         title: 'Campagne aangemaakt',
         description: 'Je campagne is aangemaakt en wordt binnenkort gestart'
@@ -275,9 +281,16 @@ export default function CampaignNewSimplified() {
       
       navigate(`/campaigns/${result.id}`);
     } catch (error) {
+      // V2.2: Better error logging
+      console.error('Campaign creation error:', error);
+      
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Onbekende fout bij aanmaken campagne';
+      
       toast({
         title: 'Fout',
-        description: 'Campagne aanmaken mislukt',
+        description: errorMessage,
         variant: 'destructive'
       });
     } finally {
