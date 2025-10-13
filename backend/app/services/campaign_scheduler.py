@@ -6,18 +6,50 @@ from loguru import logger
 
 from app.core.sending_policy import SENDING_POLICY
 from app.core.campaign_flows import get_flow_for_domain, calculate_mail_schedule, get_followup_headers
+from app.core.stream_calculator import get_stream_for_mail, snap_to_stream_slot
 from app.models.campaign import Campaign, Message, MessageStatus, CampaignStatus
 from app.models.lead import Lead
 from app.schemas.campaign import CampaignCreatePayload, DryRunDay
 
 
+# V2.2: Multi-domain parallel scheduling with dual-lane (alias-based)
+DOMAINS = [
+    "punthelder-vindbaarheid.nl",
+    "punthelder-seo.nl",
+    "punthelder-zoekmachine.nl",
+    "punthelder-marketing.nl"
+]
+
+
+def assign_lead_domains(lead_ids: List[str]) -> Dict[str, str]:
+    """Assign domain to each lead using modulo 4 pattern.
+    
+    Args:
+        lead_ids: List of lead UUIDs (ordered)
+        
+    Returns:
+        Dict mapping lead_id → domain
+        
+    Example:
+        ['uuid1', 'uuid2', 'uuid3', 'uuid4', 'uuid5']
+        → {'uuid1': 'vindbaarheid', 'uuid2': 'seo', ...}
+    """
+    assignments = {}
+    for idx, lead_id in enumerate(lead_ids):
+        domain = DOMAINS[idx % 4]
+        assignments[lead_id] = domain
+    
+    logger.debug(f"Assigned {len(lead_ids)} leads across {len(DOMAINS)} domains")
+    return assignments
+
+
 class CampaignScheduler:
     """
     Handles campaign scheduling using hard-coded sending policy and flows.
-    - 27 slots per workday (08:00-16:40, every 20 minutes)
+    - 54 slots per workday (27 Stream A + 27 Stream B)
+    - Dual-lane per domain (christian@ + victor@)
+    - Lead-level domain assignment (modulo 4)
     - Grace period until 18:00
-    - FIFO queueing per domain
-    - Max 1 active campaign per domain
     """
     
     # Class constants for backwards compatibility with old methods
@@ -34,22 +66,10 @@ class CampaignScheduler:
         self.active_campaigns: Dict[str, str] = {}  # domain -> campaign_id
     
     def schedule_campaign(self, campaign: Campaign, lead_ids: List[str]) -> Dict:
-        """Schedule campaign using domain flow and sending policy."""
-        
-        # Get flow for campaign domain
-        flow = get_flow_for_domain(campaign.domain)
-        if not flow:
-            raise ValueError(f"No flow configured for domain: {campaign.domain}")
-        
-        # Check if domain is busy
-        if campaign.domain in self.active_campaigns:
-            raise ValueError(f"Domain {campaign.domain} is busy with campaign {self.active_campaigns[campaign.domain]}")
+        """Schedule campaign using lead-level domain assignment and stream-based slots."""
         
         # Calculate start time
         start_at = campaign.start_at or datetime.now(ZoneInfo(SENDING_POLICY.timezone))
-        
-        # Calculate mail schedule using flow
-        mail_schedule = calculate_mail_schedule(start_at, flow)
         
         # Filter out stopped leads (lazy import to avoid circular imports)
         from app.services.leads_store import leads_store
@@ -59,29 +79,66 @@ class CampaignScheduler:
             logger.warning(f"All leads are stopped for campaign {campaign.id}")
             return {
                 "campaign_id": campaign.id,
-                "domain": campaign.domain,
+                "domains_used": [],
                 "total_messages": 0,
-                "mail_schedule": {},
-                "flow_version": flow.version if flow else "unknown"
+                "leads_per_domain": {}
             }
         
-        # Create messages for each mail in flow
+        # V2.2: Assign domain to each lead (modulo 4 pattern)
+        lead_domain_map = assign_lead_domains(active_lead_ids)
+        
+        # Create messages for each lead
         messages = []
-        for mail_number, scheduled_at in mail_schedule.items():
-            for lead_id in active_lead_ids:
-                # Get alias for this mail
-                alias = flow.get_alias_for_mail(mail_number)
-                headers = get_followup_headers(mail_number)
+        domain_distribution = {d: 0 for d in DOMAINS}
+        
+        for lead_id in active_lead_ids:
+            # Get assigned domain for this lead
+            lead_domain = lead_domain_map[lead_id]
+            domain_distribution[lead_domain] += 1
+            
+            # Get flow for this domain
+            flow = get_flow_for_domain(lead_domain)
+            if not flow:
+                logger.error(f"No flow for domain {lead_domain}")
+                continue
+            
+            # Schedule each mail for this lead
+            for step in flow.steps:
+                mail_number = step.mail_number
                 
+                # Calculate target date (workdays offset from start)
+                target_date = start_at
+                workdays_added = 0
+                
+                while workdays_added < step.workdays_offset:
+                    target_date += timedelta(days=1)
+                    if SENDING_POLICY.is_valid_sending_day(target_date):
+                        workdays_added += 1
+                
+                # V2.2: Determine stream for this mail
+                stream = get_stream_for_mail(mail_number)
+                
+                # Snap to valid slot in correct stream
+                scheduled_at = snap_to_stream_slot(target_date, stream)
+                
+                # Ensure it's during work hours
+                scheduled_at = SENDING_POLICY.get_next_valid_slot(scheduled_at)
+                
+                # Get alias and headers
+                alias = flow.get_alias_for_mail(mail_number)
+                from_email = f"{alias}@{lead_domain}"
+                reply_to_email = f"christian@{lead_domain}"
+                
+                # Create message
                 message = Message(
                     id=str(uuid.uuid4()),
                     campaign_id=campaign.id,
                     lead_id=lead_id,
-                    domain_used=campaign.domain,
+                    domain_used=lead_domain,  # LEAD-SPECIFIC!
                     mail_number=mail_number,
                     alias=alias,
-                    from_email=headers["from"],
-                    reply_to_email=headers["reply_to"],
+                    from_email=from_email,
+                    reply_to_email=reply_to_email,
                     scheduled_at=scheduled_at,
                     status=MessageStatus.queued,
                     is_followup=(mail_number > 1),
@@ -89,32 +146,41 @@ class CampaignScheduler:
                 )
                 messages.append(message)
         
-        # Add to domain queue (FIFO)
-        if campaign.domain not in self.domain_queues:
-            self.domain_queues[campaign.domain] = []
-        
-        # Add all messages to queue
+        # Add to domain queues (per domain)
         for message in messages:
-            self.domain_queues[campaign.domain].append({
+            domain = message.domain_used
+            if domain not in self.domain_queues:
+                self.domain_queues[domain] = []
+            
+            self.domain_queues[domain].append({
                 "message": message,
                 "scheduled_at": message.scheduled_at
             })
         
-        # Mark domain as busy
-        self.active_campaigns[campaign.domain] = campaign.id
+        # Mark all domains as active
+        for domain in DOMAINS:
+            if domain_distribution[domain] > 0:
+                self.active_campaigns[domain] = campaign.id
         
-        logger.info(f"Scheduled campaign {campaign.id} on domain {campaign.domain} with {len(messages)} messages")
+        logger.info(
+            f"Scheduled campaign {campaign.id}: {len(messages)} messages "
+            f"across {len([d for d in domain_distribution.values() if d > 0])} domains"
+        )
         
         return {
             "campaign_id": campaign.id,
-            "domain": campaign.domain,
+            "domains_used": DOMAINS,
             "total_messages": len(messages),
-            "mail_schedule": mail_schedule,
-            "flow_version": flow.version
+            "leads_per_domain": domain_distribution
         }
     
     def get_next_messages_to_send(self, domain: str, current_time: Optional[datetime] = None) -> List[Message]:
-        """Get next messages to send for domain (FIFO queue)."""
+        """V2.2: Get next messages using dual-lane (alias-based) priority selection.
+        
+        Returns up to 2 messages per slot:
+        - Lane A: 1 message from christian@ (highest priority)
+        - Lane B: 1 message from victor@ (highest priority)
+        """
         if current_time is None:
             current_time = datetime.now(ZoneInfo(SENDING_POLICY.timezone))
         
@@ -127,38 +193,115 @@ class CampaignScheduler:
             self._move_remaining_to_next_day(domain, current_time)
             return []
         
-        # Get messages ready to send (FIFO)
-        ready_messages = []
+        # Round to current slot (:00, :10, :20, :30, :40, :50)
+        current_slot = self._round_to_slot(current_time)
+        
+        # Get ALL messages for this domain at this EXACT slot time
         queue = self.domain_queues[domain]
+        due_messages = [
+            item["message"] for item in queue
+            if item["scheduled_at"] == current_slot
+        ]
         
-        # Check throttle (1 email per 20 minutes per domain)
-        last_send = self.domain_last_send.get(domain)
-        if last_send:
-            time_since_last = (current_time - last_send).total_seconds() / 60
-            if time_since_last < SENDING_POLICY.slot_every_minutes:
-                logger.debug(f"Domain {domain} throttled, {time_since_last:.1f}min since last send")
-                return []
+        if not due_messages:
+            logger.debug(f"No messages due for {domain} at slot {current_slot}")
+            return []
         
-        # Get all messages in queue that are ready
-        while queue:
-            item = queue[0]
-            message = item["message"]
-            scheduled_at = item["scheduled_at"]
+        # V2.2: Split by alias (dual-lane)
+        christian_msgs = [m for m in due_messages if m.alias == "christian"]
+        victor_msgs = [m for m in due_messages if m.alias == "victor"]
+        
+        # Sort each lane by priority (M4 > M3 > M2 > M1)
+        mail_priority = {4: 0, 3: 1, 2: 2, 1: 3}
+        
+        christian_msgs.sort(key=lambda m: (mail_priority.get(m.mail_number, 99), m.lead_id))
+        victor_msgs.sort(key=lambda m: (mail_priority.get(m.mail_number, 99), m.lead_id))
+        
+        # Select top message from each lane
+        selected = []
+        
+        # Lane A: christian@
+        if christian_msgs:
+            lane_a = christian_msgs[0]
+            selected.append(lane_a)
+            logger.info(f"Lane A (christian): {domain} M{lane_a.mail_number} lead {lane_a.lead_id}")
+        
+        # Lane B: victor@
+        if victor_msgs:
+            lane_b = victor_msgs[0]
+            selected.append(lane_b)
+            logger.info(f"Lane B (victor): {domain} M{lane_b.mail_number} lead {lane_b.lead_id}")
+        
+        # Remove selected messages from queue
+        for message in selected:
+            for item in queue[:]:
+                if item["message"].id == message.id:
+                    queue.remove(item)
+                    break
+        
+        # Update last send time
+        if selected:
+            self.domain_last_send[domain] = current_time
+        
+        logger.info(f"Selected {len(selected)} messages for {domain} at slot {current_slot}")
+        return selected
+    
+    def _round_to_slot(self, dt: datetime) -> datetime:
+        """Round datetime to nearest 10-minute slot.
+        
+        Slots: :00, :10, :20, :30, :40, :50
+        """
+        minute = dt.minute
+        slot_minute = (minute // 10) * 10
+        return dt.replace(minute=slot_minute, second=0, microsecond=0)
+    
+    def cancel_future_messages(self, lead_id: str, after_mail_number: int) -> int:
+        """V2.2: Cancel all future messages for a lead (stop criteria).
+        
+        Called when a lead:
+        - Replies to any email
+        - Unsubscribes
+        - Bounces
+        
+        Args:
+            lead_id: Lead UUID
+            after_mail_number: Cancel messages with mail_number > this
             
-            if scheduled_at <= current_time:
-                # Message is ready to send
-                ready_messages.append(message)
-                queue.pop(0)  # Remove from queue (FIFO)
-                
-                # Update last send time
-                self.domain_last_send[domain] = current_time
-                
-                logger.info(f"Ready to send message {message.id} for domain {domain}")
-            else:
-                # No more ready messages
-                break
+        Returns:
+            Number of messages canceled
+            
+        Example:
+            cancel_future_messages(lead_id, 1)
+            → Cancels M2, M3, M4 for this lead
+        """
+        canceled_count = 0
         
-        return ready_messages
+        # Iterate through all domain queues
+        for domain in DOMAINS:
+            if domain not in self.domain_queues:
+                continue
+            
+            queue = self.domain_queues[domain]
+            
+            # Find and cancel matching messages
+            for item in queue[:]:
+                message = item["message"]
+                
+                if (message.lead_id == lead_id and 
+                    message.mail_number > after_mail_number and
+                    message.status == MessageStatus.queued):
+                    
+                    # Cancel the message
+                    message.status = MessageStatus.canceled
+                    queue.remove(item)
+                    canceled_count += 1
+                    
+                    logger.info(
+                        f"Canceled M{message.mail_number} for lead {lead_id} "
+                        f"(stop criteria after M{after_mail_number})"
+                    )
+        
+        return canceled_count
     
     def _move_remaining_to_next_day(self, domain: str, current_time: datetime):
         """Move remaining messages to next valid day at 08:00."""

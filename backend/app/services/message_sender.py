@@ -179,10 +179,10 @@ class MessageSender:
             logger.error(f"Template {campaign.template_id} not found")
             return False
         
-        # Determine From address based on domain
-        from_name = "Christian"
-        from_email = f"christian@{message.domain_used}"
-        reply_to = from_email
+        # V2.2: Use pre-calculated from_email and reply_to from message
+        from_name = message.alias.capitalize()  # "Christian" or "Victor"
+        from_email = message.from_email  # Already includes alias@domain
+        reply_to = message.reply_to_email  # Always christian@domain
         
         try:
             # Create message
