@@ -104,6 +104,7 @@ class Message(SQLModel, table=True):
     
     # Retry tracking
     retry_count: int = Field(default=0)
+    attempts: int = Field(default=0, sa_column=Column(Integer))  # V2.2: Total send attempts (for tracking)
     
     # SMTP tracking for inbox linking
     smtp_message_id: Optional[str] = Field(default=None, sa_column=Column(String, unique=True, index=True))
