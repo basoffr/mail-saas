@@ -621,6 +621,7 @@ async def get_schedule(
                 message_id=m.id,
                 lead_id=m.lead_id,
                 mail_number=m.mail_number,
+                template_id=m.template_id,  # V2.2: Include template_id!
                 alias=m.alias,
                 domain_used=m.domain_used,
                 scheduled_at=m.scheduled_at,

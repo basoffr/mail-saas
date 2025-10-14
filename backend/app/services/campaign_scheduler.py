@@ -141,6 +141,13 @@ class CampaignScheduler:
                 template_version = flow.version
                 template_id = f"v{template_version}m{mail_number}"
                 
+                # DEBUG: Log first message creation to verify template_id calculation
+                if len(messages) == 0:
+                    logger.info(
+                        f"DEBUG First message: domain={lead_domain}, flow.version={flow.version}, "
+                        f"template_id={template_id}, template_version={template_version}"
+                    )
+                
                 # Create message
                 message = Message(
                     id=str(uuid.uuid4()),
