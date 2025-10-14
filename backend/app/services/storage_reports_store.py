@@ -121,9 +121,9 @@ class StorageReportsStore:
                         id=filename,  # Use filename as ID for Storage-based approach
                         filename=filename,
                         type=file_type,
-                        sizeBytes=size_bytes,
-                        createdAt=created_at,
-                        boundTo=bound_to
+                        size_bytes=size_bytes,
+                        created_at=created_at,
+                        bound_to=bound_to
                     )
                     
                     reports.append(report)
@@ -137,7 +137,7 @@ class StorageReportsStore:
                 reports = [
                     r for r in reports 
                     if search_lower in r.filename.lower() or 
-                       (r.boundTo and search_lower in r.boundTo.get('label', '').lower())
+                       (r.bound_to and search_lower in r.bound_to.get('label', '').lower())
                 ]
             
             # Apply type filter
@@ -145,11 +145,11 @@ class StorageReportsStore:
                 reports = [r for r in reports if r.type in query.types]
             
             # Apply bound filter
-            if query.boundFilter:
-                if query.boundFilter == "bound":
-                    reports = [r for r in reports if r.boundTo is not None]
-                elif query.boundFilter == "unbound":
-                    reports = [r for r in reports if r.boundTo is None]
+            if query.bound_filter:
+                if query.bound_filter == "bound":
+                    reports = [r for r in reports if r.bound_to is not None]
+                elif query.bound_filter == "unbound":
+                    reports = [r for r in reports if r.bound_to is None]
             
             # Sort by filename
             reports.sort(key=lambda r: r.filename)
@@ -157,8 +157,8 @@ class StorageReportsStore:
             total = len(reports)
             
             # Pagination
-            start = (query.page - 1) * query.pageSize
-            end = start + query.pageSize
+            start = (query.page - 1) * query.page_size
+            end = start + query.page_size
             reports = reports[start:end]
             
             logger.info(f"Listed {len(reports)} reports from Storage (total: {total})")
