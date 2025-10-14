@@ -646,7 +646,16 @@ async def get_schedule(
             
             messages_by_date = defaultdict(list)
             for msg in all_messages:
-                msg_date = msg.scheduled_at.date()
+                # Handle both datetime objects and strings
+                if isinstance(msg.scheduled_at, str):
+                    # Parse ISO format string to datetime
+                    # Remove timezone suffix for parsing if present
+                    dt_str = msg.scheduled_at.replace('Z', '+00:00')
+                    scheduled_dt = datetime.fromisoformat(dt_str)
+                    msg_date = scheduled_dt.date()
+                else:
+                    msg_date = msg.scheduled_at.date()
+                
                 messages_by_date[msg_date].append(msg)
             
             # Sort dates
