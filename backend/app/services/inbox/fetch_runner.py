@@ -1,97 +1,192 @@
 import asyncio
+import os
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from uuid import uuid4
 from loguru import logger
+from supabase import create_client, Client
 from .imap_client import IMAPClient
 from .linker import MessageLinker
 from .accounts import MailAccountService
 
 
 class MailMessageStore:
-    """In-memory store for mail messages (MVP implementation)"""
+    """Supabase-backed store for mail messages (production implementation)"""
     
     def __init__(self):
-        self.messages: Dict[str, Dict[str, Any]] = {}
-        self.runs: Dict[str, Dict[str, Any]] = {}
+        self.supabase: Optional[Client] = None
+        self._init_supabase()
+    
+    def _init_supabase(self):
+        """Initialize Supabase client"""
+        url = os.getenv("SUPABASE_URL")
+        key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY")
+        
+        if not url or not key:
+            logger.warning("Supabase credentials not found, inbox will not be persistent")
+            return
+        
+        try:
+            self.supabase = create_client(url, key)
+            logger.info("✅ Supabase-backed MailMessageStore initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize Supabase for inbox: {e}")
     
     
     def create_message(self, message_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create new message with unique constraint check"""
-        # Check for duplicate (account_id, folder, uid)
-        for existing_msg in self.messages.values():
-            if (existing_msg['account_id'] == message_data['account_id'] and
-                existing_msg['folder'] == message_data['folder'] and
-                existing_msg['uid'] == message_data['uid']):
-                logger.debug(f"Duplicate message ignored: UID {message_data['uid']}")
-                return existing_msg
+        if not self.supabase:
+            logger.error("Supabase not initialized, cannot store message")
+            return message_data
         
-        message_id = str(uuid4())
-        message_data['id'] = message_id
-        message_data['created_at'] = datetime.utcnow()
-        
-        self.messages[message_id] = message_data
-        return message_data
+        try:
+            # Prepare data for Supabase (snake_case)
+            db_data = {
+                'account_id': message_data['account_id'],
+                'folder': message_data.get('folder', 'INBOX'),
+                'uid': message_data.get('uid'),
+                'message_id': message_data.get('message_id'),
+                'in_reply_to': message_data.get('in_reply_to'),
+                'message_references': message_data.get('references', []),
+                'from_email': message_data['from_email'],
+                'from_name': message_data.get('from_name'),
+                'to_email': message_data.get('to_email'),
+                'subject': message_data['subject'],
+                'snippet': message_data.get('snippet'),
+                'received_at': message_data['received_at'],
+                'linked_campaign_id': message_data.get('linked_campaign_id'),
+                'linked_lead_id': message_data.get('linked_lead_id'),
+                'linked_message_id': message_data.get('linked_message_id'),
+                'weak_link': message_data.get('weak_link', False),
+                'is_read': False
+            }
+            
+            # Insert into Supabase (upsert to handle duplicates)
+            result = self.supabase.table('inbox_messages').upsert(
+                db_data,
+                on_conflict='account_id,folder,uid'
+            ).execute()
+            
+            if result.data and len(result.data) > 0:
+                stored = result.data[0]
+                message_data['id'] = stored['id']
+                return message_data
+            else:
+                # Duplicate found by unique constraint
+                logger.debug(f"Duplicate message ignored: UID {message_data.get('uid')}")
+                return message_data
+                
+        except Exception as e:
+            logger.error(f"Failed to store message in Supabase: {e}")
+            return message_data
     
     def get_all(self) -> List[Dict[str, Any]]:
         """Get all messages"""
-        return list(self.messages.values())
+        if not self.supabase:
+            return []
+        
+        try:
+            result = self.supabase.table('inbox_messages').select('*').execute()
+            return result.data if result.data else []
+        except Exception as e:
+            logger.error(f"Failed to get all messages: {e}")
+            return []
     
     def get_by_query(self, query: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Get messages by query parameters"""
-        messages = list(self.messages.values())
+        if not self.supabase:
+            return []
         
-        # Apply filters
-        if query.get('account_id'):
-            messages = [m for m in messages if m['account_id'] == query['account_id']]
-        
-        if query.get('campaign_id'):
-            messages = [m for m in messages if m['linked_campaign_id'] == query['campaign_id']]
-        
-        if query.get('unread') is not None:
-            messages = [m for m in messages if not m['is_read'] == query['unread']]
-        
-        if query.get('q'):
-            search_term = query['q'].lower()
-            messages = [m for m in messages if 
-                       search_term in m['from_email'].lower() or
-                       search_term in (m['from_name'] or '').lower() or
-                       search_term in m['subject'].lower()]
-        
-        # Sort by received_at desc
-        messages.sort(key=lambda x: x['received_at'], reverse=True)
-        
-        return messages
+        try:
+            # Start building query
+            db_query = self.supabase.table('inbox_messages').select('*')
+            
+            # Apply filters
+            if query.get('account_id'):
+                db_query = db_query.eq('account_id', query['account_id'])
+            
+            if query.get('campaign_id'):
+                db_query = db_query.eq('linked_campaign_id', query['campaign_id'])
+            
+            if query.get('unread') is not None:
+                db_query = db_query.eq('is_read', not query['unread'])
+            
+            if query.get('q'):
+                search_term = query['q']
+                # Use ilike for case-insensitive search
+                db_query = db_query.or_(f'from_email.ilike.%{search_term}%,from_name.ilike.%{search_term}%,subject.ilike.%{search_term}%')
+            
+            # Sort by received_at desc
+            db_query = db_query.order('received_at', desc=True)
+            
+            result = db_query.execute()
+            return result.data if result.data else []
+            
+        except Exception as e:
+            logger.error(f"Failed to query messages: {e}")
+            return []
     
     def mark_as_read(self, message_id: str) -> bool:
         """Mark message as read"""
-        if message_id in self.messages:
-            self.messages[message_id]['is_read'] = True
+        if not self.supabase:
+            return False
+        
+        try:
+            result = self.supabase.table('inbox_messages').update(
+                {'is_read': True}
+            ).eq('id', message_id).execute()
             return True
-        return False
+        except Exception as e:
+            logger.error(f"Failed to mark message as read: {e}")
+            return False
     
     def create_run(self, run_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create fetch run record"""
-        run_id = str(uuid4())
-        run_data['id'] = run_id
-        self.runs[run_id] = run_data
-        return run_data
+        if not self.supabase:
+            run_data['id'] = str(uuid4())
+            return run_data
+        
+        try:
+            result = self.supabase.table('inbox_fetch_runs').insert(run_data).execute()
+            if result.data and len(result.data) > 0:
+                return result.data[0]
+            return run_data
+        except Exception as e:
+            logger.error(f"Failed to create run: {e}")
+            return run_data
     
     def update_run(self, run_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Update fetch run"""
-        if run_id in self.runs:
-            self.runs[run_id].update(updates)
-            return self.runs[run_id]
-        return None
+        if not self.supabase:
+            return None
+        
+        try:
+            result = self.supabase.table('inbox_fetch_runs').update(updates).eq('id', run_id).execute()
+            if result.data and len(result.data) > 0:
+                return result.data[0]
+            return None
+        except Exception as e:
+            logger.error(f"Failed to update run: {e}")
+            return None
     
     def get_runs(self, account_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get fetch runs"""
-        runs = list(self.runs.values())
-        if account_id:
-            runs = [r for r in runs if r['account_id'] == account_id]
+        if not self.supabase:
+            return []
         
-        runs.sort(key=lambda x: x['started_at'], reverse=True)
-        return runs
+        try:
+            db_query = self.supabase.table('inbox_fetch_runs').select('*')
+            
+            if account_id:
+                db_query = db_query.eq('account_id', account_id)
+            
+            db_query = db_query.order('started_at', desc=True)
+            result = db_query.execute()
+            return result.data if result.data else []
+            
+        except Exception as e:
+            logger.error(f"Failed to get runs: {e}")
+            return []
 
 
 class FetchRunner:
