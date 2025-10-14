@@ -377,10 +377,11 @@ class DBCampaignStore:
                     "lead_id": message.lead_id,
                     "domain_used": message.domain_used,
                     "mail_number": message.mail_number,  # CRITICAL: Must include for proper flow!
+                    "template_id": message.template_id,  # V2.2: Template ID (e.g., v2m3)
+                    "template_version": message.template_version,  # V2.2: Version (1-4)
                     "alias": message.alias,  # christian or victor
                     "from_email": message.from_email,  # Domain-specific sender
                     "reply_to_email": message.reply_to_email,  # Reply-To header
-                    "template_version": message.template_version,
                     "is_followup": message.is_followup,
                     "scheduled_at": message.scheduled_at.isoformat(),
                     "status": message.status.value,

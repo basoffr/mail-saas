@@ -137,6 +137,10 @@ class CampaignScheduler:
                 from_email = f"{alias}@{lead_domain}"
                 reply_to_email = f"christian@{lead_domain}"
                 
+                # V2.2: Calculate template_id (e.g., v2m3 = version 2, mail 3)
+                template_version = flow.version
+                template_id = f"v{template_version}m{mail_number}"
+                
                 # Create message
                 message = Message(
                     id=str(uuid.uuid4()),
@@ -144,6 +148,8 @@ class CampaignScheduler:
                     lead_id=lead_id,
                     domain_used=lead_domain,  # LEAD-SPECIFIC!
                     mail_number=mail_number,
+                    template_version=template_version,  # V2.2: 1-4
+                    template_id=template_id,  # V2.2: v2m3
                     alias=alias,
                     from_email=from_email,
                     reply_to_email=reply_to_email,

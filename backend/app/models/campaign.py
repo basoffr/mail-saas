@@ -91,6 +91,7 @@ class Message(SQLModel, table=True):
     from_email: Optional[str] = Field(default=None, sa_column=Column(String))
     reply_to_email: Optional[str] = Field(default=None, sa_column=Column(String))
     template_version: int = Field(default=1, sa_column=Column(Integer))  # V2.2: Which template version (v1=1, v2=2, etc.)
+    template_id: str = Field(default="v1m1", sa_column=Column(String, index=True))  # V2.2: Template ID (e.g., v2m3)
     
     # Status tracking
     status: MessageStatus = Field(default=MessageStatus.queued, sa_column=Column(String, index=True))

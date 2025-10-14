@@ -33,24 +33,35 @@ class CampaignOut(BaseModel):
 
 class MessageOut(BaseModel):
     id: str
-    campaign_id: str
-    lead_id: str
-    domain_used: str
-    scheduled_at: datetime
-    sent_at: Optional[datetime]
+    campaign_id: str = Field(alias='campaignId')
+    lead_id: str = Field(alias='leadId')
+    domain_used: str = Field(alias='domainUsed')
+    mail_number: int = Field(alias='mailNumber')
+    template_id: str = Field(alias='templateId')  # V2.2: e.g., v2m3
+    template_version: int = Field(alias='templateVersion')  # V2.2: 1-4
+    scheduled_at: datetime = Field(alias='scheduledAt')
+    sent_at: Optional[datetime] = Field(None, alias='sentAt')
     status: MessageStatus
-    last_error: Optional[str]
-    open_at: Optional[datetime]
-    is_followup: bool
-    retry_count: int
+    last_error: Optional[str] = Field(None, alias='lastError')
+    open_at: Optional[datetime] = Field(None, alias='openAt')
+    is_followup: bool = Field(alias='isFollowup')
+    retry_count: int = Field(alias='retryCount')
+    
+    class Config:
+        populate_by_name = True
+        by_alias = True
 
 
 class MessageEventOut(BaseModel):
     id: str
-    message_id: str
-    event_type: MessageEventType
+    message_id: str = Field(alias='messageId')
+    event_type: MessageEventType = Field(alias='eventType')
     meta: Optional[Dict[str, Any]]
-    created_at: datetime
+    created_at: datetime = Field(alias='createdAt')
+    
+    class Config:
+        populate_by_name = True
+        by_alias = True
 
 
 # Campaign creation payload
@@ -74,8 +85,12 @@ class AudienceSelection(BaseModel):
 
 
 class ScheduleSettings(BaseModel):
-    start_mode: str = Field(..., description="'now' or 'scheduled'")
-    start_at: Optional[datetime] = None
+    start_mode: str = Field(..., alias='startMode', description="'now' or 'scheduled'")
+    start_at: Optional[datetime] = Field(None, alias='startAt')
+    
+    class Config:
+        populate_by_name = True
+        by_alias = True
 
 
 class FollowupSettings(BaseModel):
@@ -205,24 +220,33 @@ class StopLeadResponse(BaseModel):
 # V2.2: Scheduling View
 class ScheduledMessageOut(BaseModel):
     """Simplified message for scheduling timeline."""
-    message_id: str
-    lead_id: str
-    mail_number: int
+    message_id: str = Field(alias='messageId')
+    lead_id: str = Field(alias='leadId')
+    mail_number: int = Field(alias='mailNumber')
+    template_id: str = Field(alias='templateId')  # V2.2: e.g., v2m3
     alias: str
-    domain_used: str
-    scheduled_at: datetime
+    domain_used: str = Field(alias='domainUsed')
+    scheduled_at: datetime = Field(alias='scheduledAt')
     status: MessageStatus
-    cancel_reason: Optional[str] = None
+    cancel_reason: Optional[str] = Field(None, alias='cancelReason')
+    
+    class Config:
+        populate_by_name = True
+        by_alias = True
 
 
 class ScheduleResponse(BaseModel):
     """Schedule view response."""
-    campaign_id: str
-    effective_start: datetime
+    campaign_id: str = Field(alias='campaignId')
+    effective_start: datetime = Field(alias='effectiveStart')
     window: str = "08:00-17:00"
     streams: Dict[str, List[int]] = Field(default_factory=lambda: {
         "A": [0, 20, 40],
         "B": [10, 30, 50]
     })
     slots: List[ScheduledMessageOut]
-    total_count: int
+    total_count: int = Field(alias='totalCount')
+    
+    class Config:
+        populate_by_name = True
+        by_alias = True
