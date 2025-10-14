@@ -371,14 +371,19 @@ class DBCampaignStore:
         try:
             data_list = []
             for message in messages:
+                # CRITICAL WORKAROUND: Try custom attributes first (SQLModel bypass)
+                # If SQLModel descriptors return None, use our custom storage
+                template_id_value = getattr(message, '_custom_template_id', None) or getattr(message, 'template_id', None)
+                template_version_value = getattr(message, '_custom_template_version', None) or getattr(message, 'template_version', None)
+                
                 data_list.append({
                     "id": message.id,
                     "campaign_id": message.campaign_id,
                     "lead_id": message.lead_id,
                     "domain_used": message.domain_used,
                     "mail_number": message.mail_number,  # CRITICAL: Must include for proper flow!
-                    "template_id": message.template_id,  # V2.2: Template ID (e.g., v2m3)
-                    "template_version": message.template_version,  # V2.2: Version (1-4)
+                    "template_id": template_id_value,  # V2.2: Template ID (e.g., v2m3) - from custom attr!
+                    "template_version": template_version_value,  # V2.2: Version (1-4) - from custom attr!
                     "alias": message.alias,  # christian or victor
                     "from_email": message.from_email,  # Domain-specific sender
                     "reply_to_email": message.reply_to_email,  # Reply-To header

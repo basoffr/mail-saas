@@ -172,7 +172,11 @@ class CampaignScheduler:
                     retry_count=0
                 )
                 
-                # WORKAROUND: Set template fields AFTER creation (SQLModel ignores them in __init__)
+                # WORKAROUND: Store in custom attributes that SQLModel CAN'T touch
+                message._custom_template_version = template_version
+                message._custom_template_id = calculated_template_id
+                
+                # Also try setting normal attributes (in case workaround doesn't work)
                 message.template_version = template_version
                 message.template_id = calculated_template_id
                 
