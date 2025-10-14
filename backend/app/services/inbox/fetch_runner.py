@@ -194,7 +194,7 @@ class FetchRunner:
             
             # Process and link messages
             processed_count = 0
-            max_uid = account.get('last_seen_uid', 0)
+            max_uid = account.get('last_seen_uid') or 0  # Ensure integer, never None
             
             for msg_data in new_messages:
                 try:
@@ -202,18 +202,19 @@ class FetchRunner:
                     msg_data['account_id'] = account_id
                     msg_data['folder'] = 'INBOX'
                     
-                    # Link to campaigns/leads
+                    # Link to campaigns/leads (before storing, so no 'id' yet)
                     link_result = self.message_linker.link_message(msg_data)
                     msg_data.update(link_result)
                     
-                    # Store message
+                    # Store message (this assigns 'id' to msg_data)
                     stored_msg = self.messages_store.create_message(msg_data)
-                    if stored_msg['id'] == msg_data['id']:  # New message created
+                    if stored_msg.get('id') and stored_msg.get('id') == msg_data.get('id'):
                         processed_count += 1
                     
-                    # Track max UID
-                    if msg_data['uid'] and msg_data['uid'] > max_uid:
-                        max_uid = msg_data['uid']
+                    # Track max UID (ensure both are integers)
+                    msg_uid = msg_data.get('uid')
+                    if msg_uid and isinstance(msg_uid, int) and msg_uid > max_uid:
+                        max_uid = msg_uid
                         
                 except Exception as e:
                     logger.error(f"Error processing message: {str(e)}")

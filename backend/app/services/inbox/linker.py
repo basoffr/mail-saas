@@ -34,7 +34,7 @@ class MessageLinker:
                 result = self._link_by_in_reply_to(inbox_message['in_reply_to'])
                 if result:
                     link_result.update(result)
-                    logger.info(f"Linked message via In-Reply-To: {inbox_message['id']}")
+                    logger.info(f"Linked message via In-Reply-To: {inbox_message.get('id', 'pending')}")
                     return link_result
             
             # Strategy 2: References chain
@@ -42,7 +42,7 @@ class MessageLinker:
                 result = self._link_by_references(inbox_message['references'])
                 if result:
                     link_result.update(result)
-                    logger.info(f"Linked message via References: {inbox_message['id']}")
+                    logger.info(f"Linked message via References: {inbox_message.get('id', 'pending')}")
                     return link_result
             
             # Strategy 3: Email + Subject + Chronology
@@ -53,7 +53,7 @@ class MessageLinker:
             )
             if result:
                 link_result.update(result)
-                logger.info(f"Linked message via email+subject: {inbox_message['id']}")
+                logger.info(f"Linked message via email+subject: {inbox_message.get('id', 'pending')}")
                 return link_result
             
             # Strategy 4: Email only (weak link)
@@ -61,10 +61,10 @@ class MessageLinker:
             if result:
                 link_result.update(result)
                 link_result['weak_link'] = True
-                logger.info(f"Weak link created for message: {inbox_message['id']}")
+                logger.info(f"Weak link created for message: {inbox_message.get('id', 'pending')}")
                 return link_result
             
-            logger.info(f"No link found for message: {inbox_message['id']}")
+            logger.info(f"No link found for message: {inbox_message.get('id', 'pending')}")
             return link_result
             
         except Exception as e:
