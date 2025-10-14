@@ -36,16 +36,12 @@ import {
   Pause, 
   Square, 
   RefreshCw,
-  Mail,
-  Eye,
-  TrendingUp,
-  Users,
   Clock,
-  AlertTriangle,
   Loader2,
   RotateCcw,
   Trash2,
-  Calendar
+  Calendar,
+  Eye
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -66,7 +62,6 @@ import { campaignsService } from '@/services/campaigns';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
-import { RepliesPanel } from '@/components/inbox/RepliesPanel';
 import { ScheduleTimeline } from '@/components/campaigns/ScheduleTimeline';
 import { StopLeadDialog } from '@/components/campaigns/StopLeadDialog';
 
@@ -214,14 +209,10 @@ export default function CampaignDetail() {
     }
   };
 
-  const formatDate = (date: Date | undefined) => {
-    if (!date) return '-';
+  const formatDate = (dateInput?: string | Date) => {
+    if (!dateInput) return '-';
+    const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
     return format(date, 'dd MMM yyyy HH:mm', { locale: nl });
-  };
-
-  const calculateRate = (numerator: number, denominator: number) => {
-    if (denominator === 0) return '0%';
-    return `${Math.round((numerator / denominator) * 100)}%`;
   };
 
   if (loading) {
@@ -394,66 +385,6 @@ export default function CampaignDetail() {
           </div>
         </div>
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          <Card className="p-4 shadow-card rounded-2xl">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-primary">{(campaign.targetCount || 0).toLocaleString()}</div>
-              <div className="text-sm text-muted-foreground">Target</div>
-            </div>
-          </Card>
-
-          <Card className="p-4 shadow-card rounded-2xl">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-accent">{(campaign.sentCount || 0).toLocaleString()}</div>
-              <div className="text-sm text-muted-foreground">Sent</div>
-              <div className="text-xs text-muted-foreground">
-                {calculateRate(campaign.sentCount || 0, campaign.targetCount || 0)}
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-4 shadow-card rounded-2xl">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{(campaign.openCount || 0).toLocaleString()}</div>
-              <div className="text-sm text-muted-foreground">Opens</div>
-              <div className="text-xs text-muted-foreground">
-                {calculateRate(campaign.openCount || 0, campaign.sentCount || 0)}
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-4 shadow-card rounded-2xl">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">{(campaign.clickCount || 0).toLocaleString()}</div>
-              <div className="text-sm text-muted-foreground">Clicks</div>
-              <div className="text-xs text-muted-foreground">
-                {calculateRate(campaign.clickCount || 0, campaign.sentCount || 0)}
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-4 shadow-card rounded-2xl">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-success">{(campaign.replyCount || 0).toLocaleString()}</div>
-              <div className="text-sm text-muted-foreground">Replies</div>
-              <div className="text-xs text-muted-foreground">
-                {calculateRate(campaign.replyCount || 0, campaign.sentCount || 0)}
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-4 shadow-card rounded-2xl">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-destructive">{(campaign.bounceCount || 0).toLocaleString()}</div>
-              <div className="text-sm text-muted-foreground">Bounces</div>
-              <div className="text-xs text-muted-foreground">
-                {calculateRate(campaign.bounceCount || 0, campaign.sentCount || 0)}
-              </div>
-            </div>
-          </Card>
-        </div>
-
         {/* Chart */}
         <Card className="p-6 shadow-card rounded-2xl">
           <div className="flex items-center justify-between mb-6">
@@ -622,54 +553,7 @@ export default function CampaignDetail() {
               </TableBody>
             </Table>
           </Card>
-
-          {/* Follow-up Panel */}
-          <Card className="p-6 shadow-card rounded-2xl">
-            <h2 className="text-xl font-bold mb-4">Follow-up Status</h2>
-            
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-                <div>
-                  <div className="font-medium">Follow-ups Enabled</div>
-                  <div className="text-sm text-muted-foreground">
-                    {campaign.settings?.followUp?.enabled ? 'Yes' : 'No'}
-                  </div>
-                </div>
-                <div className={`w-3 h-3 rounded-full ${campaign.settings?.followUp?.enabled ? 'bg-accent' : 'bg-muted'}`} />
-              </div>
-
-              {campaign.settings?.followUp?.enabled && (
-                <>
-                  <div className="text-sm space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Delay:</span>
-                      <span className="font-medium">{campaign.settings?.followUp?.days || 0} days</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Scheduled:</span>
-                      <span className="font-medium">{campaign.stats?.followUpCount || 0}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Attachment required:</span>
-                      <span className="font-medium">{campaign.settings?.followUp?.attachmentRequired ? 'Yes' : 'No'}</span>
-                    </div>
-                  </div>
-
-                  <div className="pt-4 border-t">
-                    <h3 className="font-medium mb-2">Today's Activity</h3>
-                    <div className="flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-primary" />
-                      <span className="text-sm">{campaign.stats?.sentToday || 0} emails sent today</span>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          </Card>
         </div>
-
-        {/* Replies Panel - Full Width */}
-        <RepliesPanel campaignId={campaign.id} campaignName={campaign.name} />
 
         {/* V2.2: Schedule Timeline */}
         <div className="mt-6">

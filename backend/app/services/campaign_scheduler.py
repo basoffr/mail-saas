@@ -72,37 +72,36 @@ class CampaignScheduler:
         This is stream-aware alternative to get_next_valid_slot that preserves
         the stream's minute alignment (:00/:20/:40 for A, :10/:30/:50 for B)
         AND preserves timezone info (critical for Europe/Amsterdam DST handling).
+        
+        IMPORTANT: datetime.replace(tzinfo=...) does NOT work correctly for DST-aware zones!
+        We must use proper timezone conversion to maintain correct UTC offset.
         """
         from app.core.stream_calculator import get_stream_slot_minutes
         
         # Get valid minutes for this stream
         stream_minutes = get_stream_slot_minutes(stream)
         
-        # CRITICAL: Preserve timezone when using replace()
-        # Without this, timezone info is lost and datetime becomes naive!
-        tz = dt.tzinfo
-        
         # If weekend, move to next Monday and reset to first stream slot
         while not SENDING_POLICY.is_valid_sending_day(dt):
             dt += timedelta(days=1)
-            window_start_hour, _ = map(int, SENDING_POLICY.window_from.split(':'))
-            # Use replace with tzinfo to preserve timezone
-            dt = dt.replace(hour=window_start_hour, minute=stream_minutes[0], second=0, microsecond=0, tzinfo=tz)
+        
+        # If we skipped to a new day, reset to window start
+        window_start_hour, _ = map(int, SENDING_POLICY.window_from.split(':'))
+        window_end_hour, window_end_min = map(int, SENDING_POLICY.window_to.split(':'))
         
         # If before window, set to window start with first stream slot
-        window_start_hour, _ = map(int, SENDING_POLICY.window_from.split(':'))
         if dt.time() < time(window_start_hour, 0):
-            dt = dt.replace(hour=window_start_hour, minute=stream_minutes[0], second=0, microsecond=0, tzinfo=tz)
+            # Create new datetime with same date but new time, preserving timezone
+            dt = dt.replace(hour=window_start_hour, minute=stream_minutes[0], second=0, microsecond=0)
         
         # If after window, move to next day with first stream slot  
-        window_end_hour, window_end_min = map(int, SENDING_POLICY.window_to.split(':'))
-        if dt.time() >= time(window_end_hour, window_end_min):
+        elif dt.time() >= time(window_end_hour, window_end_min):
             dt += timedelta(days=1)
-            dt = dt.replace(hour=window_start_hour, minute=stream_minutes[0], second=0, microsecond=0, tzinfo=tz)
+            dt = dt.replace(hour=window_start_hour, minute=stream_minutes[0], second=0, microsecond=0)
             # Check if new day is valid
             while not SENDING_POLICY.is_valid_sending_day(dt):
                 dt += timedelta(days=1)
-                dt = dt.replace(hour=window_start_hour, minute=stream_minutes[0], second=0, microsecond=0, tzinfo=tz)
+                dt = dt.replace(hour=window_start_hour, minute=stream_minutes[0], second=0, microsecond=0)
         
         return dt
     
