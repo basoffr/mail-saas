@@ -38,7 +38,6 @@ interface MobileSidebarProps extends AppSidebarProps {
 }
 
 const navigationItems = [
-  { href: '/import/bulk', icon: Upload, label: 'Bulk Import', adminOnly: true },
   { href: '/leads', icon: Contact2, label: 'Leads', adminOnly: true },
   { href: '/campaigns', icon: Send, label: 'Campagnes', adminOnly: true },
   { href: '/templates', icon: FileCode2, label: 'Templates', adminOnly: true },

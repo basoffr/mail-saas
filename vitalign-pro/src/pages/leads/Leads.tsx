@@ -57,7 +57,8 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
-  Trash2
+  Trash2,
+  PackageOpen
 } from 'lucide-react';
 import { Lead, LeadsQuery, LeadStatus, Template, TemplatePreview } from '@/types/lead';
 import { leadsService, toUiLeadStatus, toneToBadgeClass, BackendLeadStatus } from '@/services/leads';
@@ -229,6 +230,13 @@ export default function Leads() {
             <p className="text-muted-foreground">Manage and organize your lead database</p>
           </div>
           <div className="flex gap-3">
+            <Button
+              onClick={() => navigate('/import/bulk')}
+              variant="outline"
+            >
+              <PackageOpen className="w-4 h-4 mr-2" />
+              Bulk Import
+            </Button>
             <Button
               onClick={() => navigate('/leads/import')}
               className="bg-gradient-primary hover:shadow-glow"
