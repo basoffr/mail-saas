@@ -105,36 +105,6 @@ async def import_leads(file: UploadFile = File(...)):
     return {"data": result, "error": None}
 
 
-class AssetUrl(BaseModel):
-    url: str
-
-
-@router.get("/leads/image-url", response_model=DataResponse[AssetUrl])
-async def get_lead_image_url(key: str):
-    """
-    Get public URL for lead image by key
-    
-    Args:
-        key: Image key (e.g., "screenshots/example.png")
-    
-    Returns:
-        Public URL for the asset
-    """
-    import os
-    
-    supabase_url = os.getenv("SUPABASE_URL")
-    bucket_name = "assets"
-    
-    if not supabase_url:
-        return {"data": None, "error": "Supabase not configured"}
-    
-    # Generate public URL (assets bucket is public)
-    # Use key exactly as provided
-    public_url = f"{supabase_url}/storage/v1/object/public/{bucket_name}/{key}"
-    
-    return {"data": {"url": public_url}, "error": None}
-
-
 class PreviewRequest(BaseModel):
     template_id: str
     lead_id: str

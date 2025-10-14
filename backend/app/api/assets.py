@@ -12,26 +12,24 @@ router = APIRouter(prefix="/assets", tags=["assets"])
 
 
 @router.get("/image-by-key")
-async def get_image_url_by_key(key: str = Query(..., description="Storage key (e.g., 'screenshots/example.png')")):
+async def get_image_url_by_key(
+    key: str = Query(..., description="Storage key (e.g., 'screenshots/example.png')"),
+    format: str = Query("redirect", description="Response format: 'redirect' or 'json'")
+):
     """
-    Redirect to image in Supabase Storage.
-    
-    FIX: Returns RedirectResponse instead of URL string.
-    - Frontend <img> tags can now load images directly
-    - Browser receives 307 redirect to actual image URL
-    - Key is used EXACTLY as provided (no modifications)
-    - Bucket 'assets' is public, so direct URLs work
-    - Cache headers for better performance
+    Get image from Supabase Storage.
     
     Args:
         key: Storage path EXACTLY as in database (e.g., 'screenshots/www_nttb_nl_webshop_.png')
+        format: 'redirect' (default) for browser redirect, 'json' for API response with URL
     
     Returns:
-        307 Temporary Redirect to the actual image
+        - format=redirect: 307 Temporary Redirect to the actual image
+        - format=json: JSON object with {data: {url: "..."}, error: null}
     
     Example:
-        Input:  key='screenshots/www_nttb_nl_webshop_.png'
-        Output: Redirect to 'https://xxx.supabase.co/storage/v1/object/public/assets/screenshots/www_nttb_nl_webshop_.png'
+        /image-by-key?key=screenshots/test.png&format=redirect → Redirects to image
+        /image-by-key?key=screenshots/test.png&format=json    → Returns JSON with URL
     """
     try:
         supabase_url = os.getenv("SUPABASE_URL")
@@ -39,27 +37,34 @@ async def get_image_url_by_key(key: str = Query(..., description="Storage key (e
         
         if not supabase_url:
             logger.error("SUPABASE_URL environment variable missing")
+            if format == "json":
+                return {"data": None, "error": "Supabase not configured"}
             raise HTTPException(status_code=500, detail="Supabase not configured")
         
-        # FIX: Use key EXACTLY as provided - no parsing, no modifications
         # Generate public URL for assets bucket (which is public)
         public_url = f"{supabase_url}/storage/v1/object/public/{bucket_name}/{key}"
         
-        logger.info(f"✅ Redirecting image | key: {key} → {public_url}")
+        logger.info(f"✅ Image URL generated | key: {key} | format: {format} → {public_url}")
         
-        # Return redirect instead of URL string - this allows <img> tags to work!
-        return RedirectResponse(
-            url=public_url,
-            status_code=307,  # Temporary redirect
-            headers={
-                "Cache-Control": "public, max-age=3600",  # Cache for 1 hour
-            }
-        )
+        if format == "json":
+            # Return JSON response for API clients
+            return {"data": {"url": public_url}, "error": None}
+        else:
+            # Return redirect for browser/img tags
+            return RedirectResponse(
+                url=public_url,
+                status_code=307,  # Temporary redirect
+                headers={
+                    "Cache-Control": "public, max-age=3600",  # Cache for 1 hour
+                }
+            )
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Failed to redirect to image | key: {key} | error: {e}")
+        logger.error(f"❌ Failed to get image | key: {key} | error: {e}")
+        if format == "json":
+            return {"data": None, "error": f"Failed to get image: {str(e)}"}
         raise HTTPException(status_code=500, detail=f"Failed to get image: {str(e)}")
 
 
