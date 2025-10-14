@@ -131,11 +131,13 @@ export const campaignsService = {
 
   // V2.2: Scheduling View
   async getSchedule(campaignId: string, options?: {
+    day?: number;       // V2.3: Day number for per-day pagination
     limit?: number;
     domain?: string;
     fromTs?: string;
   }): Promise<ScheduleResponse> {
     const params = new URLSearchParams();
+    if (options?.day) params.append('day', options.day.toString());
     if (options?.limit) params.append('limit', options.limit.toString());
     if (options?.domain) params.append('domain', options.domain);
     if (options?.fromTs) params.append('from_ts', options.fromTs);

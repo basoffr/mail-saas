@@ -190,4 +190,10 @@ export interface ScheduleResponse {
   };
   slots: ScheduledMessage[];
   totalCount: number;
+  
+  // V2.3: Per-day pagination
+  currentDay?: number;        // Current day number (1-based)
+  totalDays?: number;          // Total campaign days
+  dayDate?: Date;              // Actual date for this day
+  messagesThisDay?: number;    // Message count for this specific day
 }
