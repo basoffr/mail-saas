@@ -66,22 +66,39 @@ class StorageReportsStore:
             return [], 0
         
         try:
-            # Use SQL function to list ALL files
-            # PostgREST has default 1000-row limit, we need to override with headers
-            # Set Range header to request more rows (0-9999 = 10000 rows)
-            self.supabase.postgrest.headers.update({
-                'Range': '0-9999',
-                'Prefer': 'count=exact'
-            })
+            # Fetch ALL files in batches using SQL function with offset/limit
+            # This bypasses PostgREST's 1000-row response limit
+            all_files = []
+            batch_size = 1000
+            offset = 0
             
-            result = self.supabase.rpc('list_storage_files', {'bucket_name': self.bucket_name}).execute()
+            while True:
+                # Call SQL function with limit and offset parameters
+                result = self.supabase.rpc(
+                    'list_storage_files', 
+                    {
+                        'bucket_name': self.bucket_name,
+                        'limit_count': batch_size,
+                        'offset_count': offset
+                    }
+                ).execute()
+                
+                if not result.data or len(result.data) == 0:
+                    break
+                
+                batch = result.data
+                all_files.extend(batch)
+                
+                logger.info(f"Fetched batch {offset//batch_size + 1}: {len(batch)} files (total: {len(all_files)})")
+                
+                # If we got less than batch_size, we've reached the end
+                if len(batch) < batch_size:
+                    break
+                
+                offset += batch_size
             
-            if not result.data:
-                logger.warning("No files found in storage")
-                return [], 0
-            
-            files = result.data
-            logger.info(f"SQL function returned {len(files)} files from storage (PostgREST limit bypassed)")
+            files = all_files
+            logger.info(f"✅ Total files fetched from storage: {len(files)}")
             
             # Convert to ReportOut format
             reports = []
