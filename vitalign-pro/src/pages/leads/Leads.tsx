@@ -481,7 +481,7 @@ export default function Leads() {
                             <Eye className="w-4 h-4" />
                           </Button>
                         </SheetTrigger>
-                        <SheetContent className="w-[400px] sm:w-[540px]">
+                        <SheetContent className="w-[600px] sm:w-[800px] overflow-y-auto">
                           <SheetHeader>
                             <SheetTitle>Lead Details</SheetTitle>
                             <SheetDescription>
