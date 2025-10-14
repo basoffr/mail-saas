@@ -81,19 +81,28 @@ except Exception as e:
     campaigns_store = None
 
 # ============================================================================
-# REPORTS STORE - TODO: Create DBReportsStore
+# REPORTS STORE
 # ============================================================================
 try:
-    from app.services.reports_store import ReportsStore
-    reports_store = ReportsStore()
     if USE_DB:
-        logger.warning("⚠️  DBReportsStore not implemented yet, using in-memory ReportsStore")
+        try:
+            from app.services.db_reports_store import DBReportsStore
+            reports_store = DBReportsStore()
+            logger.info("✅ Using DBReportsStore (Supabase database)")
+        except Exception as e:
+            logger.error(f"Failed to initialize DBReportsStore: {e}, falling back to in-memory")
+            from app.services.reports_store import ReportsStore
+            reports_store = ReportsStore()
     else:
-        logger.info("Using in-memory ReportsStore (development mode)")
+        from app.services.reports_store import ReportsStore
+        reports_store = ReportsStore()
+        logger.warning("⚠️  Using in-memory ReportsStore (development mode)")
 except Exception as e:
     logger.critical(f"CRITICAL: Failed to initialize reports store: {e}")
     # Create minimal fallback
-    reports_store = None
+    from app.services.reports_store import ReportsStore
+    reports_store = ReportsStore()
+    logger.warning("Emergency fallback: using in-memory ReportsStore")
 
 # ============================================================================
 # EXPORT SUMMARY
@@ -115,13 +124,27 @@ def get_stores_summary():
     except:
         templates_type = "unknown"
     
+    campaigns_type = "unknown"
+    try:
+        if hasattr(campaigns_store, '__class__'):
+            campaigns_type = "database" if "DB" in campaigns_store.__class__.__name__ else "in-memory"
+    except:
+        campaigns_type = "unknown"
+    
+    reports_type = "unknown"
+    try:
+        if hasattr(reports_store, '__class__'):
+            reports_type = "database" if "DB" in reports_store.__class__.__name__ else "in-memory"
+    except:
+        reports_type = "unknown"
+    
     return {
         "use_database": USE_DB,
         "stores": {
             "leads": leads_type,
             "templates": templates_type,
-            "campaigns": "in-memory (TODO: DBCampaignStore)",
-            "reports": "in-memory (TODO: DBReportsStore)",
+            "campaigns": campaigns_type,
+            "reports": reports_type,
         }
     }
 

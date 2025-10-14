@@ -179,11 +179,14 @@ export default function Reports() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search by filename..."
+                  placeholder="Search by filename, domain, or email..."
                   value={query.search}
                   onChange={(e) => setQuery({ ...query, search: e.target.value, page: 1 })}
                   className="pl-9"
                 />
+                <p className="text-xs text-muted-foreground mt-1 ml-1">
+                  Tip: Search for a domain (e.g., "example.com") or email to find linked reports
+                </p>
               </div>
               <Select
                 value={query.boundFilter}

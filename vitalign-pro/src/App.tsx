@@ -60,7 +60,7 @@ const App = () => {
                       
                       <main className="flex-1 overflow-auto">
                         <Routes>
-                          <Route path="/" element={<Navigate to="/leads" replace />} />
+                          <Route path="/" element={<Navigate to="/inbox" replace />} />
                           
                           {/* Admin-only routes */}
                           <Route path="/leads" element={<ProtectedRoute requireAdmin><Leads /></ProtectedRoute>} />
