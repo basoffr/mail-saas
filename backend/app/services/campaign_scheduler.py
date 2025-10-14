@@ -175,12 +175,15 @@ class CampaignScheduler:
                     retry_count=0
                 )
                 
-                # DEBUG: Log Message object AFTER creation
+                # DEBUG: IMMEDIATE log after Message creation to verify assignment worked
                 if len(messages) < 4:
                     logger.warning(
-                        f"[DEBUG-CREATED-{len(messages)+1}] Message object: "
-                        f"template_id={message.template_id}, mail_number={message.mail_number}, "
-                        f"template_version={message.template_version}"
+                        f"[DEBUG-CREATED-{len(messages)+1}] IMMEDIATELY AFTER Message(): "
+                        f"template_id={message.template_id!r}, "
+                        f"template_version={message.template_version!r}, "
+                        f"mail_number={message.mail_number}, "
+                        f"(passed: calculated_template_id={calculated_template_id!r}, "
+                        f"template_version={template_version})"
                     )
                 
                 messages.append(message)
