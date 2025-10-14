@@ -66,33 +66,14 @@ class StorageReportsStore:
             return [], 0
         
         try:
-            # Use Storage SDK to list ALL files (handle pagination if needed)
-            # Supabase Storage .list() has a default limit of 100
-            # We need to fetch all files in batches
-            all_files = []
-            limit = 1000
-            offset = 0
+            # Use Storage SDK to list files
+            # Note: Supabase Python SDK .list() returns ALL files by default (no pagination needed)
+            files = self.supabase.storage.from_(self.bucket_name).list()
             
-            while True:
-                batch = self.supabase.storage.from_(self.bucket_name).list(
-                    path='',
-                    limit=limit,
-                    offset=offset
-                )
-                
-                if not batch or len(batch) == 0:
-                    break
-                
-                all_files.extend(batch)
-                
-                # If we got less than limit, we've reached the end
-                if len(batch) < limit:
-                    break
-                
-                offset += limit
+            if not files:
+                files = []
             
-            files = all_files
-            logger.info(f"Storage SDK returned {len(files)} files (fetched in batches)")
+            logger.info(f"Storage SDK returned {len(files)} files")
             
             # Convert to ReportOut format
             reports = []
