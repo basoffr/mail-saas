@@ -307,26 +307,33 @@ export default function Reports() {
           )}
         </Card>
 
-        {/* Pagination */}
-        {total > query.pageSize && (
-          <div className="flex justify-center gap-2">
-            <Button
-              variant="outline"
-              disabled={query.page === 1}
-              onClick={() => setQuery({ ...query, page: query.page - 1 })}
-            >
-              Previous
-            </Button>
-            <span className="flex items-center px-4 text-sm">
-              Page {query.page} of {Math.ceil(total / query.pageSize)}
-            </span>
-            <Button
-              variant="outline"
-              disabled={query.page >= Math.ceil(total / query.pageSize)}
-              onClick={() => setQuery({ ...query, page: query.page + 1 })}
-            >
-              Next
-            </Button>
+        {/* Total & Pagination */}
+        {total > 0 && (
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+              Totaal: <span className="font-semibold text-foreground">{total}</span> reports
+            </div>
+            {total > query.pageSize && (
+              <div className="flex justify-center gap-2">
+                <Button
+                  variant="outline"
+                  disabled={query.page === 1}
+                  onClick={() => setQuery({ ...query, page: query.page - 1 })}
+                >
+                  Previous
+                </Button>
+                <span className="flex items-center px-4 text-sm">
+                  Page {query.page} of {Math.ceil(total / query.pageSize)}
+                </span>
+                <Button
+                  variant="outline"
+                  disabled={query.page >= Math.ceil(total / query.pageSize)}
+                  onClick={() => setQuery({ ...query, page: query.page + 1 })}
+                >
+                  Next
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>
