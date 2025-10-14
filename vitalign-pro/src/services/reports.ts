@@ -31,9 +31,12 @@ export const reportsService = {
     if (payload.leadId) formData.append('lead_id', payload.leadId);
     if (payload.campaignId) formData.append('campaign_id', payload.campaignId);
 
-    const response = await fetch(`${authService.getConfig().baseUrl}/reports/upload`, {
+    const config = await authService.getConfig();
+    const headers = await authService.getAuthHeadersForFormData();
+    
+    const response = await fetch(`${config.baseUrl}/reports/upload`, {
       method: 'POST',
-      headers: authService.getAuthHeadersForFormData(),
+      headers: headers,
       body: formData,
     });
 
@@ -54,9 +57,12 @@ export const reportsService = {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch(`${authService.getConfig().baseUrl}/reports/bulk?mode=${mode}`, {
+    const config = await authService.getConfig();
+    const headers = await authService.getAuthHeadersForFormData();
+
+    const response = await fetch(`${config.baseUrl}/reports/bulk?mode=${mode}`, {
       method: 'POST',
-      headers: authService.getAuthHeadersForFormData(),
+      headers: headers,
       body: formData,
     });
 
@@ -87,7 +93,8 @@ export const reportsService = {
   },
 
   async getDownloadUrl(reportId: string): Promise<string> {
-    return await authService.apiCall<string>(`/reports/${reportId}/download-url`);
+    const response = await authService.apiCall<{ url: string; expires_at: string }>(`/reports/${reportId}/download-url`);
+    return response.url;
   },
 
   // Helper methods for binding

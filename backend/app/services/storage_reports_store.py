@@ -192,13 +192,22 @@ class StorageReportsStore:
             raise Exception("Supabase not initialized")
         
         try:
-            # Create signed URL
+            # Create signed URL for download
             result = self.supabase.storage.from_(self.bucket_name).create_signed_url(
                 filename, 
                 expires_in
             )
             
-            return result.get('signedURL') or result.get('signedUrl', '')
+            # Python SDK returns dict with 'signedURL' key
+            signed_url = result.get('signedURL') or result.get('signedUrl', '')
+            
+            if not signed_url:
+                logger.error(f"No signed URL in response for {filename}: {result}")
+                raise Exception(f"Failed to generate signed URL for {filename}")
+            
+            logger.info(f"Generated signed URL for {filename}: {signed_url[:100]}...")
+            return signed_url
+            
         except Exception as e:
             logger.error(f"Failed to create download URL for {filename}: {e}")
             raise
