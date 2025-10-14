@@ -112,20 +112,27 @@ class AssetUrl(BaseModel):
 @router.get("/assets/image-by-key", response_model=DataResponse[AssetUrl])
 async def get_asset_url(key: str):
     """
-    Get signed URL for image by key
+    Get public URL for image by key
     
     Args:
-        key: Image key (e.g., "acme_picture")
+        key: Image key (e.g., "screenshots/example.png")
     
     Returns:
-        Signed URL with 1 hour expiration
+        Public URL for the asset
     """
-    signed_url = supabase_storage.get_signed_url(key, expires_in=3600)
+    import os
     
-    if not signed_url:
-        return {"data": None, "error": f"Image not found for key: {key}"}
+    supabase_url = os.getenv("SUPABASE_URL")
+    bucket_name = "assets"
     
-    return {"data": {"url": signed_url}, "error": None}
+    if not supabase_url:
+        return {"data": None, "error": "Supabase not configured"}
+    
+    # Generate public URL (assets bucket is public)
+    # Use key exactly as provided
+    public_url = f"{supabase_url}/storage/v1/object/public/{bucket_name}/{key}"
+    
+    return {"data": {"url": public_url}, "error": None}
 
 
 class PreviewRequest(BaseModel):
