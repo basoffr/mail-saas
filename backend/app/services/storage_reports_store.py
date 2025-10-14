@@ -60,16 +60,22 @@ class StorageReportsStore:
         return ext if ext in valid_types else 'pdf'
     
     def list_reports(self, query: ReportsQuery) -> Tuple[List[ReportOut], int]:
-        """List reports directly from Storage bucket via database query."""
+        """List reports directly from Storage bucket."""
         if not self.supabase:
             logger.warning("Supabase not initialized")
             return [], 0
         
         try:
-            # Query storage.objects table directly (much more reliable than SDK)
-            result = self.supabase.table('storage.objects').select('name, created_at, metadata').eq('bucket_id', 'reports').execute()
+            # Use Storage SDK to list files
+            files = self.supabase.storage.from_(self.bucket_name).list()
             
-            files = result.data if result.data else []
+            if not files:
+                files = []
+            
+            # DEBUG: Log structure of first file to understand SDK response
+            if len(files) > 0:
+                logger.info(f"DEBUG - Storage SDK file object keys: {list(files[0].keys())}")
+                logger.info(f"DEBUG - First file sample: {files[0]}")
             
             # Convert to ReportOut format
             reports = []
@@ -81,22 +87,26 @@ class StorageReportsStore:
                     if not filename or filename.endswith('/'):
                         continue
                     
-                    # Extract metadata from database row
+                    # Extract file type from extension
                     file_type = self._get_file_type(filename)
                     
-                    # Get size from metadata JSONB column
-                    metadata = file_obj.get('metadata', {})
+                    # Storage SDK returns metadata as nested dict or direct fields
+                    # Try multiple possible structures
+                    metadata = file_obj.get('metadata')
+                    
                     if isinstance(metadata, dict):
-                        size_bytes = metadata.get('size', 0)
+                        # Metadata is nested object
+                        size_bytes = metadata.get('size', 0) or 0
                     else:
+                        # Try direct fields (SDK might flatten structure)
                         size_bytes = 0
                     
-                    # Ensure we have a valid size
-                    if size_bytes is None:
-                        size_bytes = 0
-                    
-                    # Get created_at from database (already ISO format)
-                    created_at = file_obj.get('created_at', datetime.utcnow().isoformat())
+                    # Get timestamp - Storage SDK typically uses created_at or updated_at
+                    created_at = (
+                        file_obj.get('created_at') or 
+                        file_obj.get('updated_at') or 
+                        datetime.utcnow().isoformat()
+                    )
                     
                     # For bound_to, try to extract domain from filename
                     domain = self._extract_domain_from_filename(filename)
