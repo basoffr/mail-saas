@@ -99,7 +99,7 @@ class CampaignScheduler:
         messages = []
         domain_distribution = {d: 0 for d in DOMAINS}
         
-        for lead_id in active_lead_ids:
+        for idx, lead_id in enumerate(active_lead_ids):
             # Get assigned domain for this lead
             lead_domain = lead_domain_map[lead_id]
             domain_distribution[lead_domain] += 1
@@ -109,6 +109,13 @@ class CampaignScheduler:
             if not flow:
                 logger.error(f"No flow for domain {lead_domain}")
                 continue
+            
+            # DEBUG: Log flow for first 5 leads to verify version is correct
+            if idx < 5:
+                logger.info(
+                    f"🔍 LEAD {idx+1}: domain={lead_domain}, "
+                    f"flow.version={flow.version}, flow object={flow}"
+                )
             
             # Schedule each mail for this lead
             for step in flow.steps:
@@ -141,11 +148,12 @@ class CampaignScheduler:
                 template_version = flow.version
                 template_id = f"v{template_version}m{mail_number}"
                 
-                # DEBUG: Log first message creation to verify template_id calculation
-                if len(messages) == 0:
+                # DEBUG: Log first lead's all messages to verify template_id calculation
+                if idx == 0:  # First lead only
                     logger.info(
-                        f"DEBUG First message: domain={lead_domain}, flow.version={flow.version}, "
-                        f"template_id={template_id}, template_version={template_version}"
+                        f"📧 FIRST LEAD Message {mail_number}: domain={lead_domain}, "
+                        f"flow.version={flow.version}, template_id={template_id}, "
+                        f"template_version={template_version}, alias={alias}"
                     )
                 
                 # Create message
