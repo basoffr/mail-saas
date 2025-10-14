@@ -376,6 +376,10 @@ class DBCampaignStore:
                     "campaign_id": message.campaign_id,
                     "lead_id": message.lead_id,
                     "domain_used": message.domain_used,
+                    "mail_number": message.mail_number,  # CRITICAL: Must include for proper flow!
+                    "alias": message.alias,  # christian or victor
+                    "from_email": message.from_email,  # Domain-specific sender
+                    "reply_to_email": message.reply_to_email,  # Reply-To header
                     "template_version": message.template_version,
                     "is_followup": message.is_followup,
                     "scheduled_at": message.scheduled_at.isoformat(),
