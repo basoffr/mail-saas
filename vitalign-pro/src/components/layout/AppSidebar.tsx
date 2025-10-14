@@ -38,12 +38,12 @@ interface MobileSidebarProps extends AppSidebarProps {
 }
 
 const navigationItems = [
-  { href: '/leads', icon: Contact2, label: 'Leads', adminOnly: true },
-  { href: '/campaigns', icon: Send, label: 'Campagnes', adminOnly: true },
-  { href: '/templates', icon: FileCode2, label: 'Templates', adminOnly: true },
-  { href: '/reports', icon: FolderUp, label: 'Rapporten', adminOnly: true },
-  { href: '/stats', icon: BarChart3, label: 'Statistieken', adminOnly: false },
   { href: '/inbox', icon: Mail, label: 'Inbox', adminOnly: false },
+  { href: '/campaigns', icon: Send, label: 'Campagnes', adminOnly: true },
+  { href: '/leads', icon: Contact2, label: 'Leads', adminOnly: true },
+  { href: '/templates', icon: FileCode2, label: 'Templates', adminOnly: true },
+  { href: '/stats', icon: BarChart3, label: 'Statistieken', adminOnly: false },
+  { href: '/reports', icon: FolderUp, label: 'Rapporten', adminOnly: true },
   { href: '/settings', icon: Settings, label: 'Instellingen', adminOnly: true },
 ];
 
