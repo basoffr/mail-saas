@@ -98,6 +98,7 @@ class CampaignScheduler:
         # Create messages for each lead
         messages = []
         domain_distribution = {d: 0 for d in DOMAINS}
+        message_counter = 0  # ABSOLUTE counter for debugging first message
         
         logger.warning(f"🚀 STARTING MESSAGE CREATION for {len(active_lead_ids)} leads")
         
@@ -151,13 +152,14 @@ class CampaignScheduler:
                 calculated_template_id = f"v{template_version}m{mail_number}"
                 
                 # NUCLEAR DEBUG: PRINT to stdout (can't be filtered!)
-                if idx == 0 and mail_number == 1:
+                if message_counter == 0:  # ABSOLUTE first message!
                     print(f"\n{'='*80}")
                     print(f"🔥🔥🔥 FIRST MESSAGE BEFORE CREATION")
-                    print(f"idx={idx}, mail_number={mail_number}")
+                    print(f"message_counter={message_counter}, idx={idx}, mail_number={mail_number}")
                     print(f"template_version={template_version} (type={type(template_version)})")
                     print(f"calculated_template_id={calculated_template_id!r} (type={type(calculated_template_id)})")
                     print(f"flow.version={flow.version}")
+                    print(f"flow.steps order={[s.mail_number for s in flow.steps]}")
                     print(f"{'='*80}\n")
                     import sys
                     sys.stdout.flush()  # Force flush to ensure it appears
@@ -193,7 +195,7 @@ class CampaignScheduler:
                 message.template_id = calculated_template_id
                 
                 # NUCLEAR DEBUG: PRINT after setting attributes
-                if idx == 0 and mail_number == 1:
+                if message_counter == 0:  # ABSOLUTE first message!
                     print(f"\n{'='*80}")
                     print(f"🔥🔥🔥 FIRST MESSAGE AFTER SETTING ATTRS")
                     print(f"message._custom_template_id={getattr(message, '_custom_template_id', 'NOT_FOUND')}")
@@ -206,6 +208,7 @@ class CampaignScheduler:
                     sys.stdout.flush()
                 
                 messages.append(message)
+                message_counter += 1  # Increment after appending
         
         # Add to domain queues (per domain)
         for message in messages:
@@ -274,20 +277,6 @@ class CampaignScheduler:
         
         if not active_lead_ids:
             logger.warning(f"All leads are stopped for campaign {campaign.id}")
-            return []
-        
-        # V2.2: Assign domain to each lead (modulo 4 pattern)
-        lead_domain_map = assign_lead_domains(active_lead_ids)
-        
-        # Create messages for each lead
-        messages = []
-        
-        for lead_id in active_lead_ids:
-            # Get assigned domain for this lead
-            lead_domain = lead_domain_map[lead_id]
-            
-            # Get flow for this domain
-            flow = get_flow_for_domain(lead_domain)
             if not flow:
                 logger.error(f"No flow for domain {lead_domain}")
                 continue
