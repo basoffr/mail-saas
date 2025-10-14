@@ -99,6 +99,8 @@ class CampaignScheduler:
         messages = []
         domain_distribution = {d: 0 for d in DOMAINS}
         
+        logger.warning(f"🚀 STARTING MESSAGE CREATION for {len(active_lead_ids)} leads")
+        
         for idx, lead_id in enumerate(active_lead_ids):
             # Get assigned domain for this lead
             lead_domain = lead_domain_map[lead_id]
@@ -148,24 +150,21 @@ class CampaignScheduler:
                 template_version = flow.version
                 calculated_template_id = f"v{template_version}m{mail_number}"
                 
-                # DEBUG: ALWAYS log first 4 messages to see calculation
-                if len(messages) < 4:
-                    logger.warning(
-                        f"[DEBUG-CALC-{len(messages)+1}] mail_number={mail_number}, "
-                        f"template_version={template_version}, "
-                        f"calculated_template_id={calculated_template_id}, "
-                        f"String parts: v={template_version}, m={mail_number}"
-                    )
+                # CRITICAL: Assert these are NOT None before passing to Message()
+                assert template_version is not None, f"template_version is None! flow.version={flow.version}"
+                assert calculated_template_id is not None, f"calculated_template_id is None!"
+                assert isinstance(template_version, int), f"template_version is not int: {type(template_version)}"
+                assert isinstance(calculated_template_id, str), f"calculated_template_id is not str: {type(calculated_template_id)}"
                 
-                # Create message
+                # Create message with EXPLICIT kwargs
                 message = Message(
                     id=str(uuid.uuid4()),
                     campaign_id=campaign.id,
                     lead_id=lead_id,
                     domain_used=lead_domain,  # LEAD-SPECIFIC!
                     mail_number=mail_number,
-                    template_version=template_version,  # V2.2: 1-4
-                    template_id=calculated_template_id,  # V2.2: v2m3 (use NEW variable name!)
+                    template_version=template_version,  # MUST be int, NOT None!
+                    template_id=calculated_template_id,  # MUST be str, NOT None!
                     alias=alias,
                     from_email=from_email,
                     reply_to_email=reply_to_email,
@@ -175,15 +174,11 @@ class CampaignScheduler:
                     retry_count=0
                 )
                 
-                # DEBUG: IMMEDIATE log after Message creation to verify assignment worked
-                if len(messages) < 4:
+                # DEBUG: Log IMMEDIATELY after Message() for first lead
+                if idx == 0:  # First lead only - ALL 4 mails
                     logger.warning(
-                        f"[DEBUG-CREATED-{len(messages)+1}] IMMEDIATELY AFTER Message(): "
-                        f"template_id={message.template_id!r}, "
-                        f"template_version={message.template_version!r}, "
-                        f"mail_number={message.mail_number}, "
-                        f"(passed: calculated_template_id={calculated_template_id!r}, "
-                        f"template_version={template_version})"
+                        f"🔥 [CREATED-M{mail_number}] Message.template_id={message.template_id!r}, "
+                        f"Message.template_version={message.template_version!r}"
                     )
                 
                 messages.append(message)
