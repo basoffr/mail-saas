@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, time
 from typing import List, Dict, Optional, Tuple
 from zoneinfo import ZoneInfo
 from loguru import logger
@@ -66,6 +66,41 @@ class CampaignScheduler:
         self.active_campaigns: Dict[str, str] = {}  # domain -> campaign_id
         self.domain_active_dates: Dict[str, date] = {}  # domain -> active date
     
+    def _validate_slot_day_and_hour(self, dt: datetime, stream: str) -> datetime:
+        """Validate day and hour are valid, preserve stream minutes.
+        
+        This is stream-aware alternative to get_next_valid_slot that preserves
+        the stream's minute alignment (:00/:20/:40 for A, :10/:30/:50 for B).
+        """
+        from app.core.stream_calculator import get_stream_slot_minutes
+        
+        # Get valid minutes for this stream
+        stream_minutes = get_stream_slot_minutes(stream)
+        current_minute = dt.minute
+        
+        # If weekend, move to next Monday and reset to first stream slot
+        while not SENDING_POLICY.is_valid_sending_day(dt):
+            dt += timedelta(days=1)
+            window_start_hour, _ = map(int, SENDING_POLICY.window_from.split(':'))
+            dt = dt.replace(hour=window_start_hour, minute=stream_minutes[0], second=0, microsecond=0)
+        
+        # If before window, set to window start with first stream slot
+        window_start_hour, _ = map(int, SENDING_POLICY.window_from.split(':'))
+        if dt.time() < time(window_start_hour, 0):
+            dt = dt.replace(hour=window_start_hour, minute=stream_minutes[0], second=0, microsecond=0)
+        
+        # If after window, move to next day with first stream slot  
+        window_end_hour, window_end_min = map(int, SENDING_POLICY.window_to.split(':'))
+        if dt.time() >= time(window_end_hour, window_end_min):
+            dt += timedelta(days=1)
+            dt = dt.replace(hour=window_start_hour, minute=stream_minutes[0], second=0, microsecond=0)
+            # Check if new day is valid
+            while not SENDING_POLICY.is_valid_sending_day(dt):
+                dt += timedelta(days=1)
+                dt = dt.replace(hour=window_start_hour, minute=stream_minutes[0], second=0, microsecond=0)
+        
+        return dt
+    
     def _find_next_available_slot(
         self,
         domain: str,
@@ -74,7 +109,7 @@ class CampaignScheduler:
         alias: str,
         slot_tracker: Dict[Tuple[str, datetime, str], int]
     ) -> datetime:
-        """V2.2: Find next available slot for a message with capacity tracking.
+        """V2.3: Find next available slot for a message with capacity tracking (STREAM-AWARE).
         
         Spreads messages across available slots based on:
         - Domain
@@ -94,7 +129,7 @@ class CampaignScheduler:
         """
         # Start with initial slot in correct stream
         current_slot = snap_to_stream_slot(target_date, stream)
-        current_slot = SENDING_POLICY.get_next_valid_slot(current_slot)
+        current_slot = self._validate_slot_day_and_hour(current_slot, stream)
         
         # Max iterations to prevent infinite loop
         # For 2103 leads * 4 messages = 8412 messages, we need much more headroom
@@ -129,8 +164,8 @@ class CampaignScheduler:
             # Stream B: :10, :30, :50 (20 min intervals)
             current_slot += timedelta(minutes=20)
             
-            # Ensure still valid (within work hours, workdays)
-            current_slot = SENDING_POLICY.get_next_valid_slot(current_slot)
+            # Ensure still valid (within work hours, workdays) - STREAM AWARE!
+            current_slot = self._validate_slot_day_and_hour(current_slot, stream)
             
             iteration += 1
         
