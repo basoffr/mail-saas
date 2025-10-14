@@ -156,15 +156,13 @@ class CampaignScheduler:
                 assert isinstance(template_version, int), f"template_version is not int: {type(template_version)}"
                 assert isinstance(calculated_template_id, str), f"calculated_template_id is not str: {type(calculated_template_id)}"
                 
-                # Create message with EXPLICIT kwargs
+                # Create message WITHOUT template fields first (SQLModel bug workaround)
                 message = Message(
                     id=str(uuid.uuid4()),
                     campaign_id=campaign.id,
                     lead_id=lead_id,
                     domain_used=lead_domain,  # LEAD-SPECIFIC!
                     mail_number=mail_number,
-                    template_version=template_version,  # MUST be int, NOT None!
-                    template_id=calculated_template_id,  # MUST be str, NOT None!
                     alias=alias,
                     from_email=from_email,
                     reply_to_email=reply_to_email,
@@ -173,6 +171,10 @@ class CampaignScheduler:
                     is_followup=(mail_number > 1),
                     retry_count=0
                 )
+                
+                # WORKAROUND: Set template fields AFTER creation (SQLModel ignores them in __init__)
+                message.template_version = template_version
+                message.template_id = calculated_template_id
                 
                 # DEBUG: Log IMMEDIATELY after Message() for first lead
                 if idx == 0:  # First lead only - ALL 4 mails
