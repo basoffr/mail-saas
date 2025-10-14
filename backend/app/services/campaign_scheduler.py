@@ -66,6 +66,65 @@ class CampaignScheduler:
         self.active_campaigns: Dict[str, str] = {}  # domain -> campaign_id
         self.domain_active_dates: Dict[str, date] = {}  # domain -> active date
     
+    def _find_next_available_slot(
+        self,
+        domain: str,
+        target_date: datetime,
+        stream: str,
+        alias: str,
+        slot_tracker: Dict[Tuple[str, datetime, str], int]
+    ) -> datetime:
+        """V2.2: Find next available slot for a message with capacity tracking.
+        
+        Spreads messages across available slots based on:
+        - Domain
+        - Stream (A: M1/M3 at :00/:20/:40, B: M2/M4 at :10/:30/:50)
+        - Alias (christian or victor for dual-lane)
+        - Max 1 message per (domain, slot, alias) combination
+        
+        Args:
+            domain: The sending domain
+            target_date: Target date for this mail (after workday offset)
+            stream: Stream identifier ('A' or 'B')
+            alias: Sender alias ('christian' or 'victor')
+            slot_tracker: Dictionary tracking slot usage
+        
+        Returns:
+            Next available scheduled_at datetime
+        """
+        # Start with initial slot in correct stream
+        current_slot = snap_to_stream_slot(target_date, stream)
+        current_slot = SENDING_POLICY.get_next_valid_slot(current_slot)
+        
+        # Max iterations to prevent infinite loop (30 days worth of slots)
+        max_iterations = 30 * 3 * 9  # 30 days × 3 slots/hour × 9 hours
+        iteration = 0
+        
+        while iteration < max_iterations:
+            # Check if this slot is available for this domain/alias combination
+            slot_key = (domain, current_slot, alias)
+            current_count = slot_tracker.get(slot_key, 0)
+            
+            # Max 1 message per (domain, slot, alias) for dual-lane
+            if current_count < 1:
+                # Slot is available! Reserve it and return
+                slot_tracker[slot_key] = current_count + 1
+                return current_slot
+            
+            # Slot full, move to next slot in stream
+            # Stream A: :00, :20, :40 (20 min intervals)
+            # Stream B: :10, :30, :50 (20 min intervals)
+            current_slot += timedelta(minutes=20)
+            
+            # Ensure still valid (within work hours, workdays)
+            current_slot = SENDING_POLICY.get_next_valid_slot(current_slot)
+            
+            iteration += 1
+        
+        # Fallback: return original slot if we hit max iterations
+        logger.warning(f"Hit max iterations finding slot for {domain}/{alias}, using fallback")
+        return snap_to_stream_slot(target_date, stream)
+    
     def schedule_campaign(self, campaign: Campaign, lead_ids: List[str]) -> Dict:
         """Schedule campaign using lead-level domain assignment and stream-based slots."""
         
@@ -293,6 +352,11 @@ class CampaignScheduler:
         domain_distribution = {d: 0 for d in DOMAINS}
         message_counter = 0  # ABSOLUTE counter for debugging first message
         
+        # V2.2: Slot availability tracker for proper spreading
+        # Key: (domain, scheduled_at, alias) -> count of messages
+        # Max 1 message per (domain, slot, alias) for dual-lane
+        slot_tracker: Dict[Tuple[str, datetime, str], int] = {}
+        
         logger.warning(f"🚀 STARTING MESSAGE CREATION for {len(active_lead_ids)} leads")
         
         for idx, lead_id in enumerate(active_lead_ids):
@@ -329,14 +393,19 @@ class CampaignScheduler:
                 # V2.2: Determine stream for this mail
                 stream = get_stream_for_mail(mail_number)
                 
-                # Snap to valid slot in correct stream
-                scheduled_at = snap_to_stream_slot(target_date, stream)
-                
-                # Ensure it's during work hours
-                scheduled_at = SENDING_POLICY.get_next_valid_slot(scheduled_at)
-                
-                # Get alias and headers
+                # Get alias BEFORE finding slot (needed for tracking)
                 alias = flow.get_alias_for_mail(mail_number)
+                
+                # V2.2: Find next available slot with capacity tracking
+                scheduled_at = self._find_next_available_slot(
+                    domain=lead_domain,
+                    target_date=target_date,
+                    stream=stream,
+                    alias=alias,
+                    slot_tracker=slot_tracker
+                )
+                
+                # Headers (alias already retrieved above)
                 from_email = f"{alias}@{lead_domain}"
                 reply_to_email = f"christian@{lead_domain}"
                 
