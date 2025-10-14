@@ -78,15 +78,39 @@ class DBCampaignStore:
             campaign_id=row['campaign_id'],
             lead_id=row['lead_id'],
             domain_used=row['domain_used'],
-            template_version=row.get('template_version', 1),
-            is_followup=row.get('is_followup', False),
             scheduled_at=row['scheduled_at'],
             sent_at=row.get('sent_at'),
+            
+            # Flow-based fields (V2.2)
+            mail_number=row.get('mail_number', 1),
+            alias=row.get('alias', 'christian'),
+            from_email=row.get('from_email'),
+            reply_to_email=row.get('reply_to_email'),
+            template_version=row.get('template_version', 1),
+            template_id=row.get('template_id', 'v1m1'),  # CRITICAL: Must load template_id!
+            
+            # Status tracking
             status=MessageStatus(row.get('status', 'pending')),
+            cancel_reason=row.get('cancel_reason'),
             last_error=row.get('last_error'),
-            attempts=row.get('attempts', 0),
             open_at=row.get('open_at'),
-            reply_at=row.get('reply_at'),
+            
+            # Follow-up
+            parent_message_id=row.get('parent_message_id'),
+            is_followup=row.get('is_followup', False),
+            
+            # Retry tracking
+            retry_count=row.get('retry_count', 0),
+            attempts=row.get('attempts', 0),
+            
+            # SMTP tracking
+            smtp_message_id=row.get('smtp_message_id'),
+            x_campaign_message_id=row.get('x_campaign_message_id'),
+            
+            # Asset logging
+            with_image=row.get('with_image', False),
+            with_report=row.get('with_report', False),
+            
             created_at=row.get('created_at'),
         )
     
