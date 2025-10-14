@@ -41,7 +41,9 @@ import {
   RotateCcw,
   Trash2,
   Calendar,
-  Eye
+  Eye,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -97,6 +99,14 @@ export default function CampaignDetail() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [selectedMessage, setSelectedMessage] = useState<CampaignMessage | null>(null);
+  const [messagesPage, setMessagesPage] = useState(1);
+  
+  const MESSAGES_PER_PAGE = 25;
+  const totalMessagesPages = Math.ceil(messages.length / MESSAGES_PER_PAGE);
+  const paginatedMessages = messages.slice(
+    (messagesPage - 1) * MESSAGES_PER_PAGE,
+    messagesPage * MESSAGES_PER_PAGE
+  );
 
   useEffect(() => {
     if (id) {
@@ -419,24 +429,55 @@ export default function CampaignDetail() {
           </div>
         </Card>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Messages Table */}
-          <Card className="lg:col-span-2 shadow-card rounded-2xl overflow-hidden">
-            <div className="p-6 border-b">
-              <h2 className="text-xl font-bold">Recent Messages</h2>
-            </div>
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/30">
-                  <TableHead>Recipient</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Sent</TableHead>
-                  <TableHead>Last Activity</TableHead>
-                  <TableHead className="w-12"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {messages.slice(0, 10).map((message) => (
+        {/* V2.2: Schedule Timeline */}
+        <div className="mt-6">
+          <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+            <Calendar className="w-6 h-6" />
+            Schedule Timeline
+          </h2>
+          <ScheduleTimeline campaignId={campaign.id} />
+        </div>
+
+        {/* Messages Table - Full Width */}
+        <Card className="mt-6 shadow-card rounded-2xl overflow-hidden">
+          <div className="p-6 border-b flex items-center justify-between">
+            <h2 className="text-xl font-bold">Messages ({messages.length})</h2>
+            {totalMessagesPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setMessagesPage(p => Math.max(1, p - 1))}
+                  disabled={messagesPage === 1}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Page {messagesPage} of {totalMessagesPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setMessagesPage(p => Math.min(totalMessagesPages, p + 1))}
+                  disabled={messagesPage === totalMessagesPages}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/30">
+                <TableHead>Recipient</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Sent</TableHead>
+                <TableHead>Last Activity</TableHead>
+                <TableHead className="w-12"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paginatedMessages.map((message) => (
                   <TableRow key={message.id} className="hover:bg-muted/20">
                     <TableCell>
                       <div>
@@ -551,18 +592,8 @@ export default function CampaignDetail() {
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
-          </Card>
-        </div>
-
-        {/* V2.2: Schedule Timeline */}
-        <div className="mt-6">
-          <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-            <Calendar className="w-6 h-6" />
-            Schedule Timeline
-          </h2>
-          <ScheduleTimeline campaignId={campaign.id} />
-        </div>
+          </Table>
+        </Card>
       </div>
     </div>
   );
