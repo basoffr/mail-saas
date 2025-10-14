@@ -645,7 +645,7 @@ function LeadDetails({ lead }: { lead: Lead }) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="text-sm font-medium text-muted-foreground">Email</label>
-          <p className="text-lg font-mono">{lead.email}</p>
+          <p className="text-sm font-mono break-all">{lead.email}</p>
         </div>
         <div>
           <label className="text-sm font-medium text-muted-foreground">Status</label>
@@ -765,49 +765,52 @@ function LeadDetails({ lead }: { lead: Lead }) {
         )}
       </div>
 
-      {/* Image Section */}
-      <div>
-        <label className="text-sm font-medium text-muted-foreground mb-2 block">Image</label>
-        {lead.hasImage && lead.imageKey ? (
-          <ImagePreview imageKey={lead.imageKey} className="w-full max-w-md h-64 rounded-lg" />
-        ) : (
-          <div className="bg-muted/30 rounded-lg p-4 text-center text-muted-foreground">
-            <p className="text-sm">No image attached</p>
-          </div>
-        )}
-      </div>
+      {/* Image & Report Section - Side by side */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Image */}
+        <div>
+          <label className="text-sm font-medium text-muted-foreground mb-2 block">Image</label>
+          {lead.hasImage && lead.imageKey ? (
+            <ImagePreview imageKey={lead.imageKey} className="w-full h-48 rounded-lg" />
+          ) : (
+            <div className="bg-muted/30 rounded-lg p-4 text-center text-muted-foreground h-48 flex items-center justify-center">
+              <p className="text-sm">No image attached</p>
+            </div>
+          )}
+        </div>
 
-      {/* Report Section */}
-      <div>
-        <label className="text-sm font-medium text-muted-foreground mb-2 block">Report</label>
-        {lead.hasReport && lead.vars?.report_filename ? (
-          <div className="bg-muted/30 rounded-lg p-4">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <span className="text-green-600">📄 ✅</span>
-                <div>
-                  <p className="text-sm font-medium">Report attached</p>
-                  <p className="text-xs text-muted-foreground font-mono">{lead.vars.report_filename}</p>
+        {/* Report */}
+        <div>
+          <label className="text-sm font-medium text-muted-foreground mb-2 block">Report</label>
+          {lead.hasReport && lead.vars?.report_filename ? (
+            <div className="bg-muted/30 rounded-lg p-4 h-48 flex flex-col justify-between">
+              <div className="flex items-start gap-2">
+                <span className="text-green-600 text-2xl">📄 ✅</span>
+                <div className="flex-1">
+                  <p className="text-sm font-medium mb-1">Report attached</p>
+                  <p className="text-xs text-muted-foreground font-mono break-all">{lead.vars.report_filename}</p>
                 </div>
               </div>
               <Button
                 variant="outline"
                 size="sm"
+                className="w-full"
                 onClick={() => {
                   // Generate report URL and open in new tab
                   const reportUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/reports/${lead.vars.report_filename}`;
                   window.open(reportUrl, '_blank');
                 }}
               >
-                <ExternalLink className="w-4 h-4" />
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Open Report
               </Button>
             </div>
-          </div>
-        ) : (
-          <div className="bg-muted/30 rounded-lg p-4 text-center text-muted-foreground">
-            <p className="text-sm">No report attached</p>
-          </div>
-        )}
+          ) : (
+            <div className="bg-muted/30 rounded-lg p-4 text-center text-muted-foreground h-48 flex items-center justify-center">
+              <p className="text-sm">No report attached</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Delete Section */}
