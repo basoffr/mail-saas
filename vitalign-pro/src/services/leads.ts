@@ -128,9 +128,9 @@ export const leadsService = {
 
   async getImageUrl(imageKey: string): Promise<string> {
     const queryString = buildQueryString({ key: imageKey });
-    // Use /assets/image-by-key endpoint (registered on leads router without prefix)
+    // Use unique /leads/image-url endpoint to avoid conflict with assets.py
     // Returns JSON {data: {url: "..."}, error: null}
-    const response = await authService.apiCall<{ url: string }>(`/assets/image-by-key?${queryString}`);
+    const response = await authService.apiCall<{ url: string }>(`/leads/image-url?${queryString}`);
     return response.url;
   },
 

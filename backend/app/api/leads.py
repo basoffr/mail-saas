@@ -109,10 +109,10 @@ class AssetUrl(BaseModel):
     url: str
 
 
-@router.get("/assets/image-by-key", response_model=DataResponse[AssetUrl])
-async def get_asset_url(key: str):
+@router.get("/leads/image-url", response_model=DataResponse[AssetUrl])
+async def get_lead_image_url(key: str):
     """
-    Get public URL for image by key
+    Get public URL for lead image by key
     
     Args:
         key: Image key (e.g., "screenshots/example.png")
