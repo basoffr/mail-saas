@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from typing import List, Dict, Optional, Tuple
 from zoneinfo import ZoneInfo
 from loguru import logger
@@ -64,6 +64,7 @@ class CampaignScheduler:
         self.domain_queues: Dict[str, List[Dict]] = {}  # FIFO queue per domain
         self.domain_last_send: Dict[str, datetime] = {}
         self.active_campaigns: Dict[str, str] = {}  # domain -> campaign_id
+        self.domain_active_dates: Dict[str, date] = {}  # domain -> active date
     
     def schedule_campaign(self, campaign: Campaign, lead_ids: List[str]) -> Dict:
         """Schedule campaign using lead-level domain assignment and stream-based slots."""
