@@ -150,6 +150,13 @@ class CampaignScheduler:
                 template_version = flow.version
                 calculated_template_id = f"v{template_version}m{mail_number}"
                 
+                # CRITICAL DEBUG: Log for first lead's first mail
+                if idx == 0 and mail_number == 1:
+                    logger.error(
+                        f"🔥🔥🔥 FIRST MESSAGE: idx={idx}, mail_number={mail_number}, "
+                        f"template_version={template_version}, calculated_template_id={calculated_template_id}"
+                    )
+                
                 # CRITICAL: Assert these are NOT None before passing to Message()
                 assert template_version is not None, f"template_version is None! flow.version={flow.version}"
                 assert calculated_template_id is not None, f"calculated_template_id is None!"
@@ -180,11 +187,14 @@ class CampaignScheduler:
                 message.template_version = template_version
                 message.template_id = calculated_template_id
                 
-                # DEBUG: Log IMMEDIATELY after Message() for first lead
-                if idx == 0:  # First lead only - ALL 4 mails
-                    logger.warning(
-                        f"🔥 [CREATED-M{mail_number}] Message.template_id={message.template_id!r}, "
-                        f"Message.template_version={message.template_version!r}"
+                # CRITICAL DEBUG: Log for first lead's first mail AFTER setting attrs
+                if idx == 0 and mail_number == 1:
+                    logger.error(
+                        f"🔥🔥🔥 AFTER ATTRS SET: "
+                        f"message._custom_template_id={getattr(message, '_custom_template_id', 'NOT_FOUND')}, "
+                        f"message._custom_template_version={getattr(message, '_custom_template_version', 'NOT_FOUND')}, "
+                        f"message.template_id={message.template_id!r}, "
+                        f"message.template_version={message.template_version!r}"
                     )
                 
                 messages.append(message)
