@@ -66,14 +66,15 @@ class StorageReportsStore:
             return [], 0
         
         try:
-            # Use Storage SDK to list files
-            # Note: Supabase Python SDK .list() returns ALL files by default (no pagination needed)
-            files = self.supabase.storage.from_(self.bucket_name).list()
+            # Use SQL function to list ALL files (bypasses 100-file SDK limit)
+            result = self.supabase.rpc('list_storage_files', {'bucket_name': self.bucket_name}).execute()
             
-            if not files:
-                files = []
+            if not result.data:
+                logger.warning("No files found in storage")
+                return [], 0
             
-            logger.info(f"Storage SDK returned {len(files)} files")
+            files = result.data
+            logger.info(f"SQL function returned {len(files)} files from storage")
             
             # Convert to ReportOut format
             reports = []
@@ -88,23 +89,14 @@ class StorageReportsStore:
                     # Extract file type from extension
                     file_type = self._get_file_type(filename)
                     
-                    # Get size from metadata (Storage SDK structure)
-                    # Ensure we always have an integer value
-                    metadata = file_obj.get('metadata', {})
-                    size_bytes = 0  # Default
-                    if isinstance(metadata, dict):
-                        size_val = metadata.get('size')
-                        if size_val is not None:
-                            try:
-                                size_bytes = int(size_val)
-                            except (ValueError, TypeError):
-                                size_bytes = 0
+                    # Get size from SQL function result (direct field, not nested)
+                    size_bytes = file_obj.get('size', 0)
+                    if size_bytes is None:
+                        size_bytes = 0
                     
-                    # Get timestamp - ensure we always have a string value
+                    # Get timestamp from SQL function result (already ISO format)
                     created_at = file_obj.get('created_at')
-                    if not created_at or created_at is None:
-                        created_at = file_obj.get('updated_at')
-                    if not created_at or created_at is None:
+                    if not created_at:
                         created_at = datetime.utcnow().isoformat()
                     
                     # For bound_to, try to extract domain from filename
