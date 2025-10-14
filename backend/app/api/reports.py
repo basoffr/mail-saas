@@ -242,7 +242,7 @@ async def unbind_report(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/{report_id}/download", response_model=DataResponse[DownloadResponse])
+@router.get("/{report_id}/download-url", response_model=DataResponse[DownloadResponse])
 async def download_report(
     report_id: str,
     user: Dict[str, Any] = Depends(require_auth)
