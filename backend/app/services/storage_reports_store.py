@@ -66,7 +66,14 @@ class StorageReportsStore:
             return [], 0
         
         try:
-            # Use SQL function to list ALL files (bypasses 100-file SDK limit)
+            # Use SQL function to list ALL files
+            # PostgREST has default 1000-row limit, we need to override with headers
+            # Set Range header to request more rows (0-9999 = 10000 rows)
+            self.supabase.postgrest.headers.update({
+                'Range': '0-9999',
+                'Prefer': 'count=exact'
+            })
+            
             result = self.supabase.rpc('list_storage_files', {'bucket_name': self.bucket_name}).execute()
             
             if not result.data:
@@ -74,7 +81,7 @@ class StorageReportsStore:
                 return [], 0
             
             files = result.data
-            logger.info(f"SQL function returned {len(files)} files from storage")
+            logger.info(f"SQL function returned {len(files)} files from storage (PostgREST limit bypassed)")
             
             # Convert to ReportOut format
             reports = []
