@@ -260,7 +260,21 @@ class MailAccountService:
     
     def _get_password_from_secret_store(self, secret_ref: str) -> Optional[str]:
         """Get password from secret store"""
-        # In production, this would connect to Render Secrets, Supabase Vault, etc.
-        # For MVP, passwords should be configured via environment variables
+        # Parse secret_ref format: vault://imap/punthelder-DOMAIN/PERSON
+        # Map to env var: IMAP_PASSWORD_DOMAIN_PERSON
         import os
+        
+        # Example: vault://imap/punthelder-marketing/christian -> MARKETING_CHRISTIAN
+        if secret_ref.startswith('vault://imap/punthelder-'):
+            # Extract domain and person
+            parts = secret_ref.replace('vault://imap/punthelder-', '').split('/')
+            if len(parts) == 2:
+                domain = parts[0].upper()  # 'marketing' -> 'MARKETING'
+                person = parts[1].upper()  # 'christian' -> 'CHRISTIAN'
+                env_var = f"IMAP_PASSWORD_{domain}_{person}"
+                password = os.getenv(env_var)
+                logger.info(f"Looking up password: {env_var} -> {'Found' if password else 'Not found'}")
+                return password
+        
+        # Fallback: try direct lookup
         return os.getenv(f"IMAP_PASSWORD_{secret_ref}")
