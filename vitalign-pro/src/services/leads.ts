@@ -128,9 +128,9 @@ export const leadsService = {
 
   async getImageUrl(imageKey: string): Promise<string> {
     const queryString = buildQueryString({ key: imageKey });
-    // Use leads endpoint which returns JSON {data: {url: "..."}, error: null}
-    // NOT assets endpoint which returns RedirectResponse (can't be parsed as JSON)
-    const response = await authService.apiCall<{ url: string }>(`/leads/assets/image-by-key?${queryString}`);
+    // Use /assets/image-by-key endpoint (registered on leads router without prefix)
+    // Returns JSON {data: {url: "..."}, error: null}
+    const response = await authService.apiCall<{ url: string }>(`/assets/image-by-key?${queryString}`);
     return response.url;
   },
 
