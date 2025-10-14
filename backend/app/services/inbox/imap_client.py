@@ -55,11 +55,12 @@ class IMAPClient:
                 date_str = last_fetch_date.strftime("%d-%b-%Y")
                 search_criteria = f"SINCE {date_str}"
             else:
-                # First time fetch - only get messages from last 7 days
+                # First time fetch - only get messages from last 3 days
                 from datetime import datetime, timedelta
-                seven_days_ago = (datetime.utcnow() - timedelta(days=7)).strftime("%d-%b-%Y")
-                search_criteria = f"SINCE {seven_days_ago}"
-                logger.info(f"First fetch - getting messages since {seven_days_ago}")
+                days_back = 3  # Configurable: 3 days for initial fetch
+                cutoff_date = (datetime.utcnow() - timedelta(days=days_back)).strftime("%d-%b-%Y")
+                search_criteria = f"SINCE {cutoff_date}"
+                logger.info(f"First fetch - getting messages since {cutoff_date} ({days_back} days)")
             
             # Search for messages
             status, message_ids = self.connection.uid('search', None, search_criteria)
