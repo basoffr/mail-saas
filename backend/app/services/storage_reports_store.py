@@ -72,10 +72,7 @@ class StorageReportsStore:
             if not files:
                 files = []
             
-            # DEBUG: Log structure of first file to understand SDK response
-            if len(files) > 0:
-                logger.info(f"DEBUG - Storage SDK file object keys: {list(files[0].keys())}")
-                logger.info(f"DEBUG - First file sample: {files[0]}")
+            logger.info(f"Storage SDK returned {len(files)} files")
             
             # Convert to ReportOut format
             reports = []
@@ -90,23 +87,24 @@ class StorageReportsStore:
                     # Extract file type from extension
                     file_type = self._get_file_type(filename)
                     
-                    # Storage SDK returns metadata as nested dict or direct fields
-                    # Try multiple possible structures
-                    metadata = file_obj.get('metadata')
-                    
+                    # Get size from metadata (Storage SDK structure)
+                    # Ensure we always have an integer value
+                    metadata = file_obj.get('metadata', {})
+                    size_bytes = 0  # Default
                     if isinstance(metadata, dict):
-                        # Metadata is nested object
-                        size_bytes = metadata.get('size', 0) or 0
-                    else:
-                        # Try direct fields (SDK might flatten structure)
-                        size_bytes = 0
+                        size_val = metadata.get('size')
+                        if size_val is not None:
+                            try:
+                                size_bytes = int(size_val)
+                            except (ValueError, TypeError):
+                                size_bytes = 0
                     
-                    # Get timestamp - Storage SDK typically uses created_at or updated_at
-                    created_at = (
-                        file_obj.get('created_at') or 
-                        file_obj.get('updated_at') or 
-                        datetime.utcnow().isoformat()
-                    )
+                    # Get timestamp - ensure we always have a string value
+                    created_at = file_obj.get('created_at')
+                    if not created_at or created_at is None:
+                        created_at = file_obj.get('updated_at')
+                    if not created_at or created_at is None:
+                        created_at = datetime.utcnow().isoformat()
                     
                     # For bound_to, try to extract domain from filename
                     domain = self._extract_domain_from_filename(filename)
