@@ -96,9 +96,14 @@ class CampaignScheduler:
         current_slot = snap_to_stream_slot(target_date, stream)
         current_slot = SENDING_POLICY.get_next_valid_slot(current_slot)
         
-        # Max iterations to prevent infinite loop (30 days worth of slots)
-        max_iterations = 30 * 3 * 9  # 30 days × 3 slots/hour × 9 hours
+        # Max iterations to prevent infinite loop
+        # For 2103 leads * 4 messages = 8412 messages, we need much more headroom
+        # 100 workdays * 27 slots/day = 2700 slots should be more than enough
+        max_iterations = 100 * 27  # 2700 slot checks
         iteration = 0
+        
+        # Track initial slot for debugging
+        initial_slot = current_slot
         
         while iteration < max_iterations:
             # Check if this slot is available for this domain/alias combination
@@ -109,6 +114,14 @@ class CampaignScheduler:
             if current_count < 1:
                 # Slot is available! Reserve it and return
                 slot_tracker[slot_key] = current_count + 1
+                
+                # Log if we had to search far from initial slot (debugging)
+                if iteration > 100:
+                    logger.warning(
+                        f"Took {iteration} iterations to find slot for {domain}/{alias} "
+                        f"(initial: {initial_slot.date()}, found: {current_slot.date()})"
+                    )
+                
                 return current_slot
             
             # Slot full, move to next slot in stream
@@ -121,8 +134,12 @@ class CampaignScheduler:
             
             iteration += 1
         
-        # Fallback: return original slot if we hit max iterations
-        logger.warning(f"Hit max iterations finding slot for {domain}/{alias}, using fallback")
+        # Fallback: return original slot if we hit max iterations (should NEVER happen!)
+        logger.error(
+            f"CRITICAL: Hit max iterations ({max_iterations}) finding slot for {domain}/{alias}! "
+            f"Initial slot: {initial_slot}, current slot: {current_slot}. "
+            f"This indicates a bug in slot tracking logic!"
+        )
         return snap_to_stream_slot(target_date, stream)
     
     def schedule_campaign(self, campaign: Campaign, lead_ids: List[str]) -> Dict:
