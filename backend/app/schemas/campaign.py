@@ -236,7 +236,7 @@ class ScheduledMessageOut(BaseModel):
 
 
 class ScheduleResponse(BaseModel):
-    """Schedule view response."""
+    """Schedule view response with per-day pagination."""
     campaign_id: str = Field(alias='campaignId')
     effective_start: datetime = Field(alias='effectiveStart')
     window: str = "08:00-17:00"
@@ -246,6 +246,12 @@ class ScheduleResponse(BaseModel):
     })
     slots: List[ScheduledMessageOut]
     total_count: int = Field(alias='totalCount')
+    
+    # V2.3: Per-day pagination
+    current_day: Optional[int] = Field(None, alias='currentDay')  # Day number (1-based)
+    total_days: Optional[int] = Field(None, alias='totalDays')  # Total campaign days
+    day_date: Optional[datetime] = Field(None, alias='dayDate')  # Actual date for this day
+    messages_this_day: Optional[int] = Field(None, alias='messagesThisDay')  # Count for this page
     
     class Config:
         populate_by_name = True

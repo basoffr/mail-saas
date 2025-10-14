@@ -595,51 +595,146 @@ async def stop_lead_flow(
 @router.get("/{campaign_id}/schedule", response_model=DataResponse[ScheduleResponse])
 async def get_schedule(
     campaign_id: str,
-    limit: int = Query(200, ge=1, le=500),
+    day: Optional[int] = Query(None, ge=1, description="Day number (1-based) for per-day pagination"),
+    limit: int = Query(200, ge=1, le=500, description="Max messages (fallback if no day specified)"),
     domain: Optional[str] = Query(None),
     from_ts: Optional[datetime] = Query(None),
     user: Dict[str, Any] = Depends(require_auth)
 ):
-    """V2.2: Get campaign scheduling timeline (admin & viewer)."""
+    """V2.3: Get campaign scheduling timeline with per-day pagination.
+    
+    Query params:
+    - day: Day number (1-based) to view a specific day's schedule
+    - limit: Max messages to return (used if day is not specified)
+    - domain: Filter by specific domain
+    - from_ts: Filter from specific timestamp
+    """
     try:
         # Get campaign
         campaign = campaign_store.get_campaign(campaign_id)
         if not campaign:
             raise HTTPException(status_code=404, detail="Campaign not found")
         
-        # Get scheduled messages
-        messages = campaign_store.get_schedule(
+        # Get ALL scheduled messages for this campaign (for day calculation)
+        all_messages = campaign_store.get_schedule(
             campaign_id=campaign_id,
-            limit=limit,
+            limit=10000,  # High limit to get all messages
             domain=domain,
             from_ts=from_ts
         )
         
-        # Convert to ScheduledMessageOut
-        slots = [
-            ScheduledMessageOut(
-                message_id=m.id,
-                lead_id=m.lead_id,
-                mail_number=m.mail_number,
-                template_id=m.template_id,  # V2.2: Include template_id!
-                alias=m.alias,
-                domain_used=m.domain_used,
-                scheduled_at=m.scheduled_at,
-                status=m.status,
-                cancel_reason=getattr(m, 'cancel_reason', None)
+        if not all_messages:
+            # No messages scheduled yet
+            response = ScheduleResponse(
+                campaign_id=campaign_id,
+                effective_start=campaign.start_at or campaign.created_at,
+                slots=[],
+                total_count=0,
+                current_day=None,
+                total_days=0,
+                day_date=None,
+                messages_this_day=0
             )
-            for m in messages
-        ]
+            logger.info(f"Retrieved schedule for campaign {campaign_id}: 0 messages")
+            return DataResponse(data=response)
         
-        response = ScheduleResponse(
-            campaign_id=campaign_id,
-            effective_start=campaign.start_at or campaign.created_at,
-            slots=slots,
-            total_count=len(slots)
-        )
+        # V2.3: Per-day pagination logic
+        if day is not None:
+            # Group messages by date
+            from collections import defaultdict
+            from datetime import date as date_type
+            
+            messages_by_date = defaultdict(list)
+            for msg in all_messages:
+                msg_date = msg.scheduled_at.date()
+                messages_by_date[msg_date].append(msg)
+            
+            # Sort dates
+            sorted_dates = sorted(messages_by_date.keys())
+            total_days = len(sorted_dates)
+            
+            # Validate day number
+            if day > total_days:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Day {day} out of range. Campaign has {total_days} days."
+                )
+            
+            # Get messages for requested day (1-based indexing)
+            target_date = sorted_dates[day - 1]
+            day_messages = messages_by_date[target_date]
+            
+            # Convert to ScheduledMessageOut
+            slots = [
+                ScheduledMessageOut(
+                    message_id=m.id,
+                    lead_id=m.lead_id,
+                    mail_number=m.mail_number,
+                    template_id=m.template_id,
+                    alias=m.alias,
+                    domain_used=m.domain_used,
+                    scheduled_at=m.scheduled_at,
+                    status=m.status,
+                    cancel_reason=getattr(m, 'cancel_reason', None)
+                )
+                for m in day_messages
+            ]
+            
+            # Sort by scheduled_at within the day
+            slots.sort(key=lambda x: x.scheduled_at)
+            
+            # Create datetime for day_date (start of day)
+            from zoneinfo import ZoneInfo
+            day_datetime = datetime.combine(
+                target_date, 
+                datetime.min.time()
+            ).replace(tzinfo=ZoneInfo("Europe/Amsterdam"))
+            
+            response = ScheduleResponse(
+                campaign_id=campaign_id,
+                effective_start=campaign.start_at or campaign.created_at,
+                slots=slots,
+                total_count=len(all_messages),  # Total across ALL days
+                current_day=day,
+                total_days=total_days,
+                day_date=day_datetime,
+                messages_this_day=len(slots)
+            )
+            
+            logger.info(
+                f"Retrieved schedule for campaign {campaign_id}: "
+                f"day {day}/{total_days} ({target_date}), {len(slots)} messages"
+            )
+            return DataResponse(data=response)
         
-        logger.info(f"Retrieved schedule for campaign {campaign_id}: {len(slots)} slots")
-        return DataResponse(data=response)
+        else:
+            # Legacy: No day specified, use limit
+            messages = all_messages[:limit]
+            
+            slots = [
+                ScheduledMessageOut(
+                    message_id=m.id,
+                    lead_id=m.lead_id,
+                    mail_number=m.mail_number,
+                    template_id=m.template_id,
+                    alias=m.alias,
+                    domain_used=m.domain_used,
+                    scheduled_at=m.scheduled_at,
+                    status=m.status,
+                    cancel_reason=getattr(m, 'cancel_reason', None)
+                )
+                for m in messages
+            ]
+            
+            response = ScheduleResponse(
+                campaign_id=campaign_id,
+                effective_start=campaign.start_at or campaign.created_at,
+                slots=slots,
+                total_count=len(all_messages)
+            )
+            
+            logger.info(f"Retrieved schedule for campaign {campaign_id}: {len(slots)} slots (limit mode)")
+            return DataResponse(data=response)
         
     except HTTPException:
         raise
