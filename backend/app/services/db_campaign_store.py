@@ -389,6 +389,16 @@ class DBCampaignStore:
                     "created_at": message.created_at.isoformat() if message.created_at else datetime.utcnow().isoformat(),
                 })
             
+            # DEBUG: Log first 4 messages being inserted to DB
+            if len(data_list) >= 4:
+                for i in range(4):
+                    msg = data_list[i]
+                    logger.warning(
+                        f"[DEBUG-DB-INSERT-{i+1}] domain={msg['domain_used']}, "
+                        f"mail_number={msg['mail_number']}, template_id={msg['template_id']}, "
+                        f"template_version={msg['template_version']}, alias={msg['alias']}"
+                    )
+            
             self.supabase.table("messages").insert(data_list).execute()
             logger.info(f"Created {len(messages)} messages")
             return messages

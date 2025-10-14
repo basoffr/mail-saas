@@ -112,9 +112,9 @@ class CampaignScheduler:
             
             # DEBUG: Log flow for first 5 leads to verify version is correct
             if idx < 5:
-                logger.info(
-                    f"🔍 LEAD {idx+1}: domain={lead_domain}, "
-                    f"flow.version={flow.version}, flow object={flow}"
+                logger.warning(
+                    f"[DEBUG-LEAD-{idx+1}] domain={lead_domain}, "
+                    f"flow.version={flow.version}, flow.domain={flow.domain}"
                 )
             
             # Schedule each mail for this lead
@@ -150,8 +150,8 @@ class CampaignScheduler:
                 
                 # DEBUG: Log first lead's all messages to verify template_id calculation
                 if idx == 0:  # First lead only
-                    logger.info(
-                        f"📧 FIRST LEAD Message {mail_number}: domain={lead_domain}, "
+                    logger.warning(
+                        f"[DEBUG-MSG-{mail_number}] FIRST_LEAD domain={lead_domain}, "
                         f"flow.version={flow.version}, template_id={template_id}, "
                         f"template_version={template_version}, alias={alias}"
                     )
