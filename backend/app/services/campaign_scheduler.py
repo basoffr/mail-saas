@@ -146,14 +146,15 @@ class CampaignScheduler:
                 
                 # V2.2: Calculate template_id (e.g., v2m3 = version 2, mail 3)
                 template_version = flow.version
-                template_id = f"v{template_version}m{mail_number}"
+                calculated_template_id = f"v{template_version}m{mail_number}"
                 
-                # DEBUG: Log first lead's all messages to verify template_id calculation
-                if idx == 0:  # First lead only
+                # DEBUG: ALWAYS log first 4 messages to see calculation
+                if len(messages) < 4:
                     logger.warning(
-                        f"[DEBUG-MSG-{mail_number}] FIRST_LEAD domain={lead_domain}, "
-                        f"flow.version={flow.version}, template_id={template_id}, "
-                        f"template_version={template_version}, alias={alias}"
+                        f"[DEBUG-CALC-{len(messages)+1}] mail_number={mail_number}, "
+                        f"template_version={template_version}, "
+                        f"calculated_template_id={calculated_template_id}, "
+                        f"String parts: v={template_version}, m={mail_number}"
                     )
                 
                 # Create message
@@ -164,7 +165,7 @@ class CampaignScheduler:
                     domain_used=lead_domain,  # LEAD-SPECIFIC!
                     mail_number=mail_number,
                     template_version=template_version,  # V2.2: 1-4
-                    template_id=template_id,  # V2.2: v2m3
+                    template_id=calculated_template_id,  # V2.2: v2m3 (use NEW variable name!)
                     alias=alias,
                     from_email=from_email,
                     reply_to_email=reply_to_email,
@@ -173,6 +174,15 @@ class CampaignScheduler:
                     is_followup=(mail_number > 1),
                     retry_count=0
                 )
+                
+                # DEBUG: Log Message object AFTER creation
+                if len(messages) < 4:
+                    logger.warning(
+                        f"[DEBUG-CREATED-{len(messages)+1}] Message object: "
+                        f"template_id={message.template_id}, mail_number={message.mail_number}, "
+                        f"template_version={message.template_version}"
+                    )
+                
                 messages.append(message)
         
         # Add to domain queues (per domain)
