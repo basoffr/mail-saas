@@ -67,9 +67,12 @@ export const leadsService = {
     formData.append('file', file);
     formData.append('mapping', JSON.stringify(mapping));
 
-    const response = await fetch(`${authService.getConfig().baseUrl}/import/leads`, {
+    const config = await authService.getConfig();
+    const headers = await authService.getAuthHeadersForFormData();
+
+    const response = await fetch(`${config.baseUrl}/import/leads`, {
       method: 'POST',
-      headers: authService.getAuthHeadersForFormData(),
+      headers: headers,
       body: formData,
     });
 
@@ -101,9 +104,12 @@ export const leadsService = {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch(`${authService.getConfig().baseUrl}/import/preview`, {
+    const config = await authService.getConfig();
+    const headers = await authService.getAuthHeadersForFormData();
+
+    const response = await fetch(`${config.baseUrl}/import/preview`, {
       method: 'POST',
-      headers: authService.getAuthHeadersForFormData(),
+      headers: headers,
       body: formData,
     });
 
@@ -122,7 +128,10 @@ export const leadsService = {
 
   async getImageUrl(imageKey: string): Promise<string> {
     const queryString = buildQueryString({ key: imageKey });
-    return await authService.apiCall<string>(`/assets/image-by-key?${queryString}`);
+    // Use leads endpoint which returns JSON {data: {url: "..."}, error: null}
+    // NOT assets endpoint which returns RedirectResponse (can't be parsed as JSON)
+    const response = await authService.apiCall<{ url: string }>(`/leads/assets/image-by-key?${queryString}`);
+    return response.url;
   },
 
   async deleteLeads(leadIds: string[], reason?: string): Promise<LeadDeleteResponse> {

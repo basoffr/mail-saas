@@ -62,9 +62,11 @@ export function ImagePreview({ imageKey, alt, className }: ImagePreviewProps) {
       <Card className={`p-6 border-destructive/50 ${className}`}>
         <div className="flex flex-col items-center justify-center text-destructive">
           <AlertCircle className="w-8 h-8 mb-2" />
-          <span className="text-sm">Failed to load image</span>
+          <span className="text-sm font-medium">Failed to load image</span>
           {imageKey && (
-            <span className="text-xs text-muted-foreground mt-1">Key: {imageKey}</span>
+            <span className="text-xs text-muted-foreground mt-2 font-mono truncate max-w-full px-4">
+              {imageKey}
+            </span>
           )}
         </div>
       </Card>

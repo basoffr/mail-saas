@@ -769,7 +769,7 @@ function LeadDetails({ lead }: { lead: Lead }) {
       <div>
         <label className="text-sm font-medium text-muted-foreground mb-2 block">Image</label>
         {lead.hasImage && lead.imageKey ? (
-          <ImagePreview imageKey={lead.imageKey} className="w-32 h-32 rounded-lg" />
+          <ImagePreview imageKey={lead.imageKey} className="w-full max-w-md h-64 rounded-lg" />
         ) : (
           <div className="bg-muted/30 rounded-lg p-4 text-center text-muted-foreground">
             <p className="text-sm">No image attached</p>
