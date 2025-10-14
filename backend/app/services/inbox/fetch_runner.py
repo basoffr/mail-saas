@@ -40,6 +40,11 @@ class MailMessageStore:
             return message_data
         
         try:
+            # Convert datetime to ISO string for JSON serialization
+            received_at = message_data['received_at']
+            if isinstance(received_at, datetime):
+                received_at = received_at.isoformat()
+            
             # Prepare data for Supabase (snake_case)
             db_data = {
                 'account_id': message_data['account_id'],
@@ -53,7 +58,7 @@ class MailMessageStore:
                 'to_email': message_data.get('to_email'),
                 'subject': message_data['subject'],
                 'snippet': message_data.get('snippet'),
-                'received_at': message_data['received_at'],
+                'received_at': received_at,  # ISO string now
                 'linked_campaign_id': message_data.get('linked_campaign_id'),
                 'linked_lead_id': message_data.get('linked_lead_id'),
                 'linked_message_id': message_data.get('linked_message_id'),
@@ -69,15 +74,20 @@ class MailMessageStore:
             
             if result.data and len(result.data) > 0:
                 stored = result.data[0]
-                message_data['id'] = stored['id']
+                message_data['id'] = stored.get('id', str(uuid4()))
+                logger.debug(f"Message stored/updated in Supabase: UID {message_data.get('uid')}")
                 return message_data
             else:
-                # Duplicate found by unique constraint
+                # Duplicate found by unique constraint, generate temp ID
                 logger.debug(f"Duplicate message ignored: UID {message_data.get('uid')}")
+                message_data['id'] = str(uuid4())  # Ensure 'id' always exists
                 return message_data
                 
         except Exception as e:
             logger.error(f"Failed to store message in Supabase: {e}")
+            # Ensure 'id' exists even on error
+            if 'id' not in message_data:
+                message_data['id'] = str(uuid4())
             return message_data
     
     def get_all(self) -> List[Dict[str, Any]]:
