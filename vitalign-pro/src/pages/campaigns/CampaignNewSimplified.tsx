@@ -67,7 +67,7 @@ const defaultData: WizardData = {
   startMode: 'now',
   listName: '',  // Changed from undefined to empty string
   leadIds: [],
-  onePerDomain: false
+  onePerDomain: true  // Hardcoded - altijd 1 lead per domein
 };
 
 export default function CampaignNewSimplified() {
@@ -123,6 +123,9 @@ export default function CampaignNewSimplified() {
         ...prev,
         leadIds: ids
       }));
+      
+      // Set wizard step to audience so user stays in flow
+      setStep('audience');
       
       toast({
         title: 'Leads geïmporteerd',
@@ -508,34 +511,14 @@ export default function CampaignNewSimplified() {
             </div>
           </div>
 
-          <div>
-            <Label className="text-base font-semibold mb-3 block">Auto-Filters (altijd actief)</Label>
-            <Card className="p-4 bg-muted/30">
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span>Suppressed leads uitgesloten</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span>Bounced emails uitgesloten</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span>Recent gecontacteerd (&lt; 14 dagen) uitgesloten</span>
-                </div>
-              </div>
-            </Card>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="one-per-domain"
-              checked={data.onePerDomain}
-              onCheckedChange={(checked) => updateData({ onePerDomain: !!checked })}
-            />
-            <Label htmlFor="one-per-domain">Maximaal één lead per domein</Label>
-          </div>
+          <Card className="p-4 bg-blue-50 border-blue-200">
+            <div className="flex items-center gap-2">
+              <Info className="w-4 h-4 text-blue-600" />
+              <p className="text-sm text-blue-900">
+                <strong>Automatisch toegepast:</strong> Maximaal 1 lead per domein (voorkomt meerdere emails naar hetzelfde bedrijf)
+              </p>
+            </div>
+          </Card>
         </div>
       </div>
     </Card>
@@ -584,7 +567,7 @@ export default function CampaignNewSimplified() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">One per domain:</span>
-                  <span className="font-medium">{data.onePerDomain ? 'Ja' : 'Nee'}</span>
+                  <span className="font-medium">Ja (automatisch)</span>
                 </div>
               </div>
             </div>
@@ -617,10 +600,13 @@ export default function CampaignNewSimplified() {
               </div>
               <div className="pt-2 border-t border-primary/10">
                 <p className="text-xs text-muted-foreground">
-                  <strong>Totale mails:</strong> {data.leadIds.length * 4} over 9 werkdagen
+                  <strong>Totale mails:</strong> {data.leadIds.length * 4} emails
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  <strong>Throttle:</strong> 1 mail per 20 min per domein (12 mails/uur totaal)
+                  <strong>Planning:</strong> Mail 1 verzendt over ~{Math.ceil(data.leadIds.length / 108)} werkdagen, daarna +3/+6/+9 dag follow-ups
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  <strong>Throttle:</strong> 108 mails/dag (4 domeinen parallel, 1 mail/20min/domein, 9u/dag)
                 </p>
               </div>
             </div>
