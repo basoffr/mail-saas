@@ -17,7 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Calendar, RefreshCw, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Calendar, RefreshCw, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { campaignsService } from '@/services/campaigns';
 import { ScheduleResponse, ScheduledMessage } from '@/types/campaign';
 import { format } from 'date-fns';
@@ -48,16 +49,18 @@ export function ScheduleTimeline({ campaignId }: ScheduleTimelineProps) {
   const [schedule, setSchedule] = useState<ScheduleResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedDomain, setSelectedDomain] = useState('all');
+  const [currentDay, setCurrentDay] = useState(1);
+  const [jumpToDay, setJumpToDay] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchSchedule();
-  }, [campaignId, selectedDomain]);
+    fetchSchedule(currentDay);
+  }, [campaignId, selectedDomain, currentDay]);
 
-  const fetchSchedule = async () => {
+  const fetchSchedule = async (day: number) => {
     setLoading(true);
     try {
-      const options: any = { limit: 200 };
+      const options: any = { day };
       if (selectedDomain !== 'all') {
         options.domain = selectedDomain;
       }
@@ -72,6 +75,32 @@ export function ScheduleTimeline({ campaignId }: ScheduleTimelineProps) {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePreviousDay = () => {
+    if (currentDay > 1) {
+      setCurrentDay(currentDay - 1);
+    }
+  };
+
+  const handleNextDay = () => {
+    if (schedule && currentDay < (schedule.totalDays || 1)) {
+      setCurrentDay(currentDay + 1);
+    }
+  };
+
+  const handleJumpToDay = () => {
+    const day = parseInt(jumpToDay);
+    if (day && day >= 1 && schedule && day <= (schedule.totalDays || 1)) {
+      setCurrentDay(day);
+      setJumpToDay('');
+    } else {
+      toast({
+        title: 'Ongeldige dag',
+        description: `Voer een getal in tussen 1 en ${schedule?.totalDays || 1}`,
+        variant: 'destructive',
+      });
     }
   };
 
@@ -117,7 +146,7 @@ export function ScheduleTimeline({ campaignId }: ScheduleTimelineProps) {
           <div className="flex items-center gap-2">
             <Calendar className="w-5 h-5 text-primary" />
             <h3 className="text-lg font-semibold">Schedule Timeline</h3>
-            <Badge variant="outline">{schedule.totalCount} messages</Badge>
+            <Badge variant="outline">{schedule.totalCount} messages totaal</Badge>
           </div>
           <div className="flex items-center gap-2">
             <Select value={selectedDomain} onValueChange={setSelectedDomain}>
@@ -132,9 +161,78 @@ export function ScheduleTimeline({ campaignId }: ScheduleTimelineProps) {
                 ))}
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" onClick={fetchSchedule}>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => fetchSchedule(currentDay)}
+            >
               <RefreshCw className="w-4 h-4" />
             </Button>
+          </div>
+        </div>
+
+        {/* V2.3: Per-Day Pagination Controls */}
+        <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePreviousDay}
+              disabled={currentDay === 1 || loading}
+              className="gap-1"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Vorige Dag
+            </Button>
+            
+            <div className="flex flex-col items-center px-4">
+              <div className="text-lg font-semibold text-blue-900">
+                Dag {schedule?.currentDay || currentDay} van {schedule?.totalDays || '...'}
+              </div>
+              {schedule?.dayDate && (
+                <div className="text-sm text-blue-700">
+                  {format(new Date(schedule.dayDate), 'EEEE d MMMM yyyy', { locale: nl })}
+                </div>
+              )}
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleNextDay}
+              disabled={currentDay === (schedule?.totalDays || 1) || loading}
+              className="gap-1"
+            >
+              Volgende Dag
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="text-sm">
+              {schedule?.messagesThisDay || 0} messages deze dag
+            </Badge>
+            
+            <div className="flex items-center gap-2 ml-4">
+              <span className="text-sm text-muted-foreground">Spring naar dag:</span>
+              <Input
+                type="number"
+                min="1"
+                max={schedule?.totalDays || 1}
+                value={jumpToDay}
+                onChange={(e) => setJumpToDay(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleJumpToDay()}
+                placeholder="Dag #"
+                className="w-20"
+              />
+              <Button 
+                size="sm" 
+                onClick={handleJumpToDay}
+                disabled={!jumpToDay || loading}
+              >
+                Go
+              </Button>
+            </div>
           </div>
         </div>
 
