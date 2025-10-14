@@ -247,14 +247,18 @@ async def download_report(
     report_id: str,
     user: Dict[str, Any] = Depends(require_auth)
 ):
-    """Get download URL for report."""
+    """Get download URL for report (Storage-based approach)."""
     try:
-        report = reports_store.get_report(report_id)
-        if not report:
-            raise HTTPException(status_code=404, detail="Report not found")
-        
-        # Generate signed URL
-        download_url = file_handler.generate_download_url(report.storage_path)
+        # For Storage-based approach, report_id IS the filename
+        # Check if storage store has get_download_url method
+        if hasattr(reports_store, 'get_download_url'):
+            download_url = reports_store.get_download_url(report_id)
+        else:
+            # Fallback to file_handler for database-based stores
+            report = reports_store.get_report(report_id)
+            if not report:
+                raise HTTPException(status_code=404, detail="Report not found")
+            download_url = file_handler.generate_download_url(report.storage_path)
         
         response = DownloadResponse(
             url=download_url,

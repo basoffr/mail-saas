@@ -81,28 +81,17 @@ except Exception as e:
     campaigns_store = None
 
 # ============================================================================
-# REPORTS STORE
+# REPORTS STORE - Direct Storage Access (No Database)
 # ============================================================================
 try:
-    if USE_DB:
-        try:
-            from app.services.db_reports_store import DBReportsStore
-            reports_store = DBReportsStore()
-            logger.info("✅ Using DBReportsStore (Supabase database)")
-        except Exception as e:
-            logger.error(f"Failed to initialize DBReportsStore: {e}, falling back to in-memory")
-            from app.services.reports_store import ReportsStore
-            reports_store = ReportsStore()
-    else:
-        from app.services.reports_store import ReportsStore
-        reports_store = ReportsStore()
-        logger.warning("⚠️  Using in-memory ReportsStore (development mode)")
+    from app.services.storage_reports_store import StorageReportsStore
+    reports_store = StorageReportsStore()
+    logger.info("✅ Using StorageReportsStore (Direct Supabase Storage access - no DB)")
 except Exception as e:
-    logger.critical(f"CRITICAL: Failed to initialize reports store: {e}")
-    # Create minimal fallback
+    logger.error(f"Failed to initialize StorageReportsStore: {e}, falling back to in-memory")
     from app.services.reports_store import ReportsStore
     reports_store = ReportsStore()
-    logger.warning("Emergency fallback: using in-memory ReportsStore")
+    logger.warning("⚠️ Using in-memory ReportsStore (fallback)")
 
 # ============================================================================
 # EXPORT SUMMARY
