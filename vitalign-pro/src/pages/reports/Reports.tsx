@@ -242,9 +242,6 @@ export default function Reports() {
                 <TableRow>
                   <TableHead>File</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Size</TableHead>
-                  <TableHead>Bound To</TableHead>
-                  <TableHead>Uploaded</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -260,17 +257,6 @@ export default function Reports() {
                         {FILE_TYPE_LABELS[report.type]}
                       </Badge>
                     </TableCell>
-                    <TableCell>{formatFileSize(report.sizeBytes)}</TableCell>
-                    <TableCell>
-                      {report.boundTo ? (
-                        <Badge variant="secondary">
-                          {report.boundTo.kind}: {report.boundTo.label}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">Unbound</span>
-                      )}
-                    </TableCell>
-                    <TableCell>{formatDate(report.uploadedAt)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
                         <Button
