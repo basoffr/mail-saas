@@ -8,23 +8,27 @@ from app.models.campaign import CampaignStatus, MessageStatus, MessageEventType
 class CampaignOut(BaseModel):
     id: str
     name: str
-    template_id: Optional[str] = None  # Nullable - templates handled per message
+    template_id: Optional[str] = Field(None, alias='templateId')  # Nullable - templates handled per message
     domain: str
-    start_at: Optional[datetime]
+    start_at: Optional[datetime] = Field(None, alias='startDate')  # V2.2: camelCase for frontend
     status: CampaignStatus
-    followup_enabled: bool
-    followup_days: int
-    followup_attach_report: bool
-    created_at: datetime
-    updated_at: datetime
+    followup_enabled: bool = Field(alias='followupEnabled')
+    followup_days: int = Field(alias='followupDays')
+    followup_attach_report: bool = Field(alias='followupAttachReport')
+    created_at: datetime = Field(alias='createdAt')
+    updated_at: datetime = Field(alias='updatedAt')
     
     # Count fields for UI display (computed from messages)
-    target_count: int = 0
-    sent_count: int = 0
-    open_count: int = 0
-    click_count: int = 0
-    bounce_count: int = 0
-    reply_count: int = 0
+    target_count: int = Field(0, alias='targetCount')
+    sent_count: int = Field(0, alias='sentCount')
+    open_count: int = Field(0, alias='openCount')
+    click_count: int = Field(0, alias='clickCount')
+    bounce_count: int = Field(0, alias='bounceCount')
+    reply_count: int = Field(0, alias='replyCount')
+    
+    class Config:
+        populate_by_name = True  # Allow both snake_case and camelCase
+        by_alias = True  # Serialize using aliases (camelCase)
 
 
 class MessageOut(BaseModel):
