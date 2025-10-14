@@ -150,12 +150,17 @@ class CampaignScheduler:
                 template_version = flow.version
                 calculated_template_id = f"v{template_version}m{mail_number}"
                 
-                # CRITICAL DEBUG: Log for first lead's first mail
+                # NUCLEAR DEBUG: PRINT to stdout (can't be filtered!)
                 if idx == 0 and mail_number == 1:
-                    logger.error(
-                        f"🔥🔥🔥 FIRST MESSAGE: idx={idx}, mail_number={mail_number}, "
-                        f"template_version={template_version}, calculated_template_id={calculated_template_id}"
-                    )
+                    print(f"\n{'='*80}")
+                    print(f"🔥🔥🔥 FIRST MESSAGE BEFORE CREATION")
+                    print(f"idx={idx}, mail_number={mail_number}")
+                    print(f"template_version={template_version} (type={type(template_version)})")
+                    print(f"calculated_template_id={calculated_template_id!r} (type={type(calculated_template_id)})")
+                    print(f"flow.version={flow.version}")
+                    print(f"{'='*80}\n")
+                    import sys
+                    sys.stdout.flush()  # Force flush to ensure it appears
                 
                 # CRITICAL: Assert these are NOT None before passing to Message()
                 assert template_version is not None, f"template_version is None! flow.version={flow.version}"
@@ -187,15 +192,18 @@ class CampaignScheduler:
                 message.template_version = template_version
                 message.template_id = calculated_template_id
                 
-                # CRITICAL DEBUG: Log for first lead's first mail AFTER setting attrs
+                # NUCLEAR DEBUG: PRINT after setting attributes
                 if idx == 0 and mail_number == 1:
-                    logger.error(
-                        f"🔥🔥🔥 AFTER ATTRS SET: "
-                        f"message._custom_template_id={getattr(message, '_custom_template_id', 'NOT_FOUND')}, "
-                        f"message._custom_template_version={getattr(message, '_custom_template_version', 'NOT_FOUND')}, "
-                        f"message.template_id={message.template_id!r}, "
-                        f"message.template_version={message.template_version!r}"
-                    )
+                    print(f"\n{'='*80}")
+                    print(f"🔥🔥🔥 FIRST MESSAGE AFTER SETTING ATTRS")
+                    print(f"message._custom_template_id={getattr(message, '_custom_template_id', 'NOT_FOUND')}")
+                    print(f"message._custom_template_version={getattr(message, '_custom_template_version', 'NOT_FOUND')}")
+                    print(f"message.template_id={message.template_id!r}")
+                    print(f"message.template_version={message.template_version!r}")
+                    print(f"message.__dict__={message.__dict__}")
+                    print(f"{'='*80}\n")
+                    import sys
+                    sys.stdout.flush()
                 
                 messages.append(message)
         

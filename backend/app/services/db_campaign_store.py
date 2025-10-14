@@ -370,11 +370,25 @@ class DBCampaignStore:
         
         try:
             data_list = []
-            for message in messages:
+            for idx, message in enumerate(messages):
                 # CRITICAL WORKAROUND: Try custom attributes first (SQLModel bypass)
                 # If SQLModel descriptors return None, use our custom storage
                 template_id_value = getattr(message, '_custom_template_id', None) or getattr(message, 'template_id', None)
                 template_version_value = getattr(message, '_custom_template_version', None) or getattr(message, 'template_version', None)
+                
+                # NUCLEAR DEBUG: PRINT for first message to see what we're inserting
+                if idx == 0:
+                    print(f"\n{'='*80}")
+                    print(f"🔥🔥🔥 DB INSERT - FIRST MESSAGE")
+                    print(f"message._custom_template_id={getattr(message, '_custom_template_id', 'NOT_FOUND')}")
+                    print(f"message._custom_template_version={getattr(message, '_custom_template_version', 'NOT_FOUND')}")
+                    print(f"message.template_id={getattr(message, 'template_id', 'NOT_FOUND')}")
+                    print(f"message.template_version={getattr(message, 'template_version', 'NOT_FOUND')}")
+                    print(f"template_id_value={template_id_value!r}")
+                    print(f"template_version_value={template_version_value!r}")
+                    print(f"{'='*80}\n")
+                    import sys
+                    sys.stdout.flush()
                 
                 data_list.append({
                     "id": message.id,
