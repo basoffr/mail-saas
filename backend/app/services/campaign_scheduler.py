@@ -277,11 +277,42 @@ class CampaignScheduler:
         
         if not active_lead_ids:
             logger.warning(f"All leads are stopped for campaign {campaign.id}")
+            return {
+                "scheduled_count": 0,
+                "start_time": effective_start,
+                "total_messages": 0,
+                "leads_per_domain": {}
+            }
+        
+        # V2.2: Assign domain to each lead (modulo 4 pattern)
+        lead_domain_map = assign_lead_domains(active_lead_ids)
+        
+        # Create messages for each lead
+        messages = []
+        domain_distribution = {d: 0 for d in DOMAINS}
+        message_counter = 0  # ABSOLUTE counter for debugging first message
+        
+        logger.warning(f"🚀 STARTING MESSAGE CREATION for {len(active_lead_ids)} leads")
+        
+        for idx, lead_id in enumerate(active_lead_ids):
+            # Get assigned domain for this lead
+            lead_domain = lead_domain_map[lead_id]
+            domain_distribution[lead_domain] += 1
+            
+            # Get flow for this domain
+            flow = get_flow_for_domain(lead_domain)
             if not flow:
                 logger.error(f"No flow for domain {lead_domain}")
                 continue
             
-            # Schedule each mail (M1-M4) for this lead
+            # DEBUG: Log flow for first 5 leads to verify version is correct
+            if idx < 5:
+                logger.warning(
+                    f"[DEBUG-LEAD-{idx+1}] domain={lead_domain}, "
+                    f"flow.version={flow.version}, flow.domain={flow.domain}"
+                )
+            
+            # Schedule each mail for this lead
             for step in flow.steps:
                 mail_number = step.mail_number
                 
@@ -308,12 +339,35 @@ class CampaignScheduler:
                 from_email = f"{alias}@{lead_domain}"
                 reply_to_email = f"christian@{lead_domain}"
                 
-                # Create message
+                # V2.2: Calculate template_id (e.g., v2m3 = version 2, mail 3)
+                template_version = flow.version
+                calculated_template_id = f"v{template_version}m{mail_number}"
+                
+                # NUCLEAR DEBUG: PRINT to stdout (can't be filtered!)
+                if message_counter == 0:  # ABSOLUTE first message!
+                    print(f"\n{'='*80}")
+                    print(f"🔥🔥🔥 FIRST MESSAGE BEFORE CREATION")
+                    print(f"message_counter={message_counter}, idx={idx}, mail_number={mail_number}")
+                    print(f"template_version={template_version} (type={type(template_version)})")
+                    print(f"calculated_template_id={calculated_template_id!r} (type={type(calculated_template_id)})")
+                    print(f"flow.version={flow.version}")
+                    print(f"flow.steps order={[s.mail_number for s in flow.steps]}")
+                    print(f"{'='*80}\n")
+                    import sys
+                    sys.stdout.flush()  # Force flush to ensure it appears
+                
+                # CRITICAL: Assert these are NOT None before passing to Message()
+                assert template_version is not None, f"template_version is None! flow.version={flow.version}"
+                assert calculated_template_id is not None, f"calculated_template_id is None!"
+                assert isinstance(template_version, int), f"template_version is not int: {type(template_version)}"
+                assert isinstance(calculated_template_id, str), f"calculated_template_id is not str: {type(calculated_template_id)}"
+                
+                # Create message WITHOUT template fields first (SQLModel bug workaround)
                 message = Message(
                     id=str(uuid.uuid4()),
                     campaign_id=campaign.id,
                     lead_id=lead_id,
-                    domain_used=lead_domain,
+                    domain_used=lead_domain,  # LEAD-SPECIFIC!
                     mail_number=mail_number,
                     alias=alias,
                     from_email=from_email,
@@ -323,7 +377,45 @@ class CampaignScheduler:
                     is_followup=(mail_number > 1),
                     retry_count=0
                 )
+                
+                # WORKAROUND: Store in custom attributes that SQLModel CAN'T touch
+                message._custom_template_version = template_version
+                message._custom_template_id = calculated_template_id
+                
+                # Also try setting normal attributes (in case workaround doesn't work)
+                message.template_version = template_version
+                message.template_id = calculated_template_id
+                
+                # NUCLEAR DEBUG: PRINT after setting attributes
+                if message_counter == 0:  # ABSOLUTE first message!
+                    print(f"\n{'='*80}")
+                    print(f"🔥🔥🔥 FIRST MESSAGE AFTER SETTING ATTRS")
+                    print(f"message._custom_template_id={getattr(message, '_custom_template_id', 'NOT_FOUND')}")
+                    print(f"message._custom_template_version={getattr(message, '_custom_template_version', 'NOT_FOUND')}")
+                    print(f"message.template_id={message.template_id!r}")
+                    print(f"message.template_version={message.template_version!r}")
+                    print(f"message.__dict__={message.__dict__}")
+                    print(f"{'='*80}\n")
+                    import sys
+                    sys.stdout.flush()
+                
                 messages.append(message)
+                message_counter += 1  # Increment after appending
+        
+        # Add to domain queues (per domain)
+        for message in messages:
+            domain = message.domain_used
+            if domain not in self.domain_queues:
+                self.domain_queues[domain] = []
+            
+            self.domain_queues[domain].append({
+                "message": message,
+                "scheduled_at": message.scheduled_at
+            })
+        
+        # Mark all domains as active
+        for domain in set(m.domain_used for m in messages):
+            self.domain_active_dates[domain] = effective_start.date()
         
         logger.info(
             f"Created {len(messages)} messages for campaign {campaign.id} "
