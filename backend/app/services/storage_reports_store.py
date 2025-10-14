@@ -60,50 +60,68 @@ class StorageReportsStore:
         return ext if ext in valid_types else 'pdf'
     
     def list_reports(self, query: ReportsQuery) -> Tuple[List[ReportOut], int]:
-        """List reports directly from Storage bucket."""
+        """List reports directly from Storage bucket via database query."""
         if not self.supabase:
             logger.warning("Supabase not initialized")
             return [], 0
         
         try:
-            # List all files from bucket
-            files = self.supabase.storage.from_(self.bucket_name).list()
+            # Query storage.objects table directly (much more reliable than SDK)
+            result = self.supabase.table('storage.objects').select('name, created_at, metadata').eq('bucket_id', 'reports').execute()
+            
+            files = result.data if result.data else []
             
             # Convert to ReportOut format
             reports = []
             for file_obj in files:
-                filename = file_obj['name']
-                
-                # Skip directories (if any)
-                if not filename or filename.endswith('/'):
+                try:
+                    filename = file_obj.get('name', '')
+                    
+                    # Skip directories (if any)
+                    if not filename or filename.endswith('/'):
+                        continue
+                    
+                    # Extract metadata from database row
+                    file_type = self._get_file_type(filename)
+                    
+                    # Get size from metadata JSONB column
+                    metadata = file_obj.get('metadata', {})
+                    if isinstance(metadata, dict):
+                        size_bytes = metadata.get('size', 0)
+                    else:
+                        size_bytes = 0
+                    
+                    # Ensure we have a valid size
+                    if size_bytes is None:
+                        size_bytes = 0
+                    
+                    # Get created_at from database (already ISO format)
+                    created_at = file_obj.get('created_at', datetime.utcnow().isoformat())
+                    
+                    # For bound_to, try to extract domain from filename
+                    domain = self._extract_domain_from_filename(filename)
+                    bound_to = None
+                    if domain:
+                        bound_to = {
+                            "kind": "lead",
+                            "id": domain,
+                            "label": f"Domain: {domain}"
+                        }
+                    
+                    # Create ReportOut object
+                    report = ReportOut(
+                        id=filename,  # Use filename as ID for Storage-based approach
+                        filename=filename,
+                        type=file_type,
+                        sizeBytes=size_bytes,
+                        createdAt=created_at,
+                        boundTo=bound_to
+                    )
+                    
+                    reports.append(report)
+                except Exception as e:
+                    logger.warning(f"Failed to process file {file_obj.get('name', 'unknown')}: {e}")
                     continue
-                
-                # Extract metadata
-                file_type = self._get_file_type(filename)
-                size_bytes = file_obj.get('metadata', {}).get('size', 0)
-                created_at = file_obj.get('created_at', datetime.utcnow().isoformat())
-                
-                # For bound_to, try to extract domain from filename
-                domain = self._extract_domain_from_filename(filename)
-                bound_to = None
-                if domain:
-                    bound_to = {
-                        "kind": "lead",
-                        "id": domain,
-                        "label": f"Domain: {domain}"
-                    }
-                
-                # Create ReportOut object
-                report = ReportOut(
-                    id=filename,  # Use filename as ID for Storage-based approach
-                    filename=filename,
-                    type=file_type,
-                    sizeBytes=size_bytes,
-                    createdAt=created_at,
-                    boundTo=bound_to
-                )
-                
-                reports.append(report)
             
             # Apply search filter
             if query.search:
