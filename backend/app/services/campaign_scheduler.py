@@ -377,8 +377,16 @@ class CampaignScheduler:
         if start_at:
             campaign.start_at = start_at
         
-        # Calculate effective start time
-        effective_start = start_at or datetime.now(ZoneInfo(SENDING_POLICY.timezone))
+        # Calculate effective start time with proper timezone handling
+        if start_at:
+            # CRITICAL: If start_at is provided (e.g., from frontend), ensure it's in local timezone
+            # Frontend sends ISO string which Pydantic parses as UTC-aware datetime
+            # We need to convert this to Europe/Amsterdam timezone
+            amsterdam_tz = ZoneInfo(SENDING_POLICY.timezone)
+            effective_start = start_at.astimezone(amsterdam_tz)
+        else:
+            # No start_at provided, use current time in Amsterdam timezone
+            effective_start = datetime.now(ZoneInfo(SENDING_POLICY.timezone))
         
         # V2.2: PERFORMANCE - Batch check stopped leads (1 query vs N queries!)
         from app.services.store_factory import leads_store
