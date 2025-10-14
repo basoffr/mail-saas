@@ -1,21 +1,41 @@
 -- =====================================================
 -- V2.2 ADD template_version AND attempts TO messages TABLE
--- Date: 13 oktober 2025, 21:05 CET
+-- Date: 14 oktober 2025, 08:46 CET (UPDATED - Idempotent version)
 -- =====================================================
 
 -- =====================================================
--- 1. ADD template_version COLUMN
+-- 1. ADD template_version COLUMN (SAFE - checks if exists first)
 -- =====================================================
 
-ALTER TABLE messages 
-ADD COLUMN IF NOT EXISTS template_version INTEGER DEFAULT 1;
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'messages' AND column_name = 'template_version'
+    ) THEN
+        ALTER TABLE messages ADD COLUMN template_version INTEGER DEFAULT 1;
+        RAISE NOTICE 'Column template_version added';
+    ELSE
+        RAISE NOTICE 'Column template_version already exists, skipping';
+    END IF;
+END $$;
 
 -- =====================================================
--- 2. ADD attempts COLUMN
+-- 2. ADD attempts COLUMN (SAFE - checks if exists first)
 -- =====================================================
 
-ALTER TABLE messages 
-ADD COLUMN IF NOT EXISTS attempts INTEGER DEFAULT 0;
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'messages' AND column_name = 'attempts'
+    ) THEN
+        ALTER TABLE messages ADD COLUMN attempts INTEGER DEFAULT 0;
+        RAISE NOTICE 'Column attempts added';
+    ELSE
+        RAISE NOTICE 'Column attempts already exists, skipping';
+    END IF;
+END $$;
 
 -- =====================================================
 -- 3. UPDATE EXISTING MESSAGES (set defaults)
