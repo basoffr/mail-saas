@@ -766,37 +766,57 @@ class DBCampaignStore:
         domain: Optional[str] = None,
         from_ts: Optional[datetime] = None
     ) -> List[Message]:
-        """V2.2: Get scheduled messages for timeline view."""
+        """V2.3: Get scheduled messages for timeline view with pagination."""
         if not self.supabase:
             return []
         
         try:
-            # Build query
-            query = self.supabase.table("messages")\
-                .select("*")\
-                .eq("campaign_id", campaign_id)
+            # V2.3: Handle large campaigns with pagination
+            # Supabase has a hard limit of 1000 rows per query
+            all_messages = []
+            page_size = 1000
+            offset = 0
             
-            # Apply filters
-            if domain:
-                query = query.eq("domain_used", domain)
+            while True:
+                # Build query for this page
+                query = self.supabase.table("messages")\
+                    .select("*")\
+                    .eq("campaign_id", campaign_id)
+                
+                # Apply filters
+                if domain:
+                    query = query.eq("domain_used", domain)
+                
+                if from_ts:
+                    query = query.gte("scheduled_at", from_ts.isoformat())
+                
+                # Order, limit and offset
+                query = query.order("scheduled_at", desc=False)\
+                    .order("domain_used", desc=False)\
+                    .range(offset, offset + page_size - 1)
+                
+                response = query.execute()
+                
+                if not response.data:
+                    # No more data
+                    break
+                
+                # Convert to Message objects
+                page_messages = [self._row_to_message(row) for row in response.data]
+                all_messages.extend(page_messages)
+                
+                # Check if we got less than page_size (last page)
+                if len(response.data) < page_size:
+                    break
+                
+                # Check if we hit the requested limit
+                if len(all_messages) >= limit:
+                    all_messages = all_messages[:limit]
+                    break
+                
+                offset += page_size
             
-            if from_ts:
-                query = query.gte("scheduled_at", from_ts.isoformat())
-            else:
-                # Default: from 1 day ago
-                from datetime import timedelta
-                from_ts = datetime.utcnow() - timedelta(days=1)
-                query = query.gte("scheduled_at", from_ts.isoformat())
-            
-            # Order and limit
-            query = query.order("scheduled_at", desc=False)\
-                .order("domain_used", desc=False)\
-                .limit(limit)
-            
-            response = query.execute()
-            
-            # Convert to Message objects
-            messages = [self._row_to_message(row) for row in response.data]
+            messages = all_messages
             
             # Sort by priority (M4 > M3 > M2 > M1)
             mail_priority = {4: 0, 3: 1, 2: 2, 1: 3}
