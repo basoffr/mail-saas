@@ -376,27 +376,45 @@ class CampaignScheduler:
         
         logger.warning(f"🚀 STARTING MESSAGE CREATION for {len(active_lead_ids)} leads")
         
-        for idx, lead_id in enumerate(active_lead_ids):
-            # Get assigned domain for this lead
+        # V2.3 FIX: Schedule by MAIL NUMBER first, then by LEAD
+        # This ensures M1 is scheduled for ALL leads before M2 starts
+        # OLD: for lead in leads: for mail in [1,2,3,4]  ← M1 only for first ~108 leads!
+        # NEW: for mail in [1,2,3,4]: for lead in leads  ← M1 for ALL 2103 leads!
+        
+        # Get flow for first domain to determine mail order
+        first_domain = lead_domain_map[active_lead_ids[0]]
+        first_flow = get_flow_for_domain(first_domain)
+        
+        if not first_flow:
+            logger.error(f"No flow found for domain {first_domain}")
+            return []
+        
+        # Count domain distribution
+        for lead_id in active_lead_ids:
             lead_domain = lead_domain_map[lead_id]
             domain_distribution[lead_domain] += 1
+        
+        # Schedule by mail number (M1 for all leads, then M2 for all leads, etc.)
+        for step in first_flow.steps:
+            mail_number = step.mail_number
             
-            # Get flow for this domain
-            flow = get_flow_for_domain(lead_domain)
-            if not flow:
-                logger.error(f"No flow for domain {lead_domain}")
-                continue
+            logger.info(f"📧 Scheduling M{mail_number} for all {len(active_lead_ids)} leads...")
             
-            # DEBUG: Log flow for first 5 leads to verify version is correct
-            if idx < 5:
-                logger.warning(
-                    f"[DEBUG-LEAD-{idx+1}] domain={lead_domain}, "
-                    f"flow.version={flow.version}, flow.domain={flow.domain}"
-                )
-            
-            # Schedule each mail for this lead
-            for step in flow.steps:
-                mail_number = step.mail_number
+            # Now schedule this mail for ALL leads
+            for idx, lead_id in enumerate(active_lead_ids):
+                # Get assigned domain for this lead
+                lead_domain = lead_domain_map[lead_id]
+                
+                # Get flow for this domain
+                flow = get_flow_for_domain(lead_domain)
+                if not flow:
+                    logger.error(f"No flow for domain {lead_domain}")
+                    continue
+                
+                # Get the step for this mail number
+                step = flow.get_step_by_mail_number(mail_number)
+                if not step:
+                    continue
                 
                 # Calculate target date (workdays offset from start)
                 target_date = effective_start
