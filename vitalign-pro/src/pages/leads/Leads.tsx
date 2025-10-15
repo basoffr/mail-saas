@@ -47,18 +47,24 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { 
-  Search, 
+  Eye, 
+  ExternalLink, 
+  Download, 
+  Trash2, 
+  AlertTriangle, 
+  FileCheck, 
+  Users, 
   Filter, 
+  Search, 
+  Calendar, 
+  ChevronDown, 
   Upload, 
-  MoreHorizontal, 
-  ExternalLink,
-  Eye,
-  Users,
-  Loader2,
+  Check, 
+  X,
+  PackageOpen,
   ChevronLeft,
   ChevronRight,
-  Trash2,
-  PackageOpen
+  Loader2
 } from 'lucide-react';
 import { Lead, LeadsQuery, LeadStatus, Template, TemplatePreview } from '@/types/lead';
 import { leadsService, toUiLeadStatus, toneToBadgeClass, BackendLeadStatus } from '@/services/leads';
@@ -446,13 +452,21 @@ export default function Leads() {
                     <TableCell>{formatDate(lead.lastMailed)}</TableCell>
                     <TableCell>{formatDate(lead.lastOpened)}</TableCell>
                     <TableCell>
-                      <div className="text-center">
-                        {lead.hasImage ? '✅' : '❌'}
+                      <div className="flex justify-center">
+                        {lead.hasImage ? (
+                          <Check className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <X className="w-4 h-4 text-muted-foreground" />
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="text-center">
-                        {lead.hasReport ? '✅' : '❌'}
+                      <div className="flex justify-center">
+                        {lead.hasReport ? (
+                          <Check className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <X className="w-4 h-4 text-muted-foreground" />
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -481,7 +495,7 @@ export default function Leads() {
                             <Eye className="w-4 h-4" />
                           </Button>
                         </SheetTrigger>
-                        <SheetContent className="w-[600px] sm:w-[800px] overflow-y-auto">
+                        <SheetContent className="w-[750px] sm:w-[1000px] overflow-y-auto">
                           <SheetHeader>
                             <SheetTitle>Lead Details</SheetTitle>
                             <SheetDescription>
@@ -706,8 +720,14 @@ function LeadDetails({ lead }: { lead: Lead }) {
         <div className="bg-muted/30 rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
             <label className="text-sm font-medium">Lead Completeness</label>
-            <Badge variant={lead.isComplete ? "default" : "secondary"}>
-              {lead.isComplete ? 'Complete ✅' : 'Incomplete'}
+            <Badge variant={lead.isComplete ? "default" : "secondary"} className="flex items-center gap-1">
+              {lead.isComplete ? (
+                <>
+                  Complete <Check className="w-3 h-3" />
+                </>
+              ) : (
+                'Incomplete'
+              )}
             </Badge>
           </div>
           <div className="grid grid-cols-3 gap-4 text-sm">
@@ -717,13 +737,25 @@ function LeadDetails({ lead }: { lead: Lead }) {
                 {lead.varsCompleteness.filled}/{lead.varsCompleteness.total}
               </span>
             </div>
-            <div>
+            <div className="flex items-center">
               <span className="text-muted-foreground">Image:</span>
-              <span className="ml-2">{lead.hasImage ? '✅' : '❌'}</span>
+              <span className="ml-2">
+                {lead.hasImage ? (
+                  <Check className="w-4 h-4 text-green-600" />
+                ) : (
+                  <X className="w-4 h-4 text-muted-foreground" />
+                )}
+              </span>
             </div>
-            <div>
+            <div className="flex items-center">
               <span className="text-muted-foreground">Report:</span>
-              <span className="ml-2">{lead.hasReport ? '✅' : '❌'}</span>
+              <span className="ml-2">
+                {lead.hasReport ? (
+                  <Check className="w-4 h-4 text-green-600" />
+                ) : (
+                  <X className="w-4 h-4 text-muted-foreground" />
+                )}
+              </span>
             </div>
           </div>
         </div>
@@ -745,14 +777,14 @@ function LeadDetails({ lead }: { lead: Lead }) {
               <div className="space-y-1 max-h-48 overflow-y-auto">
                 {Object.entries(lead.vars || {}).map(([key, value]) => (
                   <div key={key} className="flex items-start gap-2 text-sm">
-                    <span className="text-green-600">✅</span>
+                    <Check className="w-4 h-4 text-green-600 mt-0.5" />
                     <span className="font-mono text-muted-foreground">{key}:</span>
                     <span className="flex-1 truncate">{String(value)}</span>
                   </div>
                 ))}
                 {lead.varsCompleteness.missing.map((varName) => (
                   <div key={varName} className="flex items-start gap-2 text-sm">
-                    <span className="text-destructive">❌</span>
+                    <X className="w-4 h-4 text-destructive mt-0.5" />
                     <span className="font-mono text-muted-foreground">{varName}</span>
                     <span className="text-xs text-muted-foreground italic ml-auto">Missing</span>
                   </div>

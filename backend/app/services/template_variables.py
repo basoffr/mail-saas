@@ -133,6 +133,11 @@ class TemplateVariablesService:
         """
         Bereken compleetheid score van een lead.
         
+        Campaign V1 vereist 5 items:
+        - 3 custom vars: keyword, seo_score, google_rank
+        - 1 image
+        - 1 report
+        
         Args:
             lead: Lead object
             
@@ -146,21 +151,46 @@ class TemplateVariablesService:
                 'is_complete': False
             }
         """
-        all_vars = self.get_all_required_variables()
+        # Fixed: Campaign V1 requirements (3 vars + image + report = 5)
+        required_items = [
+            'vars.keyword',
+            'vars.seo_score', 
+            'vars.google_rank',
+            'image',
+            'report'
+        ]
         
-        # Filter campaign vars (die checken we niet voor leads)
-        checkable_vars = {v for v in all_vars if not v.startswith('campaign.')}
+        missing = []
+        filled_count = 0
         
-        missing = self.get_missing_variables(lead)
-        filled = len(checkable_vars) - len(missing)
-        total = len(checkable_vars)
+        # Check custom vars
+        for var_name in ['keyword', 'seo_score', 'google_rank']:
+            if lead.vars and var_name in lead.vars and lead.vars[var_name]:
+                filled_count += 1
+            else:
+                missing.append(f'vars.{var_name}')
+        
+        # Check image
+        if lead.image_key:
+            filled_count += 1
+        else:
+            missing.append('image')
+        
+        # Check report (either in vars or reports store)
+        has_report = (lead.vars and lead.vars.get('report_filename')) is not None
+        if has_report:
+            filled_count += 1
+        else:
+            missing.append('report')
+        
+        total = 5  # Always 5 for Campaign V1
         
         return {
-            'filled': filled,
+            'filled': filled_count,
             'total': total,
             'missing': missing,
-            'percentage': int((filled / total * 100)) if total > 0 else 0,
-            'is_complete': len(missing) == 0
+            'percentage': int((filled_count / total * 100)),
+            'is_complete': filled_count == 5
         }
     
     def get_variable_value(self, lead: Lead, var_name: str) -> Optional[str]:
