@@ -38,10 +38,8 @@ class HardCodedTemplate:
 
 
 # Hard-coded templates (v1-v4, mail 1-4 each = 16 total)
-# Screenshots: V1M1, V2M1, V2M2, V3M1, V3M2, V4M2
-# Rapporten: V1M3, V2M3, V3M3, V4M3 (als bijlage)
 HARD_CODED_TEMPLATES = {
-    # ========== Version 1 (punthelder-marketing.nl) ==========
+    # Version 1 (punthelder-marketing.nl)
     "v1_mail1": HardCodedTemplate(
         id="v1_mail1",
         version=1,
@@ -56,9 +54,9 @@ Uw website {{lead.url}} heeft potentieel, maar er zijn waarschijnlijk nog kansen
 Momenteel staat u op positie {{vars.google_rank}} voor deze term. Met de juiste aanpassingen kunnen we dit flink verbeteren.
 
 Ik bied u een gratis SEO-analyse aan waarin ik precies laat zien:
- – Waar u nu staat ten opzichte van concurrenten
- – Welke quick wins er mogelijk zijn
- – Een concrete actieplan voor de komende maanden
+- Waar u nu staat ten opzichte van concurrenten
+- Welke quick wins er mogelijk zijn
+- Een concrete actieplan voor de komende maanden
 
 {{image.cid 'dashboard'}}
 
@@ -67,7 +65,8 @@ Heeft u interesse in een korte kennismaking? Ik kan volgende week een analyse vo
 Met vriendelijke groet,
 Christian
 Punthelder Marketing
-christian@punthelder-marketing.nl""",
+christian@punthelder.nl
+06-12345678""",
         placeholders=["lead.company", "lead.url", "vars.keyword", "vars.google_rank", "image.cid"]
     ),
     
@@ -85,45 +84,44 @@ Ik begrijp dat u het druk heeft, maar wilde u nog even attenderen op de kansen d
 Specifiek voor de zoekterm "{{vars.keyword}}" (waar u nu op positie {{vars.google_rank}} staat) zie ik concrete verbetermogelijkheden die relatief snel resultaat kunnen opleveren.
 
 De gratis analyse die ik aanbied geeft u inzicht in:
- ✓ Uw huidige SEO-score
- ✓ Wat uw directe concurrenten anders doen  
- ✓ 3-5 concrete actiepunten voor snelle resultaten
+✓ Uw huidige SEO-score
+✓ Wat uw directe concurrenten anders doen  
+✓ 3-5 concrete actiepunten voor snelle resultaten
+
+{{image.cid 'dashboard'}}
 
 Zal ik deze week een analyse voor u maken? Het kost u niets en u bent nergens toe verplicht.
 
 Met vriendelijke groet,
 Christian
-Punthelder Marketing
-christian@punthelder-marketing.nl""",
-        placeholders=["lead.company", "lead.url", "vars.keyword", "vars.google_rank"]
+Punthelder Marketing""",
+        placeholders=["lead.company", "lead.url", "vars.keyword", "vars.google_rank", "image.cid"]
     ),
     
     "v1_mail3": HardCodedTemplate(
         id="v1_mail3",
         version=1,
         mail_number=3,
-        subject="SEO-rapport voor {{lead.company}} - Victor",
+        subject="Laatste kans: gratis SEO-analyse {{lead.company}}",
         body="""Hallo,
 
 Victor hier van Punthelder Marketing. Christian heeft me gevraagd om contact met u op te nemen over de SEO-analyse voor {{lead.company}}.
 
-Omdat ik nog geen reactie kreeg, stuur ik het rapport gewoon even door.
+Ik zie dat u nog niet heeft gereageerd op zijn aanbod voor een gratis analyse van {{lead.url}}. Dat is jammer, want er liggen echt kansen voor u.
 
-{{attachment.pdf 'report'}}
+Voor "{{vars.keyword}}" staat u nu op positie {{vars.google_rank}}. Met een paar gerichte aanpassingen kunnen we dit flink verbeteren.
 
-Het bevat o.a.:
- – Technische issues (zoals missende alt-teksten, errors, etc.)
- – Content- en SEO-scores
- – Concurrentievergelijking
- – Concrete quick-wins die direct toepasbaar zijn
+{{image.cid 'dashboard'}}
 
-Wil je dat ik het rapport kort met je doorloop? Laat gerust weten als je liever via mail reageert.
+Dit is mijn laatste mail hierover. Als u interesse heeft, laat het me dan deze week weten.
+
+Anders neem ik aan dat het nu niet het juiste moment is en hoor ik graag van u als dat verandert.
 
 Met vriendelijke groet,
 Victor
 Punthelder Marketing
-victor@punthelder-marketing.nl""",
-        placeholders=["lead.company", "attachment.pdf"]
+victor@punthelder.nl""",
+        placeholders=["lead.company", "lead.url", "vars.keyword", "vars.google_rank", "image.cid"]
     ),
     
     "v1_mail4": HardCodedTemplate(
@@ -139,16 +137,17 @@ Ik respecteer dat u op dit moment geen interesse heeft in een SEO-analyse voor {
 
 Mocht u in de toekomst toch willen weten hoe u beter kunt scoren voor termen zoals "{{vars.keyword}}", dan kunt u altijd contact opnemen.
 
+{{image.cid 'dashboard'}}
+
 Ik wens u veel succes met uw bedrijf.
 
 Met vriendelijke groet,
 Victor
-Punthelder Marketing
-victor@punthelder-marketing.nl""",
-        placeholders=["lead.company", "lead.url", "vars.keyword"]
+Punthelder Marketing""",
+        placeholders=["lead.company", "lead.url", "vars.keyword", "image.cid"]
     ),
     
-    # ========== Version 2 (punthelder-vindbaarheid.nl) ==========
+    # Version 2 (punthelder-vindbaarheid.nl)
     "v2_mail1": HardCodedTemplate(
         id="v2_mail1",
         version=2,
@@ -163,9 +162,9 @@ Uw website {{lead.url}} heeft potentieel, maar ik zie kansen om de vindbaarheid 
 Momenteel staat u op positie {{vars.google_rank}} voor deze term. Er is ruimte voor verbetering.
 
 Ik bied u een gratis vindbaarheidsanalyse aan:
- – Huidige positie vs concurrenten
- – Concrete verbeterpunten
- – Stappenplan voor betere vindbaarheid
+- Huidige positie vs concurrenten
+- Concrete verbeterpunten
+- Stappenplan voor betere vindbaarheid
 
 {{image.cid 'dashboard'}}
 
@@ -173,8 +172,7 @@ Interesse in een gratis analyse? Ik kan deze week voor u aan de slag.
 
 Met vriendelijke groet,
 Christian
-Punthelder Vindbaarheid
-christian@punthelder-vindbaarheid.nl""",
+Punthelder Vindbaarheid""",
         placeholders=["lead.company", "lead.url", "vars.keyword", "vars.google_rank", "image.cid"]
     ),
     
@@ -190,18 +188,16 @@ Christian hier van Punthelder Vindbaarheid. Ik stuurde u eerder een mail over vi
 Voor {{lead.url}} zie ik nog steeds concrete kansen, vooral voor "{{vars.keyword}}" waar u nu op positie {{vars.google_rank}} staat.
 
 De gratis analyse die ik aanbied laat precies zien:
- ✓ Waar u nu staat
- ✓ Wat er beter kan
- ✓ Hoe u meer bezoekers kunt krijgen
+✓ Waar u nu staat
+✓ Wat er beter kan
+✓ Hoe u meer bezoekers kunt krijgen
 
 {{image.cid 'dashboard'}}
 
 Zal ik deze week een analyse maken? Het is gratis en vrijblijvend.
 
 Met vriendelijke groet,
-Christian
-Punthelder Vindbaarheid
-christian@punthelder-vindbaarheid.nl""",
+Christian""",
         placeholders=["lead.company", "lead.url", "vars.keyword", "vars.google_rank", "image.cid"]
     ),
     
@@ -209,28 +205,22 @@ christian@punthelder-vindbaarheid.nl""",
         id="v2_mail3",
         version=2,
         mail_number=3,
-        subject="Vindbaarheidsrapport voor {{lead.company}} - Victor",
+        subject="Victor hier - laatste kans vindbaarheidsanalyse",
         body="""Hallo,
 
 Victor van Punthelder Vindbaarheid. Christian vroeg me contact met u op te nemen over {{lead.company}}.
 
-Omdat ik nog geen reactie kreeg, stuur ik het rapport gewoon even door.
+U heeft nog niet gereageerd op het aanbod voor een gratis vindbaarheidsanalyse van {{lead.url}}.
 
-{{attachment.pdf 'report'}}
+Voor "{{vars.keyword}}" staat u op positie {{vars.google_rank}}. Dat kan echt beter.
 
-Het bevat o.a.:
- – Technische issues
- – SEO-scores
- – Concurrentievergelijking
- – Concrete verbeterpunten
+{{image.cid 'dashboard'}}
 
-Wil je dat ik het rapport kort met je doorloop? Laat gerust weten als je liever via mail reageert.
+Dit is mijn laatste mail hierover. Interesse? Laat het me deze week weten.
 
 Met vriendelijke groet,
-Victor
-Punthelder Vindbaarheid
-victor@punthelder-vindbaarheid.nl""",
-        placeholders=["lead.company", "attachment.pdf"]
+Victor""",
+        placeholders=["lead.company", "lead.url", "vars.keyword", "vars.google_rank", "image.cid"]
     ),
     
     "v2_mail4": HardCodedTemplate(
@@ -246,16 +236,16 @@ Ik begrijp dat u nu geen interesse heeft in verbetering van {{lead.url}}.
 
 Mocht dat in de toekomst veranderen, vooral voor termen zoals "{{vars.keyword}}", dan hoor ik graag van u.
 
+{{image.cid 'dashboard'}}
+
 Succes gewenst!
 
-Met vriendelijke groet,
 Victor
-Punthelder Vindbaarheid
-victor@punthelder-vindbaarheid.nl""",
-        placeholders=["lead.company", "lead.url", "vars.keyword"]
+Punthelder Vindbaarheid""",
+        placeholders=["lead.company", "lead.url", "vars.keyword", "image.cid"]
     ),
     
-    # ========== Version 3 (punthelder-seo.nl) ==========
+    # Version 3 (punthelder-seo.nl)
     "v3_mail1": HardCodedTemplate(
         id="v3_mail1",
         version=3,
@@ -270,9 +260,9 @@ Uw website {{lead.url}} kan waarschijnlijk beter presteren in Google, vooral voo
 U staat nu op positie {{vars.google_rank}} voor deze term. Met de juiste SEO-aanpak kunnen we dit verbeteren.
 
 Ik bied u een gratis SEO-audit aan:
- – Technische SEO-analyse
- – Content optimalisatie tips
- – Linkbuilding mogelijkheden
+- Technische SEO-analyse
+- Content optimalisatie tips
+- Linkbuilding mogelijkheden
 
 {{image.cid 'dashboard'}}
 
@@ -280,8 +270,7 @@ Interesse? Ik kan deze week een audit voor u uitvoeren.
 
 Met vriendelijke groet,
 Christian
-Punthelder SEO
-christian@punthelder-seo.nl""",
+Punthelder SEO""",
         placeholders=["lead.company", "lead.url", "vars.keyword", "vars.google_rank", "image.cid"]
     ),
     
@@ -297,18 +286,16 @@ Christian van Punthelder SEO. Ik stuurde u eerder een mail over een gratis SEO-a
 Voor {{lead.url}} zie ik nog steeds SEO-kansen, vooral voor "{{vars.keyword}}" (positie {{vars.google_rank}}).
 
 De gratis audit bevat:
- ✓ Technische SEO-check
- ✓ Content analyse
- ✓ Concurrentie vergelijking
+✓ Technische SEO-check
+✓ Content analyse
+✓ Concurrentie vergelijking
 
 {{image.cid 'dashboard'}}
 
 Zal ik deze week een audit maken? Volledig gratis.
 
 Met vriendelijke groet,
-Christian
-Punthelder SEO
-christian@punthelder-seo.nl""",
+Christian""",
         placeholders=["lead.company", "lead.url", "vars.keyword", "vars.google_rank", "image.cid"]
     ),
     
@@ -316,28 +303,22 @@ christian@punthelder-seo.nl""",
         id="v3_mail3",
         version=3,
         mail_number=3,
-        subject="SEO-rapport voor {{lead.company}} - Victor",
+        subject="Victor - laatste kans SEO-audit",
         body="""Hallo,
 
 Victor van Punthelder SEO. Christian vroeg me u te benaderen over {{lead.company}}.
 
-Omdat ik nog geen reactie kreeg, stuur ik het rapport gewoon even door.
+U heeft nog niet gereageerd op de gratis SEO-audit voor {{lead.url}}.
 
-{{attachment.pdf 'report'}}
+Voor "{{vars.keyword}}" staat u op positie {{vars.google_rank}}. Daar valt winst te behalen.
 
-Het bevat o.a.:
- – Technische issues
- – Content- en SEO-scores
- – Concurrentievergelijking
- – Concrete quick-wins
+{{image.cid 'dashboard'}}
 
-Wil je dat ik het rapport kort met je doorloop? Laat gerust weten als je liever via mail reageert.
+Laatste kans voor de gratis audit. Interesse? Laat het me weten.
 
 Met vriendelijke groet,
-Victor
-Punthelder SEO
-victor@punthelder-seo.nl""",
-        placeholders=["lead.company", "attachment.pdf"]
+Victor""",
+        placeholders=["lead.company", "lead.url", "vars.keyword", "vars.google_rank", "image.cid"]
     ),
     
     "v3_mail4": HardCodedTemplate(
@@ -353,16 +334,16 @@ Ik respecteer dat u geen interesse heeft in SEO-verbetering voor {{lead.url}}.
 
 Mocht u later toch willen weten hoe u beter kunt scoren voor "{{vars.keyword}}", dan kunt u contact opnemen.
 
+{{image.cid 'dashboard'}}
+
 Veel succes!
 
-Met vriendelijke groet,
 Victor
-Punthelder SEO
-victor@punthelder-seo.nl""",
-        placeholders=["lead.company", "lead.url", "vars.keyword"]
+Punthelder SEO""",
+        placeholders=["lead.company", "lead.url", "vars.keyword", "image.cid"]
     ),
     
-    # ========== Version 4 (punthelder-zoekmachine.nl) ==========
+    # Version 4 (punthelder-zoekmachine.nl) - kopie van v2
     "v4_mail1": HardCodedTemplate(
         id="v4_mail1",
         version=4,
@@ -377,17 +358,18 @@ Uw website {{lead.url}} heeft potentieel, maar ik zie kansen voor zoekmachine op
 Momenteel staat u op positie {{vars.google_rank}} voor deze term. Er is ruimte voor verbetering.
 
 Ik bied u een gratis zoekmachine-analyse aan:
- – Huidige positie analyse
- – Optimalisatie mogelijkheden  
- – Concrete actieplan
+- Huidige positie analyse
+- Optimalisatie mogelijkheden  
+- Concrete actieplan
+
+{{image.cid 'dashboard'}}
 
 Interesse in een gratis analyse? Ik kan deze week voor u aan de slag.
 
 Met vriendelijke groet,
 Christian
-Punthelder Zoekmachine
-christian@punthelder-zoekmachine.nl""",
-        placeholders=["lead.company", "lead.url", "vars.keyword", "vars.google_rank"]
+Punthelder Zoekmachine""",
+        placeholders=["lead.company", "lead.url", "vars.keyword", "vars.google_rank", "image.cid"]
     ),
     
     "v4_mail2": HardCodedTemplate(
@@ -402,18 +384,16 @@ Christian hier van Punthelder Zoekmachine. Ik stuurde u eerder een mail over opt
 Voor {{lead.url}} zie ik nog steeds concrete kansen, vooral voor "{{vars.keyword}}" waar u nu op positie {{vars.google_rank}} staat.
 
 De gratis analyse laat zien:
- ✓ Waar u nu staat
- ✓ Wat er beter kan
- ✓ Hoe u meer bezoekers krijgt
+✓ Waar u nu staat
+✓ Wat er beter kan
+✓ Hoe u meer bezoekers krijgt
 
 {{image.cid 'dashboard'}}
 
 Zal ik deze week een analyse maken? Het is gratis en vrijblijvend.
 
 Met vriendelijke groet,
-Christian
-Punthelder Zoekmachine
-christian@punthelder-zoekmachine.nl""",
+Christian""",
         placeholders=["lead.company", "lead.url", "vars.keyword", "vars.google_rank", "image.cid"]
     ),
     
@@ -421,28 +401,22 @@ christian@punthelder-zoekmachine.nl""",
         id="v4_mail3",
         version=4,
         mail_number=3,
-        subject="Zoekmachine-rapport voor {{lead.company}} - Victor",
+        subject="Victor - laatste kans zoekmachine analyse",
         body="""Hallo,
 
 Victor van Punthelder Zoekmachine. Christian vroeg me contact met u op te nemen over {{lead.company}}.
 
-Omdat ik nog geen reactie kreeg, stuur ik het rapport gewoon even door.
+U heeft nog niet gereageerd op het aanbod voor een gratis zoekmachine-analyse van {{lead.url}}.
 
-{{attachment.pdf 'report'}}
+Voor "{{vars.keyword}}" staat u op positie {{vars.google_rank}}. Dat kan echt beter.
 
-Het bevat o.a.:
- – Technische issues
- – SEO-scores
- – Concurrentievergelijking
- – Concrete verbeterpunten
+{{image.cid 'dashboard'}}
 
-Wil je dat ik het rapport kort met je doorloop? Laat gerust weten als je liever via mail reageert.
+Dit is mijn laatste mail hierover. Interesse? Laat het me deze week weten.
 
 Met vriendelijke groet,
-Victor
-Punthelder Zoekmachine
-victor@punthelder-zoekmachine.nl""",
-        placeholders=["lead.company", "attachment.pdf"]
+Victor""",
+        placeholders=["lead.company", "lead.url", "vars.keyword", "vars.google_rank", "image.cid"]
     ),
     
     "v4_mail4": HardCodedTemplate(
@@ -458,13 +432,13 @@ Ik begrijp dat u nu geen interesse heeft in verbetering van {{lead.url}}.
 
 Mocht dat in de toekomst veranderen, vooral voor termen zoals "{{vars.keyword}}", dan hoor ik graag van u.
 
+{{image.cid 'dashboard'}}
+
 Succes gewenst!
 
-Met vriendelijke groet,
 Victor
-Punthelder Zoekmachine
-victor@punthelder-zoekmachine.nl""",
-        placeholders=["lead.company", "lead.url", "vars.keyword"]
+Punthelder Zoekmachine""",
+        placeholders=["lead.company", "lead.url", "vars.keyword", "image.cid"]
     )
 }
 
