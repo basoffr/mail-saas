@@ -112,7 +112,7 @@ class TestsendService:
                     img_data = img_file.read()
                     image = MIMEImage(img_data)
                     image.add_header('Content-ID', f'<signature_{alias}>')
-                    image.add_header('Content-Disposition', 'inline', filename=signature_filename)
+                    image.add_header('Content-Disposition', 'inline')  # No filename = pure inline
                     msg.attach(image)
                     logger.debug(f"Attached {alias} signature image as CID for test email")
             else:
@@ -134,7 +134,7 @@ class TestsendService:
                             # Content-ID must match template: cid:dashboard_{domain.replace('.', '_')}
                             cid_name = f"dashboard_{domain.replace('.', '_')}"
                             dashboard_image.add_header('Content-ID', f'<{cid_name}>')
-                            dashboard_image.add_header('Content-Disposition', 'inline', filename=f"dashboard_{domain}.png")
+                            dashboard_image.add_header('Content-Disposition', 'inline')  # No filename = pure inline
                             msg.attach(dashboard_image)
                             logger.info(f"✅ Attached dashboard image from Supabase: {image_key}")
                         else:
