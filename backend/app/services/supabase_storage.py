@@ -86,8 +86,12 @@ class SupabaseStorage:
         """
         Generate signed URL for PDF report in 'reports' bucket.
         
+        Uses fuzzy matching to handle filename variations:
+        - Dots vs underscores: "domain.com" vs "domain_com"
+        - Path variations: "domain_report.pdf" vs "domain_collections_page_report.pdf"
+        
         Args:
-            report_filename: The PDF filename (e.g., "solangefashion_nl_report.pdf")
+            report_filename: The PDF filename (e.g., "solangefashion.com_report.pdf")
             expires_in: URL expiration time in seconds (default: 1 hour)
         
         Returns:
@@ -101,18 +105,64 @@ class SupabaseStorage:
             # Reports are stored in 'reports' bucket
             reports_bucket = "reports"
             
-            # Try to get signed URL for the PDF
-            response = self.client.storage.from_(reports_bucket).create_signed_url(
-                report_filename,  # e.g., "solangefashion_nl_report.pdf"
-                expires_in
-            )
+            # Normalize filename: replace dots with underscores
+            # "angelicroots.com_report.pdf" -> "angelicroots_com_report.pdf"
+            normalized_filename = report_filename.replace('.com_', '_com_').replace('.nl_', '_nl_')
             
-            if response and 'signedURL' in response:
-                logger.info(f"✅ Generated signed URL for report: {report_filename}")
-                return response['signedURL']
-            else:
-                logger.warning(f"❌ No report found: {report_filename}")
-                return None
+            # Try exact match first
+            paths_to_try = [
+                report_filename,  # Original filename
+                normalized_filename  # Normalized version
+            ]
+            
+            for file_path in paths_to_try:
+                try:
+                    response = self.client.storage.from_(reports_bucket).create_signed_url(
+                        file_path,
+                        expires_in
+                    )
+                    
+                    if response and 'signedURL' in response:
+                        logger.info(f"✅ Generated signed URL for report: {file_path}")
+                        return response['signedURL']
+                        
+                except Exception as e:
+                    logger.debug(f"Report not found: {file_path} - {e}")
+                    continue
+            
+            # If exact match fails, try fuzzy search by listing bucket
+            # This handles cases like "domain_com_report.pdf" vs "domain_com_collections_page_report.pdf"
+            try:
+                # Extract base domain from filename
+                # "angelicroots.com_report.pdf" -> "angelicroots"
+                base_name = report_filename.split('_')[0].replace('.com', '').replace('.nl', '')
+                
+                # List all files in bucket
+                files = self.client.storage.from_(reports_bucket).list()
+                
+                # Find files that start with the base domain name
+                matching_files = [
+                    f['name'] for f in files 
+                    if f['name'].startswith(base_name) and f['name'].endswith('_report.pdf')
+                ]
+                
+                if matching_files:
+                    # Try the first matching file
+                    matched_file = matching_files[0]
+                    response = self.client.storage.from_(reports_bucket).create_signed_url(
+                        matched_file,
+                        expires_in
+                    )
+                    
+                    if response and 'signedURL' in response:
+                        logger.info(f"✅ Generated signed URL for report (fuzzy match): {matched_file}")
+                        return response['signedURL']
+                        
+            except Exception as e:
+                logger.debug(f"Fuzzy search failed: {e}")
+            
+            logger.warning(f"❌ No report found for: {report_filename} (tried: {paths_to_try})")
+            return None
                 
         except Exception as e:
             logger.error(f"Error generating signed URL for report {report_filename}: {e}")
