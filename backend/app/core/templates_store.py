@@ -64,10 +64,7 @@ Ik bied u een gratis SEO-analyse aan waarin ik precies laat zien:
 
 Heeft u interesse in een korte kennismaking? Ik kan volgende week een analyse voor u maken.
 
-Met vriendelijke groet,
-Christian
-Punthelder Marketing
-christian@punthelder-marketing.nl""",
+Met vriendelijke groet,""",
         placeholders=["lead.company", "lead.url", "vars.keyword", "vars.google_rank", "image.cid"]
     ),
     
@@ -91,10 +88,7 @@ De gratis analyse die ik aanbied geeft u inzicht in:
 
 Zal ik deze week een analyse voor u maken? Het kost u niets en u bent nergens toe verplicht.
 
-Met vriendelijke groet,
-Christian
-Punthelder Marketing
-christian@punthelder-marketing.nl""",
+Met vriendelijke groet,""",
         placeholders=["lead.company", "lead.url", "vars.keyword", "vars.google_rank"]
     ),
     
@@ -119,10 +113,7 @@ Het bevat o.a.:
 
 Wil je dat ik het rapport kort met je doorloop? Laat gerust weten als je liever via mail reageert.
 
-Met vriendelijke groet,
-Victor
-Punthelder Marketing
-victor@punthelder-marketing.nl""",
+Met vriendelijke groet,""",
         placeholders=["lead.company", "attachment.pdf"]
     ),
     
@@ -141,10 +132,7 @@ Mocht u in de toekomst toch willen weten hoe u beter kunt scoren voor termen zoa
 
 Ik wens u veel succes met uw bedrijf.
 
-Met vriendelijke groet,
-Victor
-Punthelder Marketing
-victor@punthelder-marketing.nl""",
+Met vriendelijke groet,""",
         placeholders=["lead.company", "lead.url", "vars.keyword"]
     ),
     
@@ -171,10 +159,7 @@ Ik bied u een gratis vindbaarheidsanalyse aan:
 
 Interesse in een gratis analyse? Ik kan deze week voor u aan de slag.
 
-Met vriendelijke groet,
-Christian
-Punthelder Vindbaarheid
-christian@punthelder-vindbaarheid.nl""",
+Met vriendelijke groet,""",
         placeholders=["lead.company", "lead.url", "vars.keyword", "vars.google_rank", "image.cid"]
     ),
     
@@ -198,10 +183,7 @@ De gratis analyse die ik aanbied laat precies zien:
 
 Zal ik deze week een analyse maken? Het is gratis en vrijblijvend.
 
-Met vriendelijke groet,
-Christian
-Punthelder Vindbaarheid
-christian@punthelder-vindbaarheid.nl""",
+Met vriendelijke groet,""",
         placeholders=["lead.company", "lead.url", "vars.keyword", "vars.google_rank", "image.cid"]
     ),
     
@@ -226,10 +208,7 @@ Het bevat o.a.:
 
 Wil je dat ik het rapport kort met je doorloop? Laat gerust weten als je liever via mail reageert.
 
-Met vriendelijke groet,
-Victor
-Punthelder Vindbaarheid
-victor@punthelder-vindbaarheid.nl""",
+Met vriendelijke groet,""",
         placeholders=["lead.company", "attachment.pdf"]
     ),
     
@@ -248,10 +227,7 @@ Mocht dat in de toekomst veranderen, vooral voor termen zoals "{{vars.keyword}}"
 
 Succes gewenst!
 
-Met vriendelijke groet,
-Victor
-Punthelder Vindbaarheid
-victor@punthelder-vindbaarheid.nl""",
+Met vriendelijke groet,""",
         placeholders=["lead.company", "lead.url", "vars.keyword"]
     ),
     
@@ -278,10 +254,7 @@ Ik bied u een gratis SEO-audit aan:
 
 Interesse? Ik kan deze week een audit voor u uitvoeren.
 
-Met vriendelijke groet,
-Christian
-Punthelder SEO
-christian@punthelder-seo.nl""",
+Met vriendelijke groet,""",
         placeholders=["lead.company", "lead.url", "vars.keyword", "vars.google_rank", "image.cid"]
     ),
     
@@ -305,10 +278,7 @@ De gratis audit bevat:
 
 Zal ik deze week een audit maken? Volledig gratis.
 
-Met vriendelijke groet,
-Christian
-Punthelder SEO
-christian@punthelder-seo.nl""",
+Met vriendelijke groet,""",
         placeholders=["lead.company", "lead.url", "vars.keyword", "vars.google_rank", "image.cid"]
     ),
     
@@ -333,10 +303,7 @@ Het bevat o.a.:
 
 Wil je dat ik het rapport kort met je doorloop? Laat gerust weten als je liever via mail reageert.
 
-Met vriendelijke groet,
-Victor
-Punthelder SEO
-victor@punthelder-seo.nl""",
+Met vriendelijke groet,""",
         placeholders=["lead.company", "attachment.pdf"]
     ),
     
@@ -355,10 +322,7 @@ Mocht u later toch willen weten hoe u beter kunt scoren voor "{{vars.keyword}}",
 
 Veel succes!
 
-Met vriendelijke groet,
-Victor
-Punthelder SEO
-victor@punthelder-seo.nl""",
+Met vriendelijke groet,""",
         placeholders=["lead.company", "lead.url", "vars.keyword"]
     ),
     
@@ -383,10 +347,7 @@ Ik bied u een gratis zoekmachine-analyse aan:
 
 Interesse in een gratis analyse? Ik kan deze week voor u aan de slag.
 
-Met vriendelijke groet,
-Christian
-Punthelder Zoekmachine
-christian@punthelder-zoekmachine.nl""",
+Met vriendelijke groet,""",
         placeholders=["lead.company", "lead.url", "vars.keyword", "vars.google_rank"]
     ),
     
@@ -410,10 +371,7 @@ De gratis analyse laat zien:
 
 Zal ik deze week een analyse maken? Het is gratis en vrijblijvend.
 
-Met vriendelijke groet,
-Christian
-Punthelder Zoekmachine
-christian@punthelder-zoekmachine.nl""",
+Met vriendelijke groet,""",
         placeholders=["lead.company", "lead.url", "vars.keyword", "vars.google_rank", "image.cid"]
     ),
     
@@ -438,10 +396,7 @@ Het bevat o.a.:
 
 Wil je dat ik het rapport kort met je doorloop? Laat gerust weten als je liever via mail reageert.
 
-Met vriendelijke groet,
-Victor
-Punthelder Zoekmachine
-victor@punthelder-zoekmachine.nl""",
+Met vriendelijke groet,""",
         placeholders=["lead.company", "attachment.pdf"]
     ),
     
@@ -460,10 +415,7 @@ Mocht dat in de toekomst veranderen, vooral voor termen zoals "{{vars.keyword}}"
 
 Succes gewenst!
 
-Met vriendelijke groet,
-Victor
-Punthelder Zoekmachine
-victor@punthelder-zoekmachine.nl""",
+Met vriendelijke groet,""",
         placeholders=["lead.company", "lead.url", "vars.keyword"]
     )
 }

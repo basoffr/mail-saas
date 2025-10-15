@@ -26,10 +26,10 @@ def inject_signature(html: str, alias: str, signature_url_christian: str, signat
         signature_url = signature_url_christian
         alt_text = "Christian Handtekening"
     
-    # Create signature HTML
+    # Create signature HTML (no alt text to avoid visual text)
     signature_html = f'''
 <div style="margin-top: 30px; margin-bottom: 20px;">
-    <img src="{signature_url}" alt="{alt_text}" style="max-width: 300px; height: auto; display: block;" />
+    <img src="{signature_url}" alt="" style="max-width: 300px; height: auto; display: block;" />
 </div>
 '''
     
@@ -68,10 +68,10 @@ def inject_signature_cid(html: str, alias: str) -> str:
         cid = "signature_christian"
         alt_text = "Christian Handtekening"
     
-    # Create signature HTML with CID reference
+    # Create signature HTML with CID reference (no alt text to avoid visual text)
     signature_html = f'''
 <div style="margin-top: 30px; margin-bottom: 20px;">
-    <img src="cid:{cid}" alt="{alt_text}" style="max-width: 300px; height: auto; display: block;" />
+    <img src="cid:{cid}" alt="" style="max-width: 300px; height: auto; display: block;" />
 </div>
 '''
     
