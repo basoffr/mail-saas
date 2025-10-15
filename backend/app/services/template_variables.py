@@ -133,10 +133,12 @@ class TemplateVariablesService:
         """
         Bereken compleetheid score van een lead.
         
-        Campaign V1 vereist 5 items:
-        - 3 custom vars: keyword, seo_score, google_rank
-        - 1 image
-        - 1 report
+        Campaign V1 vereist 5 template variables:
+        - vars.keyword
+        - vars.seo_score
+        - vars.google_rank
+        - vars.report_filename
+        - image (via image_key, gebruikt als {{image.cid}} in templates)
         
         Args:
             lead: Lead object
@@ -151,39 +153,26 @@ class TemplateVariablesService:
                 'is_complete': False
             }
         """
-        # Fixed: Campaign V1 requirements (3 vars + image + report = 5)
-        required_items = [
-            'vars.keyword',
-            'vars.seo_score', 
-            'vars.google_rank',
-            'image',
-            'report'
-        ]
+        # Campaign V1 requirements: 5 template variables
+        required_vars_in_dict = ['keyword', 'seo_score', 'google_rank', 'report_filename']
         
         missing = []
         filled_count = 0
         
-        # Check custom vars
-        for var_name in ['keyword', 'seo_score', 'google_rank']:
+        # Check 4 required vars in lead.vars
+        for var_name in required_vars_in_dict:
             if lead.vars and var_name in lead.vars and lead.vars[var_name]:
                 filled_count += 1
             else:
                 missing.append(f'vars.{var_name}')
         
-        # Check image
-        if lead.image_key:
+        # Check image (5th variable, stored in image_key field)
+        if lead.image_key and lead.image_key != '':
             filled_count += 1
         else:
             missing.append('image')
         
-        # Check report (either in vars or reports store)
-        has_report = (lead.vars and lead.vars.get('report_filename')) is not None
-        if has_report:
-            filled_count += 1
-        else:
-            missing.append('report')
-        
-        total = 5  # Always 5 for Campaign V1
+        total = 5  # Always 5 template variables for Campaign V1
         
         return {
             'filled': filled_count,
