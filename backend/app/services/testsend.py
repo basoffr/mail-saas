@@ -50,7 +50,8 @@ class TestsendService:
         user_id: str = "default",
         mail_number: int = 1,
         domain: str = "punthelder-marketing.nl",
-        image_key: Optional[str] = None  # Lead's dashboard screenshot key
+        image_key: Optional[str] = None,  # Lead's dashboard screenshot key
+        report_filename: Optional[str] = None  # Lead's report PDF filename
     ) -> Dict[str, Any]:
         """
         Send test email via SMTP with proper logging and assets.
@@ -144,6 +145,37 @@ class TestsendService:
                     logger.error(f"Error attaching dashboard image from Supabase: {str(e)}")
             else:
                 logger.debug("No image_key provided, skipping dashboard image")
+            
+            # Attach PDF report from Supabase Storage (for M3 templates)
+            if report_filename:
+                try:
+                    from email.mime.application import MIMEApplication
+                    
+                    # Report PDFs are stored in 'reports' bucket with full filename
+                    report_key = report_filename  # e.g., "solangefashion_nl_report.pdf"
+                    
+                    # Get signed URL from Supabase
+                    signed_url = supabase_storage.get_signed_url_for_report(report_key, expires_in=3600)
+                    
+                    if signed_url:
+                        # Download PDF from Supabase
+                        response = requests.get(signed_url, timeout=10)
+                        if response.status_code == 200:
+                            pdf_data = response.content
+                            
+                            # Attach PDF as application/pdf
+                            pdf_attachment = MIMEApplication(pdf_data, _subtype='pdf')
+                            pdf_attachment.add_header('Content-Disposition', 'attachment', filename=report_filename)
+                            msg.attach(pdf_attachment)
+                            logger.info(f"✅ Attached PDF report from Supabase: {report_filename}")
+                        else:
+                            logger.warning(f"Failed to download PDF report: HTTP {response.status_code}")
+                    else:
+                        logger.debug(f"No signed URL for report: {report_filename}")
+                except Exception as e:
+                    logger.error(f"Error attaching PDF report from Supabase: {str(e)}")
+            else:
+                logger.debug("No report_filename provided, skipping PDF attachment")
             
             # Determine if we should use real SMTP or simulation
             use_real_smtp = bool(smtp_host and smtp_user and smtp_pass)

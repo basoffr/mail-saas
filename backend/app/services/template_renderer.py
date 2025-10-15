@@ -31,6 +31,8 @@ class TemplateRenderer:
                     value = self._get_campaign_value(var, context.get('campaign', {}), warnings)
                 elif var.startswith('image.'):
                     value = self._get_image_value(var, context, warnings)
+                elif var.startswith('attachment.'):
+                    value = self._get_attachment_value(var, context, warnings)
                 elif '|' in var:  # Helper functions
                     value = self._apply_helper(var, context, warnings)
                 else:
@@ -69,6 +71,36 @@ class TemplateRenderer:
         if not value:
             warnings.append(f"Campaign variable '{field}' not available")
         return str(value) if value else ''
+    
+    def _get_attachment_value(self, var: str, context: Dict[str, Any], warnings: List[str]) -> str:
+        """Handle attachment variables (PDF reports)"""
+        if 'attachment.pdf' in var:
+            # Extract attachment type: attachment.pdf 'report' -> report
+            type_match = re.search(r"attachment\.pdf\s+['\"]([^'\"]+)['\"]", var)
+            if type_match:
+                attachment_type = type_match.group(1)
+                
+                # For report attachments
+                if attachment_type == 'report':
+                    lead = context.get('lead', {})
+                    vars_dict = lead.get('vars', {})
+                    report_filename = vars_dict.get('report_filename', '')
+                    
+                    if report_filename:
+                        # Return a placeholder that will be replaced with actual attachment
+                        # The PDF will be attached separately by testsend service
+                        return f'<p><strong>📄 SEO-rapport bijgevoegd:</strong> {report_filename}</p>'
+                    else:
+                        warnings.append("No report filename available for lead")
+                        return ""
+                else:
+                    warnings.append(f"Unknown attachment type: {attachment_type}")
+                    return ""
+            else:
+                warnings.append(f"Invalid attachment.pdf syntax: {var}")
+                return "[ATTACHMENT_ERROR]"
+        
+        return ""
     
     def _get_image_value(self, var: str, context: Dict[str, Any], warnings: List[str]) -> str:
         """Handle image variables"""

@@ -82,6 +82,42 @@ class SupabaseStorage:
             logger.error(f"Error generating signed URL for {image_key}: {e}")
             return None
     
+    def get_signed_url_for_report(self, report_filename: str, expires_in: int = 3600) -> Optional[str]:
+        """
+        Generate signed URL for PDF report in 'reports' bucket.
+        
+        Args:
+            report_filename: The PDF filename (e.g., "solangefashion_nl_report.pdf")
+            expires_in: URL expiration time in seconds (default: 1 hour)
+        
+        Returns:
+            Signed URL or None if not found
+        """
+        if not self.client:
+            # Mock URL for development
+            return f"https://via.placeholder.com/200x200?text={report_filename}"
+        
+        try:
+            # Reports are stored in 'reports' bucket
+            reports_bucket = "reports"
+            
+            # Try to get signed URL for the PDF
+            response = self.client.storage.from_(reports_bucket).create_signed_url(
+                report_filename,  # e.g., "solangefashion_nl_report.pdf"
+                expires_in
+            )
+            
+            if response and 'signedURL' in response:
+                logger.info(f"✅ Generated signed URL for report: {report_filename}")
+                return response['signedURL']
+            else:
+                logger.warning(f"❌ No report found: {report_filename}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error generating signed URL for report {report_filename}: {e}")
+            return None
+    
     def list_images(self, prefix: str = "images/") -> list[str]:
         """List all images in the bucket"""
         if not self.client:

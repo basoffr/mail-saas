@@ -349,7 +349,12 @@ async def send_test_email(
             "lead_id": payload.leadId
         })
         
-        # Send email with mail_number, domain, and image_key for dashboard screenshot
+        # Extract report_filename from lead vars (for M3 templates with PDF attachment)
+        report_filename = None
+        if lead_data.get('vars'):
+            report_filename = lead_data['vars'].get('report_filename')
+        
+        # Send email with mail_number, domain, image_key, and report_filename
         send_result = await testsend_service.send_test_email(
             to_email=str(payload.to),
             subject=result.get('subject', template_name),
@@ -358,7 +363,8 @@ async def send_test_email(
             user_id=user.get("sub", "default"),
             mail_number=template.mail_number,
             domain=lead_domain,
-            image_key=lead_data.get('image_key')  # Dashboard screenshot from Supabase
+            image_key=lead_data.get('image_key'),  # Dashboard screenshot from Supabase
+            report_filename=report_filename  # PDF report from Supabase (M3 templates)
         )
         
         if send_result['success']:
