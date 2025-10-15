@@ -1,3 +1,16 @@
+"""
+Message Sender - Campaign email sender with status tracking.
+
+Handles campaign message sending with:
+- Message status tracking (queued, sent, opened, bounced, failed)
+- Event logging (sent, opened, clicked, bounced)
+- Lead suppression checking
+- Bounce/open handling
+- Retry logic
+
+Delegates actual email sending to unified email_sender.py.
+"""
+
 import uuid
 from datetime import datetime
 from typing import Optional, Dict, Any
@@ -5,27 +18,33 @@ from loguru import logger
 
 from app.models.campaign import Message, MessageStatus, MessageEvent, MessageEventType
 from app.models.lead import Lead, LeadStatus
-from app.services.signature_injector import inject_signature_cid, get_alias_from_mail_number
+from app.services.email_sender import email_sender
 
 
 class MessageSender:
     """
-    Handles email sending with SMTP simulation, bounce detection,
-    and unsubscribe header compliance.
+    Handles campaign message sending with status tracking and event logging.
+    
+    Delegates actual email sending to unified email_sender.py.
     """
     
     def __init__(self):
-        # SMTP simulation for MVP
-        self.smtp_enabled = False
-        self.bounce_rate = 0.05  # 5% simulated bounce rate
+        self.email_sender = email_sender
+        self.bounce_rate = 0.05  # 5% simulated bounce rate (for simulation mode)
         self.delivery_success_rate = 0.95
     
     async def send_message(self, message: Message, lead: Lead, template_content: str) -> bool:
         """
-        Send a single message with bounce detection and status updates.
-        Returns True if sent successfully, False if failed.
-        """
+        Send campaign message via unified email sender with status tracking.
         
+        Args:
+            message: Message object with domain_used, mail_number, template_version
+            lead: Lead object with email, vars (report_filename, image_key)
+            template_content: Rendered HTML template
+            
+        Returns:
+            True if sent successfully, False if failed
+        """
         try:
             # Check if lead is suppressed
             if lead.status in [LeadStatus.suppressed, LeadStatus.bounced]:
@@ -33,29 +52,53 @@ class MessageSender:
                 await self._update_message_status(message, MessageStatus.canceled, "Lead is suppressed")
                 return False
             
-            # Simulate SMTP sending
-            if self.smtp_enabled:
-                success = await self._send_via_smtp(message, lead, template_content)
-            else:
-                success = await self._simulate_send(message, lead)
+            # Extract version from message (template_version)
+            version = message.template_version or 1
             
-            if success:
+            # Extract assets from lead vars
+            image_key = lead.vars.get('image_key') if hasattr(lead, 'vars') and lead.vars else None
+            report_filename = lead.vars.get('report_filename') if hasattr(lead, 'vars') and lead.vars else None
+            
+            # Create subject from template (TODO: get from template store)
+            subject = f"Email van {message.alias.capitalize()}"
+            
+            logger.info(f"📧 Sending campaign message {message.id}: V{version}M{message.mail_number} to {lead.email}")
+            
+            # Send via unified email sender
+            result = await self.email_sender.send_email(
+                to_email=lead.email,
+                subject=subject,
+                html_body=template_content,
+                text_body="",  # TODO: Generate text version
+                version=version,
+                mail_number=message.mail_number,
+                lead_id=lead.id,
+                message_id=message.id,
+                image_key=image_key,
+                report_filename=report_filename,
+                enable_tracking=True  # Enable tracking for campaigns
+            )
+            
+            if result['success']:
                 # Mark as sent
                 await self._update_message_status(message, MessageStatus.sent)
                 await self._create_event(message, MessageEventType.sent)
                 
                 # Update lead last emailed timestamp
                 lead.last_emailed_at = datetime.utcnow()
+                message.sent_at = datetime.utcnow()
                 
-                logger.info(f"Message {message.id} sent successfully to {lead.email}")
+                logger.info(f"✅ Message {message.id} sent successfully to {lead.email}")
                 return True
             else:
                 # Handle failure
+                error_msg = result.get('error', 'Unknown error')
+                logger.error(f"❌ Message {message.id} failed: {error_msg}")
                 await self._handle_send_failure(message, lead)
                 return False
                 
         except Exception as e:
-            logger.error(f"Error sending message {message.id}: {str(e)}")
+            logger.error(f"❌ Exception sending message {message.id}: {str(e)}")
             await self._update_message_status(message, MessageStatus.failed, str(e))
             return False
     
@@ -130,145 +173,6 @@ class MessageSender:
         base_url = os.getenv('API_BASE_URL', 'https://mail-saas-rf4s.onrender.com')
         token = self._generate_token(message.id)
         return f"{base_url}/api/v1/track/open.gif?m={message.id}&t={token}"
-    
-    async def _send_via_smtp(self, message: Message, lead: Lead, template_content: str) -> bool:
-        """Send email via actual SMTP (production implementation)."""
-        import smtplib
-        import os
-        from email.mime.multipart import MIMEMultipart
-        from email.mime.text import MIMEText
-        from email.utils import formataddr
-        
-        from app.services.settings import settings_service
-        from app.services.template_renderer import inject_tracking_pixel, inject_signature_cid
-        
-        settings = settings_service.get_settings()
-        
-        # Inject signature based on alias (before tracking pixel)
-        alias = get_alias_from_mail_number(message.mail_number)
-        template_content = inject_signature_cid(template_content, alias)
-        logger.debug(f"Injected {alias} signature for message {message.id}")
-        
-        # Inject tracking pixel
-        if settings.tracking_pixel_enabled:
-            tracking_url = self.generate_tracking_pixel_url(message)
-            template_content = inject_tracking_pixel(template_content, tracking_url)
-            logger.debug(f"Injected tracking pixel for message {message.id}")
-        
-        # Get unsubscribe headers
-        unsub_headers = self.generate_unsubscribe_headers(message, lead)
-        smtp_host = os.getenv("SMTP_HOST", "smtp.vimexx.nl")
-        smtp_port = int(os.getenv("SMTP_PORT", "587"))
-        smtp_user = os.getenv("SMTP_USER")
-        smtp_password = os.getenv("SMTP_PASSWORD")
-        
-        if not smtp_user or not smtp_password:
-            logger.error("SMTP credentials not configured in environment")
-            return False
-        
-        # Get campaign to determine template subject
-        campaign = campaign_store.get_campaign(message.campaign_id)
-        if not campaign:
-            logger.error(f"Campaign {message.campaign_id} not found for message {message.id}")
-            return False
-        
-        # Get template for subject
-        from app.services.template_store import template_store
-        template = template_store.get(campaign.template_id)
-        if not template:
-            logger.error(f"Template {campaign.template_id} not found")
-            return False
-        
-        # V2.2: Use pre-calculated from_email and reply_to from message
-        from_name = message.alias.capitalize()  # "Christian" or "Victor"
-        from_email = message.from_email  # Already includes alias@domain
-        reply_to = message.reply_to_email  # Always christian@domain
-        
-        try:
-            # Create message
-            msg = MIMEMultipart('related')  # Changed to 'related' for embedded images
-            msg['From'] = formataddr((from_name, from_email))
-            msg['To'] = lead.email
-            msg['Subject'] = template.subject
-            msg['Reply-To'] = reply_to
-            
-            # Add unsubscribe headers
-            for key, value in unsub_headers.items():
-                msg[key] = value
-            
-            # Add HTML body
-            html_part = MIMEText(template_content, 'html', 'utf-8')
-            msg.attach(html_part)
-            
-            # Attach signature image as CID
-            from email.mime.image import MIMEImage
-            import os
-            from pathlib import Path
-            
-            alias = get_alias_from_mail_number(message.mail_number)
-            signature_filename = f"{alias.capitalize()} Handtekening.png"
-            signature_path = Path(__file__).parent.parent / "assets" / "signatures" / signature_filename
-            
-            if signature_path.exists():
-                with open(signature_path, 'rb') as img_file:
-                    img_data = img_file.read()
-                    image = MIMEImage(img_data)
-                    image.add_header('Content-ID', f'<signature_{alias}>')
-                    image.add_header('Content-Disposition', 'inline', filename=signature_filename)
-                    msg.attach(image)
-                    logger.debug(f"Attached {alias} signature image as CID for message {message.id}")
-            else:
-                logger.warning(f"Signature image not found: {signature_path}")
-            
-            # Connect to SMTP server
-            logger.debug(f"Connecting to SMTP server {smtp_host}:{smtp_port}")
-            
-            with smtplib.SMTP(smtp_host, smtp_port, timeout=30) as server:
-                # Start TLS
-                server.starttls()
-                
-                # Login
-                logger.debug(f"Authenticating as {smtp_user}")
-                server.login(smtp_user, smtp_password)
-                
-                # Send email
-                server.send_message(msg)
-                
-            logger.info(f"Successfully sent email via SMTP for message {message.id} to {lead.email}")
-            return True
-            
-        except smtplib.SMTPAuthenticationError as e:
-            logger.error(f"SMTP authentication failed for message {message.id}: {str(e)}")
-            return False
-            
-        except smtplib.SMTPConnectError as e:
-            logger.error(f"SMTP connection failed for message {message.id}: {str(e)}")
-            return False
-            
-        except smtplib.SMTPException as e:
-            logger.error(f"SMTP error sending message {message.id}: {str(e)}")
-            return False
-            
-        except Exception as e:
-            logger.error(f"Unexpected error sending message {message.id} via SMTP: {str(e)}")
-            return False
-    
-    async def _simulate_send(self, message: Message, lead: Lead) -> bool:
-        """Simulate email sending for MVP."""
-        import random
-        
-        # Simulate delivery success/failure
-        if random.random() < self.delivery_success_rate:
-            return True
-        else:
-            # Simulate different failure types
-            failure_types = ["temporary_failure", "bounce", "smtp_error"]
-            failure_type = random.choice(failure_types)
-            
-            if failure_type == "bounce":
-                await self.handle_bounce(message, lead, "Simulated bounce")
-            
-            return False
     
     async def _update_message_status(
         self, 
