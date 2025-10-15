@@ -8,6 +8,9 @@ vitalign-pro/.env
 # Import data (large files, local only)
 Importable data/
 
+# Archive directory (documentation, old scripts, logs)
+_archive/
+
 # Python cache
 __pycache__/
 *.pyc
