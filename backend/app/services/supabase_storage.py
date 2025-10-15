@@ -105,9 +105,12 @@ class SupabaseStorage:
             # Reports are stored in 'reports' bucket
             reports_bucket = "reports"
             
+            logger.debug(f"🔍 Searching for report: {report_filename}")
+            
             # Normalize filename: replace dots with underscores
             # "angelicroots.com_report.pdf" -> "angelicroots_com_report.pdf"
             normalized_filename = report_filename.replace('.com_', '_com_').replace('.nl_', '_nl_')
+            logger.debug(f"Normalized filename: {normalized_filename}")
             
             # Try exact match first
             paths_to_try = [
@@ -136,15 +139,18 @@ class SupabaseStorage:
                 # Extract base domain from filename
                 # "angelicroots.com_report.pdf" -> "angelicroots"
                 base_name = report_filename.split('_')[0].replace('.com', '').replace('.nl', '')
+                logger.debug(f"Fuzzy search with base_name: {base_name}")
                 
                 # List all files in bucket
                 files = self.client.storage.from_(reports_bucket).list()
+                logger.debug(f"Found {len(files)} files in reports bucket")
                 
                 # Find files that start with the base domain name
                 matching_files = [
                     f['name'] for f in files 
                     if f['name'].startswith(base_name) and f['name'].endswith('_report.pdf')
                 ]
+                logger.debug(f"Fuzzy matches: {matching_files}")
                 
                 if matching_files:
                     # Try the first matching file

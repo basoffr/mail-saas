@@ -51,7 +51,8 @@ class TestsendService:
         mail_number: int = 1,
         domain: str = "punthelder-marketing.nl",
         image_key: Optional[str] = None,  # Lead's dashboard screenshot key
-        report_filename: Optional[str] = None  # Lead's report PDF filename
+        report_filename: Optional[str] = None,  # Lead's report PDF filename
+        version: int = 1  # Template version (1-4)
     ) -> Dict[str, Any]:
         """
         Send test email via SMTP with proper logging and assets.
@@ -118,9 +119,12 @@ class TestsendService:
             else:
                 logger.warning(f"Signature image not found: {signature_path}")
             
-            # Attach dashboard screenshot ONLY for specific mail numbers
+            # Attach dashboard screenshot ONLY for specific version+mail combinations
             # V1M1, V2M1, V2M2, V3M1, V3M2, V4M2 have inline screenshots
-            should_attach_screenshot = mail_number in [1, 2]
+            should_attach_screenshot = (
+                (version in [1, 2, 3] and mail_number == 1) or  # V1M1, V2M1, V3M1
+                (version in [2, 3, 4] and mail_number == 2)     # V2M2, V3M2, V4M2
+            )
             
             if image_key and should_attach_screenshot:
                 try:
@@ -139,7 +143,7 @@ class TestsendService:
                             dashboard_image.add_header('Content-ID', f'<{cid_name}>')
                             dashboard_image.add_header('Content-Disposition', 'inline')  # No filename = pure inline
                             msg.attach(dashboard_image)
-                            logger.info(f"✅ Attached dashboard screenshot for M{mail_number}: {image_key}")
+                            logger.info(f"✅ Attached dashboard screenshot for V{version}M{mail_number}: {image_key}")
                         else:
                             logger.warning(f"Failed to download dashboard image: HTTP {response.status_code}")
                     else:
@@ -155,6 +159,8 @@ class TestsendService:
             # Attach PDF report ONLY for M3 templates
             # V1M3, V2M3, V3M3, V4M3 have PDF report attachments
             should_attach_report = mail_number == 3
+            
+            logger.debug(f"Report check for V{version}M{mail_number}: filename='{report_filename}', should_attach={should_attach_report}")
             
             if report_filename and should_attach_report:
                 try:

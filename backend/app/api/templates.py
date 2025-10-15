@@ -354,7 +354,7 @@ async def send_test_email(
         if lead_data.get('vars'):
             report_filename = lead_data['vars'].get('report_filename')
         
-        # Send email with mail_number, domain, image_key, and report_filename
+        # Send email with version, mail_number, domain, image_key, and report_filename
         send_result = await testsend_service.send_test_email(
             to_email=str(payload.to),
             subject=result.get('subject', template_name),
@@ -364,7 +364,8 @@ async def send_test_email(
             mail_number=template.mail_number,
             domain=lead_domain,
             image_key=lead_data.get('image_key'),  # Dashboard screenshot from Supabase
-            report_filename=report_filename  # PDF report from Supabase (M3 templates)
+            report_filename=report_filename,  # PDF report from Supabase (M3 templates)
+            version=template.version  # Template version for version-aware asset logic
         )
         
         if send_result['success']:
