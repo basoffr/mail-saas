@@ -102,11 +102,15 @@ export const campaignsService = {
     return await authService.apiCall<DryRunResult>(`/campaigns/${id}/dry-run`);
   },
 
-  async getCampaignMessages(campaignId: string): Promise<CampaignMessage[]> {
+  async getCampaignMessages(
+    campaignId: string, 
+    page: number = 1, 
+    pageSize: number = 100
+  ): Promise<{ items: CampaignMessage[]; total: number }> {
     const response = await authService.apiCall<{ items: CampaignMessage[]; total: number }>(
-      `/campaigns/${campaignId}/messages`
+      `/campaigns/${campaignId}/messages?page=${page}&page_size=${pageSize}`
     );
-    return response.items || [];
+    return response;
   },
 
   async resendMessage(messageId: string): Promise<{ ok: boolean }> {

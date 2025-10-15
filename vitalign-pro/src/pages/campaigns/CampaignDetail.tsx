@@ -96,17 +96,15 @@ export default function CampaignDetail() {
   
   const [campaign, setCampaign] = useState<CampaignDetailType | null>(null);
   const [messages, setMessages] = useState<CampaignMessage[]>([]);
+  const [totalMessages, setTotalMessages] = useState(0);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [selectedMessage, setSelectedMessage] = useState<CampaignMessage | null>(null);
   const [messagesPage, setMessagesPage] = useState(1);
   
-  const MESSAGES_PER_PAGE = 25;
-  const totalMessagesPages = Math.ceil(messages.length / MESSAGES_PER_PAGE);
-  const paginatedMessages = messages.slice(
-    (messagesPage - 1) * MESSAGES_PER_PAGE,
-    messagesPage * MESSAGES_PER_PAGE
-  );
+  const MESSAGES_PER_PAGE = 100;
+  const totalMessagesPages = Math.ceil(totalMessages / MESSAGES_PER_PAGE);
+  const paginatedMessages = messages; // Already paginated from backend
 
   useEffect(() => {
     if (id) {
@@ -115,16 +113,24 @@ export default function CampaignDetail() {
     }
   }, [id]);
 
+  // Refetch messages when page changes
+  useEffect(() => {
+    if (id && messagesPage > 1) {
+      fetchMessages();
+    }
+  }, [messagesPage]);
+
   // Polling for live updates
   useEffect(() => {
     if (!campaign || campaign.status !== CampaignStatus.RUNNING) return;
 
     const interval = setInterval(() => {
       fetchCampaignDetail();
+      fetchMessages(); // Also refresh messages during polling
     }, 10000); // Poll every 10 seconds
 
     return () => clearInterval(interval);
-  }, [campaign?.status]);
+  }, [campaign?.status, messagesPage]);
 
   const fetchCampaignDetail = async () => {
     if (!id) return;
@@ -148,8 +154,9 @@ export default function CampaignDetail() {
     if (!id) return;
     
     try {
-      const data = await campaignsService.getCampaignMessages(id);
-      setMessages(data);
+      const response = await campaignsService.getCampaignMessages(id, messagesPage, MESSAGES_PER_PAGE);
+      setMessages(response.items);
+      setTotalMessages(response.total);
     } catch (error) {
       console.error('Failed to load messages:', error);
     }
@@ -441,8 +448,13 @@ export default function CampaignDetail() {
         {/* Messages Table - Full Width */}
         <Card className="mt-6 shadow-card rounded-2xl overflow-hidden">
           <div className="p-6 border-b flex items-center justify-between">
-            <h2 className="text-xl font-bold">Messages ({messages.length})</h2>
-            {totalMessagesPages > 1 && (
+            <div>
+              <h2 className="text-xl font-bold">Messages ({totalMessages})</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Showing {messages.length} of {totalMessages} messages
+              </p>
+            </div>
+            {totalMessages > 0 && (
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
