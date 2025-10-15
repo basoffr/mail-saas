@@ -130,16 +130,92 @@ class CampaignStore:
         
         return campaigns, total
     
-    def update_campaign_status(self, campaign_id: str, status: CampaignStatus) -> bool:
-        """Update campaign status."""
+    def update_campaign_status(self, campaign_id: str, status: CampaignStatus, reason: str = None) -> bool:
+        """
+        Update campaign status with validation and logging.
+        
+        Args:
+            campaign_id: Campaign ID
+            status: New status
+            reason: Optional reason for status change
+            
+        Returns:
+            True if updated successfully
+        """
         campaign = self.campaigns.get(campaign_id)
         if not campaign:
+            logger.warning(f"Cannot update status: campaign {campaign_id} not found")
             return False
         
+        old_status = campaign.status
         campaign.status = status
         campaign.updated_at = datetime.utcnow()
-        logger.info(f"Updated campaign {campaign_id} status to {status}")
+        
+        log_msg = f"Campaign {campaign_id} status: {old_status} → {status}"
+        if reason:
+            log_msg += f" (reason: {reason})"
+        logger.info(log_msg)
+        
         return True
+    
+    def get_campaigns_by_status(self, status: CampaignStatus) -> List[Campaign]:
+        """Get all campaigns with specific status."""
+        return [c for c in self.campaigns.values() if c.status == status]
+    
+    def get_schedulable_draft_campaigns(self, current_time: datetime) -> List[Campaign]:
+        """
+        Get draft campaigns that should be activated.
+        
+        Returns campaigns where:
+        - status = draft
+        - start_at is set
+        - start_at <= current_time
+        """
+        return [
+            c for c in self.campaigns.values()
+            if c.status == CampaignStatus.draft
+            and c.start_at is not None
+            and c.start_at <= current_time
+        ]
+    
+    def get_completable_active_campaigns(self) -> List[Campaign]:
+        """
+        Get active campaigns that should be marked as completed.
+        
+        Returns campaigns where:
+        - status = active
+        - all messages are in final state (sent/failed/bounced/canceled)
+        """
+        completable = []
+        
+        for campaign in self.campaigns.values():
+            if campaign.status != CampaignStatus.active:
+                continue
+            
+            # Get all messages for this campaign
+            campaign_messages = [
+                m for m in self.messages.values()
+                if m.campaign_id == campaign.id
+            ]
+            
+            if not campaign_messages:
+                continue
+            
+            # Check if all messages are in final state
+            final_statuses = {
+                MessageStatus.sent,
+                MessageStatus.opened,
+                MessageStatus.failed,
+                MessageStatus.bounced,
+                MessageStatus.canceled
+            }
+            
+            all_final = all(m.status in final_statuses for m in campaign_messages)
+            
+            if all_final:
+                completable.append(campaign)
+        
+        return completable
     
     def create_audience(self, audience: CampaignAudience) -> CampaignAudience:
         """Create campaign audience snapshot."""

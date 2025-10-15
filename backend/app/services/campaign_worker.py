@@ -30,21 +30,32 @@ class CampaignWorker:
     async def run_once(self) -> dict:
         """Execute one iteration of the worker (check all domains).
         
+        Production-ready lifecycle management:
+        1. Activate scheduled campaigns (draft → active)
+        2. Process and send due messages
+        3. Complete finished campaigns (active → completed)
+        
         Returns:
             Dict with statistics about this run
         """
         current_time = datetime.now(ZoneInfo("Europe/Amsterdam"))
         stats = {
             "timestamp": current_time.isoformat(),
+            "campaigns_activated": 0,
+            "campaigns_completed": 0,
             "domains_checked": 0,
             "messages_sent": 0,
             "messages_failed": 0,
             "by_domain": {}
         }
         
-        logger.info(f"Worker run at {current_time}")
+        logger.info(f"📊 Worker run at {current_time}")
         
-        # Check each domain for due messages
+        # PHASE 1: Activate scheduled campaigns that reached their start_at time
+        activated_count = await self._activate_scheduled_campaigns(current_time)
+        stats["campaigns_activated"] = activated_count
+        
+        # PHASE 2: Process and send due messages for each domain
         for domain in DOMAINS:
             domain_stats = await self._process_domain(domain, current_time)
             stats["domains_checked"] += 1
@@ -52,9 +63,16 @@ class CampaignWorker:
             stats["messages_failed"] += domain_stats["failed"]
             stats["by_domain"][domain] = domain_stats
         
+        # PHASE 3: Complete campaigns that have finished
+        completed_count = await self._complete_finished_campaigns()
+        stats["campaigns_completed"] = completed_count
+        
         logger.info(
-            f"Worker completed: {stats['messages_sent']} sent, "
-            f"{stats['messages_failed']} failed across {stats['domains_checked']} domains"
+            f"✅ Worker completed: "
+            f"{stats['campaigns_activated']} activated, "
+            f"{stats['messages_sent']} sent, "
+            f"{stats['messages_failed']} failed, "
+            f"{stats['campaigns_completed']} completed"
         )
         
         return stats
@@ -144,8 +162,8 @@ class CampaignWorker:
                 logger.error(f"Campaign {message.campaign_id} not found")
                 return False
             
-            # V2.2: Check campaign status (paused/deleted guard)
-            if campaign.status in [CampaignStatus.paused, CampaignStatus.deleted]:
+            # V2.2: Check campaign status (draft/paused/deleted guard)
+            if campaign.status in [CampaignStatus.draft, CampaignStatus.paused, CampaignStatus.deleted]:
                 logger.info(f"Campaign {campaign.id} is {campaign.status}, skipping message {message.id}")
                 return False
             
@@ -166,6 +184,111 @@ class CampaignWorker:
         except Exception as e:
             logger.error(f"Error sending message {message.id}: {str(e)}")
             return False
+    
+    async def _activate_scheduled_campaigns(self, current_time: datetime) -> int:
+        """
+        Activate draft campaigns that have reached their start_at time.
+        
+        Production-ready implementation:
+        - Checks all draft campaigns with start_at set
+        - Activates if current_time >= start_at
+        - Logs status transitions
+        - Returns count of activated campaigns
+        
+        Args:
+            current_time: Current time in Europe/Amsterdam timezone
+            
+        Returns:
+            Number of campaigns activated
+        """
+        from app.services.store_factory import campaigns_store
+        from app.models.campaign import CampaignStatus
+        
+        try:
+            # Get all schedulable draft campaigns
+            schedulable = campaigns_store.get_schedulable_draft_campaigns(current_time)
+            
+            if not schedulable:
+                logger.debug("No draft campaigns ready for activation")
+                return 0
+            
+            activated_count = 0
+            for campaign in schedulable:
+                success = campaigns_store.update_campaign_status(
+                    campaign.id,
+                    CampaignStatus.active,
+                    reason=f"Start time reached (scheduled: {campaign.start_at})"
+                )
+                
+                if success:
+                    activated_count += 1
+                    logger.info(
+                        f"🚀 Activated campaign {campaign.id}: {campaign.name} "
+                        f"(scheduled for {campaign.start_at})"
+                    )
+            
+            if activated_count > 0:
+                logger.info(f"✅ Activated {activated_count} scheduled campaign(s)")
+            
+            return activated_count
+            
+        except Exception as e:
+            logger.error(f"Error activating scheduled campaigns: {str(e)}")
+            return 0
+    
+    async def _complete_finished_campaigns(self) -> int:
+        """
+        Mark active campaigns as completed when all messages are in final state.
+        
+        Production-ready implementation:
+        - Checks all active campaigns
+        - Verifies all messages are sent/failed/bounced/canceled
+        - Marks campaign as completed
+        - Logs completion statistics
+        - Returns count of completed campaigns
+        
+        Returns:
+            Number of campaigns completed
+        """
+        from app.services.store_factory import campaigns_store
+        from app.models.campaign import CampaignStatus
+        
+        try:
+            # Get all completable active campaigns
+            completable = campaigns_store.get_completable_active_campaigns()
+            
+            if not completable:
+                logger.debug("No active campaigns ready for completion")
+                return 0
+            
+            completed_count = 0
+            for campaign in completable:
+                # Get campaign KPIs for completion summary
+                kpis = campaigns_store.get_campaign_kpis(campaign.id)
+                
+                success = campaigns_store.update_campaign_status(
+                    campaign.id,
+                    CampaignStatus.completed,
+                    reason=f"All messages finished ({kpis.total_sent}/{kpis.total_planned} sent)"
+                )
+                
+                if success:
+                    completed_count += 1
+                    logger.info(
+                        f"🎉 Completed campaign {campaign.id}: {campaign.name} "
+                        f"(sent: {kpis.total_sent}/{kpis.total_planned}, "
+                        f"opened: {kpis.total_opened}, "
+                        f"failed: {kpis.total_failed})"
+                    )
+            
+            if completed_count > 0:
+                logger.info(f"✅ Completed {completed_count} campaign(s)")
+            
+            return completed_count
+            
+        except Exception as e:
+            logger.error(f"Error completing finished campaigns: {str(e)}")
+            return 0
     
     async def run_continuous(self, interval_seconds: int = 60):
         """Run worker continuously with specified interval.
