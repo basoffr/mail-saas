@@ -887,3 +887,145 @@ class DBCampaignStore:
                 "bounced": 0,
                 "cancel_reasons": {}
             }
+    
+    # ============================================================================
+    # DATABASE-DRIVEN QUEUE METHODS (Production-ready, restart-safe)
+    # ============================================================================
+    
+    def get_queued_messages_for_slot(
+        self, 
+        domain: str, 
+        scheduled_at: datetime,
+        limit: int = 100
+    ) -> List[Message]:
+        """
+        Get queued messages for specific domain and time slot.
+        
+        Production-ready implementation:
+        - Queries database directly (no in-memory state)
+        - Restart-safe (survives backend restarts)
+        - Supports horizontal scaling
+        
+        Args:
+            domain: Domain to filter by
+            scheduled_at: Exact scheduled time slot
+            limit: Maximum messages to return (default 100)
+            
+        Returns:
+            List of queued messages for this slot
+        """
+        if not self.supabase:
+            logger.warning("Supabase not initialized, cannot query messages")
+            return []
+        
+        try:
+            # Query database for queued messages at this exact slot
+            response = (
+                self.supabase
+                .table("messages")
+                .select("*")
+                .eq("domain_used", domain)
+                .eq("status", MessageStatus.queued.value)
+                .eq("scheduled_at", scheduled_at.isoformat())
+                .order("mail_number", desc=True)  # Priority: M4 > M3 > M2 > M1
+                .limit(limit)
+                .execute()
+            )
+            
+            messages = [self._row_to_message(row) for row in response.data]
+            
+            if messages:
+                logger.debug(
+                    f"Found {len(messages)} queued messages for {domain} "
+                    f"at {scheduled_at}"
+                )
+            
+            return messages
+            
+        except Exception as e:
+            logger.error(f"Error querying messages for slot: {e}")
+            return []
+    
+    def get_all_queued_messages(self, domain: Optional[str] = None) -> List[Message]:
+        """
+        Get all queued messages, optionally filtered by domain.
+        
+        Used for:
+        - Monitoring queue status
+        - Admin dashboard
+        - Debug/recovery operations
+        
+        Args:
+            domain: Optional domain filter
+            
+        Returns:
+            List of all queued messages
+        """
+        if not self.supabase:
+            logger.warning("Supabase not initialized, cannot query messages")
+            return []
+        
+        try:
+            query = (
+                self.supabase
+                .table("messages")
+                .select("*")
+                .eq("status", MessageStatus.queued.value)
+            )
+            
+            if domain:
+                query = query.eq("domain_used", domain)
+            
+            query = query.order("scheduled_at", desc=False)
+            
+            response = query.execute()
+            messages = [self._row_to_message(row) for row in response.data]
+            
+            logger.info(
+                f"Found {len(messages)} total queued messages"
+                + (f" for domain {domain}" if domain else "")
+            )
+            
+            return messages
+            
+        except Exception as e:
+            logger.error(f"Error querying all queued messages: {e}")
+            return []
+    
+    def get_queued_messages_count_by_domain(self) -> Dict[str, int]:
+        """
+        Get count of queued messages per domain.
+        
+        Used for:
+        - Queue monitoring
+        - Domain status dashboard
+        - Load balancing insights
+        
+        Returns:
+            Dict mapping domain → queued message count
+        """
+        if not self.supabase:
+            return {}
+        
+        try:
+            # Get all queued messages with domain
+            response = (
+                self.supabase
+                .table("messages")
+                .select("domain_used")
+                .eq("status", MessageStatus.queued.value)
+                .execute()
+            )
+            
+            # Count per domain
+            domain_counts: Dict[str, int] = {}
+            for row in response.data:
+                domain = row.get("domain_used")
+                if domain:
+                    domain_counts[domain] = domain_counts.get(domain, 0) + 1
+            
+            return domain_counts
+            
+        except Exception as e:
+            logger.error(f"Error counting queued messages: {e}")
+            return {}
