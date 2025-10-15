@@ -118,8 +118,11 @@ class TestsendService:
             else:
                 logger.warning(f"Signature image not found: {signature_path}")
             
-            # Attach dashboard image from Supabase Storage (same as campaigns)
-            if image_key:
+            # Attach dashboard screenshot ONLY for specific mail numbers
+            # V1M1, V2M1, V2M2, V3M1, V3M2, V4M2 have inline screenshots
+            should_attach_screenshot = mail_number in [1, 2]
+            
+            if image_key and should_attach_screenshot:
                 try:
                     # Get signed URL from Supabase
                     signed_url = supabase_storage.get_signed_url(image_key, expires_in=3600)
@@ -136,7 +139,7 @@ class TestsendService:
                             dashboard_image.add_header('Content-ID', f'<{cid_name}>')
                             dashboard_image.add_header('Content-Disposition', 'inline')  # No filename = pure inline
                             msg.attach(dashboard_image)
-                            logger.info(f"✅ Attached dashboard image from Supabase: {image_key}")
+                            logger.info(f"✅ Attached dashboard screenshot for M{mail_number}: {image_key}")
                         else:
                             logger.warning(f"Failed to download dashboard image: HTTP {response.status_code}")
                     else:
@@ -144,10 +147,16 @@ class TestsendService:
                 except Exception as e:
                     logger.error(f"Error attaching dashboard image from Supabase: {str(e)}")
             else:
-                logger.debug("No image_key provided, skipping dashboard image")
+                if image_key and not should_attach_screenshot:
+                    logger.debug(f"Skipping screenshot for M{mail_number} (only M1/M2 have screenshots)")
+                else:
+                    logger.debug("No image_key provided, skipping dashboard image")
             
-            # Attach PDF report from Supabase Storage (for M3 templates)
-            if report_filename:
+            # Attach PDF report ONLY for M3 templates
+            # V1M3, V2M3, V3M3, V4M3 have PDF report attachments
+            should_attach_report = mail_number == 3
+            
+            if report_filename and should_attach_report:
                 try:
                     from email.mime.application import MIMEApplication
                     
@@ -175,7 +184,10 @@ class TestsendService:
                 except Exception as e:
                     logger.error(f"Error attaching PDF report from Supabase: {str(e)}")
             else:
-                logger.debug("No report_filename provided, skipping PDF attachment")
+                if report_filename and not should_attach_report:
+                    logger.debug(f"Skipping PDF report for M{mail_number} (only M3 has reports)")
+                else:
+                    logger.debug("No report_filename provided, skipping PDF attachment")
             
             # Determine if we should use real SMTP or simulation
             use_real_smtp = bool(smtp_host and smtp_user and smtp_pass)
