@@ -82,7 +82,8 @@ def enrich_lead_with_metadata(lead: Lead, include_completeness: bool = True) -> 
     lead_dict['hasImage'] = has_image    # Frontend expects camelCase
     
     if vars_completeness:
-        lead_dict['vars_completeness'] = vars_completeness
+        lead_dict['vars_completeness'] = vars_completeness  # Backend/Python convention
+        lead_dict['varsCompleteness'] = vars_completeness   # Frontend/JS convention
     
     lead_dict['is_complete'] = is_complete
     lead_dict['isComplete'] = is_complete  # Frontend expects camelCase
