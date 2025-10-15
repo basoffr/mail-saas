@@ -174,11 +174,49 @@ def inject_tracking_pixel(html: str, pixel_url: str) -> str:
         return html + pixel_html
 
 
+def plain_text_to_html(text: str) -> str:
+    """Convert plain text email to HTML with proper line breaks.
+    
+    - Converts \n\n (double newlines) to <br><br>
+    - Preserves HTML tags that are already present (like <img>)
+    - HTML-escapes content except for existing tags
+    """
+    import html
+    
+    # Split by existing HTML tags to preserve them
+    parts = []
+    last_end = 0
+    
+    # Find all HTML tags
+    tag_pattern = re.compile(r'<[^>]+>')
+    
+    for match in tag_pattern.finditer(text):
+        # Add text before tag (escaped and with line breaks converted)
+        if last_end < match.start():
+            plain = text[last_end:match.start()]
+            # Don't escape, just convert line breaks
+            # Replace \n\n with <br><br>, single \n with <br>
+            converted = plain.replace('\n\n', '<br><br>').replace('\n', '<br>')
+            parts.append(converted)
+        
+        # Add the HTML tag as-is
+        parts.append(match.group(0))
+        last_end = match.end()
+    
+    # Add remaining text after last tag
+    if last_end < len(text):
+        plain = text[last_end:]
+        converted = plain.replace('\n\n', '<br><br>').replace('\n', '<br>')
+        parts.append(converted)
+    
+    return ''.join(parts)
+
+
 def render_template_with_lead(template_body: str, subject_template: str, lead_data: Dict[str, Any], campaign_data: Optional[Dict[str, Any]] = None, mail_number: Optional[int] = None) -> Dict[str, Any]:
     """Render template with lead data and signature.
     
     Args:
-        template_body: HTML template
+        template_body: Plain text template (will be converted to HTML)
         subject_template: Subject line template
         lead_data: Lead data for variable substitution
         campaign_data: Optional campaign context
@@ -201,6 +239,9 @@ def render_template_with_lead(template_body: str, subject_template: str, lead_da
     # Render subject and body
     rendered_subject, subject_warnings = renderer.render(subject_template, context)
     rendered_body, body_warnings = renderer.render(template_body, context)
+    
+    # Convert plain text to HTML (preserves existing HTML tags like <img>)
+    rendered_body = plain_text_to_html(rendered_body)
     
     # Add signature based on mail_number (for preview)
     import base64
