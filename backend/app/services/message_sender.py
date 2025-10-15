@@ -180,8 +180,12 @@ class MessageSender:
         status: MessageStatus, 
         error: str = None
     ) -> None:
-        """Update message status and timestamps."""
+        """
+        Update message status and persist to database.
         
+        PRODUCTION-READY: Database persistence for restart-safety.
+        """
+        # Update in-memory object
         message.status = status
         
         if status == MessageStatus.sent:
@@ -189,8 +193,14 @@ class MessageSender:
         elif status in [MessageStatus.failed, MessageStatus.bounced]:
             message.last_error = error
         
-        # In production: save to database
-        logger.debug(f"Updated message {message.id} status to {status}")
+        # PERSIST TO DATABASE (critical for production!)
+        from app.services.store_factory import campaigns_store
+        success = campaigns_store.update_message_status(message.id, status, error)
+        
+        if success:
+            logger.info(f"✅ Updated message {message.id} status to {status}")
+        else:
+            logger.error(f"❌ Failed to update message {message.id} status to {status}")
     
     async def _create_event(
         self, 
@@ -198,8 +208,11 @@ class MessageSender:
         event_type: MessageEventType,
         meta: Dict[str, Any] = None
     ) -> MessageEvent:
-        """Create a message event record."""
+        """
+        Create a message event record and persist to database.
         
+        PRODUCTION-READY: Database persistence for audit trail.
+        """
         event = MessageEvent(
             id=str(uuid.uuid4()),
             message_id=message.id,
@@ -207,9 +220,15 @@ class MessageSender:
             meta=meta or {}
         )
         
-        # In production: save to database
-        logger.debug(f"Created {event_type} event for message {message.id}")
-        return event
+        # PERSIST TO DATABASE (critical for audit trail!)
+        from app.services.store_factory import campaigns_store
+        try:
+            saved_event = campaigns_store.create_event(event)
+            logger.info(f"✅ Created {event_type} event for message {message.id}")
+            return saved_event
+        except Exception as e:
+            logger.error(f"❌ Failed to create event for message {message.id}: {e}")
+            return event  # Return in-memory object as fallback
     
     async def _handle_send_failure(self, message: Message, lead: Lead) -> None:
         """Handle various types of send failures."""
