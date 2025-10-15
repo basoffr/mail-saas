@@ -69,7 +69,8 @@ def enrich_lead_with_metadata(lead: Lead, include_completeness: bool = True) -> 
     
     if include_completeness:
         vars_completeness = template_variables_service.calculate_completeness(lead)
-        is_complete = has_report and has_image and vars_completeness['is_complete']
+        # calculate_completeness already checks all 5 items (3 vars + image + report)
+        is_complete = vars_completeness['is_complete']
     else:
         # Simplified completeness check without full calculation
         is_complete = has_report and has_image and bool(lead.vars)
