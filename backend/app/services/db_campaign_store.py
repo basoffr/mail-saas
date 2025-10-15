@@ -905,6 +905,7 @@ class DBCampaignStore:
         - Queries database directly (no in-memory state)
         - Restart-safe (survives backend restarts)
         - Supports horizontal scaling
+        - RESPECTS CAMPAIGN STATUS (paused campaigns excluded)
         
         Args:
             domain: Domain to filter by
@@ -912,7 +913,7 @@ class DBCampaignStore:
             limit: Maximum messages to return (default 100)
             
         Returns:
-            List of queued messages for this slot
+            List of queued messages from ACTIVE campaigns only
         """
         if not self.supabase:
             logger.warning("Supabase not initialized, cannot query messages")
@@ -920,13 +921,18 @@ class DBCampaignStore:
         
         try:
             # Query database for queued messages at this exact slot
+            # CRITICAL: Only return messages from active/running campaigns!
             response = (
                 self.supabase
                 .table("messages")
-                .select("*")
+                .select("*, campaigns!inner(status)")
                 .eq("domain_used", domain)
                 .eq("status", MessageStatus.queued.value)
                 .eq("scheduled_at", scheduled_at.isoformat())
+                .in_("campaigns.status", [
+                    CampaignStatus.active.value,
+                    CampaignStatus.running.value
+                ])  # ✅ EXCLUDE paused, stopped, completed campaigns
                 .order("mail_number", desc=True)  # Priority: M4 > M3 > M2 > M1
                 .limit(limit)
                 .execute()
