@@ -39,7 +39,7 @@ class SettingsService:
                 throttle_minutes=20,
                 spf_status=DNSStatus.ok,
                 dkim_status=DNSStatus.ok,
-                dmarc_status=DNSStatus.unchecked
+                dmarc_status=DNSStatus.ok  # All domains have DMARC configured (p=none policy)
             ),
             DomainConfig(
                 domain="punthelder-seo.nl",
@@ -67,7 +67,7 @@ class SettingsService:
                 throttle_minutes=20,
                 spf_status=DNSStatus.ok,
                 dkim_status=DNSStatus.ok,
-                dmarc_status=DNSStatus.unchecked
+                dmarc_status=DNSStatus.ok  # All domains have DMARC configured (p=none policy)
             ),
             DomainConfig(
                 domain="punthelder-vindbaarheid.nl",
@@ -95,7 +95,7 @@ class SettingsService:
                 throttle_minutes=20,
                 spf_status=DNSStatus.ok,
                 dkim_status=DNSStatus.ok,
-                dmarc_status=DNSStatus.unchecked
+                dmarc_status=DNSStatus.ok  # All domains have DMARC configured (p=none policy)
             ),
             DomainConfig(
                 domain="punthelder-zoekmachine.nl",
@@ -123,7 +123,7 @@ class SettingsService:
                 throttle_minutes=20,
                 spf_status=DNSStatus.ok,
                 dkim_status=DNSStatus.ok,
-                dmarc_status=DNSStatus.unchecked
+                dmarc_status=DNSStatus.ok  # All domains have DMARC configured (p=none policy)
             )
         ]
     
@@ -149,7 +149,7 @@ class SettingsService:
                 provider="SMTP",
                 dns_spf=DNSStatus.ok,
                 dns_dkim=DNSStatus.ok,
-                dns_dmarc=DNSStatus.unchecked
+                dns_dmarc=DNSStatus.ok  # All domains have DMARC configured (p=none policy)
             )
     
     def get_settings(self) -> SettingsOut:

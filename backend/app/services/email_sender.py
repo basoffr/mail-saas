@@ -41,9 +41,10 @@ DOMAIN_MAP = {
 
 
 class EmailConfig:
-    """Email configuration from environment variables."""
+    """Email configuration from environment variables - supports multi-domain."""
     
     def __init__(self):
+        # Default SMTP (for test sends)
         self.smtp_host = os.getenv("SMTP_HOST")
         self.smtp_port = int(os.getenv("SMTP_PORT", "587"))
         self.smtp_user = os.getenv("SMTP_USER")
@@ -54,9 +55,60 @@ class EmailConfig:
         self.tracking_pixel_enabled = os.getenv("TRACKING_PIXEL_ENABLED", "false").lower() == "true"
         self.tracking_base_url = os.getenv("TRACKING_BASE_URL", "https://mail-saas-rf4s.onrender.com")
     
+    def get_credentials_for_email(self, from_email: str) -> Optional[Dict[str, str]]:
+        """
+        Get SMTP credentials for specific email address (multi-domain support).
+        
+        Args:
+            from_email: Email address (e.g., "christian@punthelder-marketing.nl")
+            
+        Returns:
+            Dict with host, user, password, or None if not found
+        """
+        # Parse email to get domain and alias
+        if '@' not in from_email:
+            return None
+        
+        alias, domain = from_email.split('@', 1)
+        
+        # Map domain to shortname
+        domain_map = {
+            'punthelder-marketing.nl': 'MARKETING',
+            'punthelder-seo.nl': 'SEO',
+            'punthelder-vindbaarheid.nl': 'VINDBAARHEID',
+            'punthelder-zoekmachine.nl': 'ZOEKMACHINE'
+        }
+        
+        domain_key = domain_map.get(domain)
+        if not domain_key:
+            return None
+        
+        # Get credentials from environment
+        # Format: SMTP_PASSWORD_MARKETING_CHRISTIAN
+        alias_upper = alias.upper()
+        password_key = f"SMTP_PASSWORD_{domain_key}_{alias_upper}"
+        password = os.getenv(password_key)
+        
+        if not password:
+            logger.warning(f"No password found for {from_email} (looking for {password_key})")
+            return None
+        
+        # SMTP host format: mail.punthelder-marketing.nl
+        smtp_host = f"mail.{domain}"
+        
+        return {
+            'host': smtp_host,
+            'user': from_email,
+            'password': password
+        }
+    
     @property
     def is_configured(self) -> bool:
-        """Check if SMTP is properly configured."""
+        """
+        Check if SMTP is properly configured.
+        Note: For multi-domain setups, we check domain-specific credentials at send time.
+        This is just for backward compatibility with default credentials.
+        """
         return bool(self.smtp_host and self.smtp_user and self.smtp_pass)
 
 
@@ -169,12 +221,9 @@ class EmailSender:
             if message_id and lead_id:
                 self._add_unsubscribe_headers(msg, message_id, lead_id)
             
-            # Send via SMTP
-            if self.config.is_configured:
-                success = await self._send_via_smtp(msg, to_email, mail_from)
-            else:
-                logger.warning(f"⚠️  SMTP not configured, using simulation mode")
-                success = await self._simulate_send(msg, to_email, mail_from)
+            # Send via SMTP (checks domain-specific credentials automatically)
+            # No need to check self.config.is_configured - we check in _send_via_smtp
+            success = await self._send_via_smtp(msg, to_email, mail_from)
             
             if success:
                 logger.info(f"✅ Email sent successfully to {to_email}")
@@ -319,31 +368,55 @@ class EmailSender:
         to_email: str, 
         from_email: str
     ) -> bool:
-        """Send email via real SMTP."""
+        """Send email via real SMTP with multi-domain credentials support."""
         try:
-            logger.debug(f"Connecting to SMTP {self.config.smtp_host}:{self.config.smtp_port}")
+            # Try to get domain-specific credentials first
+            domain_creds = self.config.get_credentials_for_email(from_email)
             
-            with smtplib.SMTP(self.config.smtp_host, self.config.smtp_port, timeout=30) as server:
+            if domain_creds:
+                # Use domain-specific credentials
+                smtp_host = domain_creds['host']
+                smtp_user = domain_creds['user']
+                smtp_pass = domain_creds['password']
+                logger.debug(f"Using domain-specific credentials for {from_email}")
+            else:
+                # Fallback to default credentials
+                smtp_host = self.config.smtp_host
+                smtp_user = self.config.smtp_user
+                smtp_pass = self.config.smtp_pass
+                logger.debug(f"Using default credentials (fallback)")
+            
+            if not (smtp_host and smtp_user and smtp_pass):
+                logger.error(
+                    f"❌ No SMTP credentials available for {from_email}. "
+                    f"Please configure environment variable SMTP_PASSWORD_{{DOMAIN}}_{{ALIAS}} "
+                    f"(e.g., SMTP_PASSWORD_MARKETING_CHRISTIAN)"
+                )
+                return False
+            
+            logger.debug(f"Connecting to SMTP {smtp_host}:{self.config.smtp_port}")
+            
+            with smtplib.SMTP(smtp_host, self.config.smtp_port, timeout=30) as server:
                 if self.config.use_tls:
                     server.starttls()
                 
-                server.login(self.config.smtp_user, self.config.smtp_pass)
+                server.login(smtp_user, smtp_pass)
                 server.send_message(msg)
             
-            logger.info(f"✅ SMTP delivery successful to {to_email}")
+            logger.info(f"✅ SMTP delivery successful: {from_email} → {to_email}")
             return True
             
         except smtplib.SMTPAuthenticationError as e:
-            logger.error(f"SMTP authentication failed: {str(e)}")
+            logger.error(f"❌ SMTP authentication failed for {from_email}: {str(e)}")
             return False
         except smtplib.SMTPConnectError as e:
-            logger.error(f"SMTP connection failed: {str(e)}")
+            logger.error(f"❌ SMTP connection failed: {str(e)}")
             return False
         except smtplib.SMTPException as e:
-            logger.error(f"SMTP error: {str(e)}")
+            logger.error(f"❌ SMTP error: {str(e)}")
             return False
         except Exception as e:
-            logger.error(f"Unexpected SMTP error: {str(e)}")
+            logger.error(f"❌ Unexpected SMTP error: {str(e)}")
             return False
     
     async def _simulate_send(
