@@ -87,9 +87,9 @@ class TemplateRenderer:
                     report_filename = vars_dict.get('report_filename', '')
                     
                     if report_filename:
-                        # Return a placeholder that will be replaced with actual attachment
-                        # The PDF will be attached separately by testsend service
-                        return f'<p><strong>📄 SEO-rapport bijgevoegd:</strong> {report_filename}</p>'
+                        # PDF will be attached automatically by email_sender for M3
+                        # No need to show filename in email body
+                        return ""
                     else:
                         warnings.append("No report filename available for lead")
                         return ""
