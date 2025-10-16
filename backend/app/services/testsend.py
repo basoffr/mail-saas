@@ -95,7 +95,13 @@ class TestsendService:
             }
         
         # Delegate to unified email sender
+        # Generate mock IDs for testing (to match campaign send behavior)
+        import uuid
+        mock_message_id = f"test-{uuid.uuid4().hex[:12]}"
+        mock_lead_id = f"test-lead-{uuid.uuid4().hex[:8]}"
+        
         logger.info(f"📧 Test email request: V{version}M{mail_number} to {to_email}")
+        logger.debug(f"Test send with mock IDs - message: {mock_message_id}, lead: {mock_lead_id}")
         
         result = await self.email_sender.send_email(
             to_email=to_email,
@@ -104,9 +110,11 @@ class TestsendService:
             text_body=text_body,
             version=version,
             mail_number=mail_number,
+            lead_id=mock_lead_id,         # Mock lead ID for unsubscribe headers
+            message_id=mock_message_id,   # Mock message ID for tracking
             image_key=image_key,
             report_filename=report_filename,
-            enable_tracking=False  # No tracking for test emails
+            enable_tracking=True  # Match campaign behavior (tracking pixel + unsubscribe)
         )
         
         # Record successful send for rate limiting
