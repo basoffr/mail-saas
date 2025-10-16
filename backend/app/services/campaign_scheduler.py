@@ -924,3 +924,7 @@ class CampaignScheduler:
         """Check if datetime is within work hours and days."""
         return (dt.weekday() in self.WORK_DAYS and 
                 self.WORK_START_HOUR <= dt.hour < self.WORK_END_HOUR)
+
+
+# Global scheduler instance
+campaign_scheduler = CampaignScheduler()
