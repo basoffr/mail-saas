@@ -1035,3 +1035,112 @@ class DBCampaignStore:
         except Exception as e:
             logger.error(f"Error counting queued messages: {e}")
             return {}
+    
+    def get_schedulable_draft_campaigns(self, current_time: datetime) -> List[Campaign]:
+        """
+        Get draft campaigns that are ready to be activated.
+        
+        Args:
+            current_time: Current time to check against start_at
+            
+        Returns:
+            List of draft campaigns where start_at <= current_time
+        """
+        if not self.supabase:
+            logger.warning("Supabase not initialized")
+            return []
+        
+        try:
+            response = (
+                self.supabase
+                .table("campaigns")
+                .select("*")
+                .eq("status", CampaignStatus.draft.value)
+                .not_.is_("start_at", "null")
+                .lte("start_at", current_time.isoformat())
+                .execute()
+            )
+            
+            campaigns = [self._row_to_campaign(row) for row in response.data]
+            
+            if campaigns:
+                logger.info(
+                    f"Found {len(campaigns)} draft campaign(s) ready for activation"
+                )
+            
+            return campaigns
+            
+        except Exception as e:
+            logger.error(f"Error getting schedulable draft campaigns: {e}")
+            return []
+    
+    def get_completable_active_campaigns(self) -> List[Campaign]:
+        """
+        Get active campaigns where all messages are in final state.
+        
+        A campaign is completable when ALL messages are one of:
+        - sent
+        - failed
+        - bounced
+        - canceled
+        
+        Returns:
+            List of active campaigns ready to be marked as completed
+        """
+        if not self.supabase:
+            logger.warning("Supabase not initialized")
+            return []
+        
+        try:
+            # Get all active campaigns
+            response = (
+                self.supabase
+                .table("campaigns")
+                .select("*")
+                .eq("status", CampaignStatus.active.value)
+                .execute()
+            )
+            
+            active_campaigns = [self._row_to_campaign(row) for row in response.data]
+            
+            completable = []
+            for campaign in active_campaigns:
+                # Check if all messages are in final state
+                msg_response = (
+                    self.supabase
+                    .table("messages")
+                    .select("status")
+                    .eq("campaign_id", campaign.id)
+                    .execute()
+                )
+                
+                if not msg_response.data:
+                    continue
+                
+                # Final states
+                final_states = {
+                    MessageStatus.sent.value,
+                    MessageStatus.failed.value,
+                    MessageStatus.bounced.value,
+                    MessageStatus.canceled.value
+                }
+                
+                # Check if ALL messages are in final state
+                all_final = all(
+                    msg["status"] in final_states 
+                    for msg in msg_response.data
+                )
+                
+                if all_final:
+                    completable.append(campaign)
+            
+            if completable:
+                logger.info(
+                    f"Found {len(completable)} active campaign(s) ready for completion"
+                )
+            
+            return completable
+            
+        except Exception as e:
+            logger.error(f"Error getting completable active campaigns: {e}")
+            return []
