@@ -228,9 +228,15 @@ class EmailSender:
             
             # Inject screenshot CID if needed
             html_with_assets = html_body
-            if should_attach_screenshot and image_key:
-                cid_name = f"dashboard_{domain.replace('.', '_').replace('-', '_')}"
-                html_with_assets = self._inject_screenshot_cid(html_body, cid_name)
+            if should_attach_screenshot:
+                if image_key:
+                    cid_name = f"dashboard_{domain.replace('.', '_').replace('-', '_')}"
+                    html_with_assets = self._inject_screenshot_cid(html_body, cid_name)
+                    logger.debug(f"Screenshot CID injection for V{version}M{mail_number}: {cid_name}")
+                else:
+                    # No image_key: replace placeholder with fallback message
+                    logger.warning(f"No image_key for V{version}M{mail_number}, using fallback placeholder")
+                    html_with_assets = self._inject_screenshot_fallback(html_body)
             
             # Inject signature into HTML body
             html_with_signature = inject_signature_cid(html_with_assets, alias)
@@ -416,29 +422,98 @@ class EmailSender:
         msg['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click'
         logger.debug(f"Added unsubscribe headers for message {message_id}")
     
+    def _inject_screenshot_fallback(self, html: str) -> str:
+        """
+        Replace screenshot placeholders with fallback message when image_key is missing.
+        Removes broken image placeholders and optionally shows a message.
+        """
+        import re
+        
+        # Fallback: empty div or gray placeholder
+        fallback_html = '<div style="padding: 40px; background: #f3f4f6; text-align: center; color: #9ca3af; font-size: 14px; border-radius: 8px; margin: 20px 0;">Dashboard screenshot wordt geladen...</div>'
+        
+        # Pattern 1: {{image.cid 'hero'}}
+        pattern1 = r'\{\{image\.cid\s+[\'"]hero[\'"]\}\}'
+        if re.search(pattern1, html):
+            logger.debug("Replacing {{image.cid 'hero'}} with fallback")
+            return re.sub(pattern1, '""', html)  # Empty src to avoid broken image
+        
+        # Pattern 2: {{SCREENSHOT_CID}}
+        if '{{SCREENSHOT_CID}}' in html:
+            logger.debug("Replacing {{SCREENSHOT_CID}} with fallback")
+            return html.replace('{{SCREENSHOT_CID}}', '""')
+        
+        # Pattern 3: Find <img> with alt="Dashboard Analytics" and remove or hide
+        pattern3 = r'<img\s+([^>]*alt\s*=\s*[\'"]Dashboard Analytics[\'"][^>]*)>'
+        if re.search(pattern3, html, re.IGNORECASE):
+            logger.debug("Removing Dashboard Analytics img tag (no image_key)")
+            # Replace with fallback div
+            return re.sub(pattern3, fallback_html, html, flags=re.IGNORECASE)
+        
+        return html
+    
     def _inject_screenshot_cid(self, html: str, cid_name: str) -> str:
         """
         Inject screenshot CID reference into HTML.
-        Replaces {{SCREENSHOT_CID}} placeholder with actual CID reference.
-        """
-        screenshot_html = f'<img src="cid:{cid_name}" alt="Dashboard Screenshot" style="max-width: 100%; height: auto; display: block; margin: 20px 0;" />'
+        Replaces multiple placeholder formats with actual CID reference.
         
-        # Replace placeholder if exists
+        Supported placeholders:
+        - {{image.cid 'hero'}}
+        - {{SCREENSHOT_CID}}
+        - <img ... alt="Dashboard Analytics" ... > (with or without src)
+        """
+        import re
+        
+        # CID reference to inject
+        cid_img = f'cid:{cid_name}'
+        
+        # Pattern 1: {{image.cid 'hero'}} or {{image.cid "hero"}}
+        pattern1 = r'\{\{image\.cid\s+[\'"]hero[\'"]\}\}'
+        if re.search(pattern1, html):
+            logger.debug(f"Replacing {{{{image.cid 'hero'}}}} with {cid_img}")
+            html = re.sub(pattern1, cid_img, html)
+            return html
+        
+        # Pattern 2: {{SCREENSHOT_CID}}
         if '{{SCREENSHOT_CID}}' in html:
-            return html.replace('{{SCREENSHOT_CID}}', screenshot_html)
-        else:
-            # If no placeholder, inject before signature/end of content
-            # Find a good injection point (before signature or before </body>)
-            import re
-            # Try to inject before signature div
-            pattern = r'(<div[^>]*margin-top:\s*50px[^>]*>)'
-            if re.search(pattern, html):
-                return re.sub(pattern, f'{screenshot_html}\\1', html, count=1)
-            # Fallback: inject before </body>
-            elif '</body>' in html.lower():
-                return re.sub(r'</body>', f'{screenshot_html}</body>', html, count=1, flags=re.IGNORECASE)
+            logger.debug(f"Replacing {{{{SCREENSHOT_CID}}}} with {cid_img}")
+            return html.replace('{{SCREENSHOT_CID}}', cid_img)
+        
+        # Pattern 3: Find existing <img> with alt="Dashboard Analytics" and replace/update src
+        # This handles cases where template has: <img alt="Dashboard Analytics" src="placeholder">
+        pattern3 = r'<img\s+([^>]*alt\s*=\s*[\'"]Dashboard Analytics[\'"][^>]*)>'
+        match = re.search(pattern3, html, re.IGNORECASE)
+        if match:
+            img_attrs = match.group(1)
+            # Check if src already exists
+            if 'src=' in img_attrs.lower():
+                # Replace existing src
+                new_attrs = re.sub(r'src\s*=\s*[\'"][^\'"]*[\'"]', f'src="{cid_img}"', img_attrs, flags=re.IGNORECASE)
             else:
-                return html + screenshot_html
+                # Add src attribute
+                new_attrs = f'src="{cid_img}" {img_attrs}'
+            
+            # Ensure proper styling
+            if 'style=' not in new_attrs.lower():
+                new_attrs += ' style="max-width: 100%; height: auto; display: block; margin: 20px 0;"'
+            
+            new_img = f'<img {new_attrs}>'
+            logger.debug(f"Replacing Dashboard Analytics img tag with CID: {cid_img}")
+            return html.replace(match.group(0), new_img)
+        
+        # Pattern 4: No placeholder found - inject before signature
+        logger.warning("No screenshot placeholder found in template, injecting before signature")
+        screenshot_html = f'<img src="{cid_img}" alt="Dashboard Screenshot" style="max-width: 100%; height: auto; display: block; margin: 20px 0;" />'
+        
+        # Try to inject before signature div
+        pattern_sig = r'(<div[^>]*margin-top:\s*50px[^>]*>)'
+        if re.search(pattern_sig, html):
+            return re.sub(pattern_sig, f'{screenshot_html}\\1', html, count=1)
+        # Fallback: inject before </body>
+        elif '</body>' in html.lower():
+            return re.sub(r'</body>', f'{screenshot_html}</body>', html, count=1, flags=re.IGNORECASE)
+        else:
+            return html + screenshot_html
     
     def _generate_tracking_url(self, message_id: str) -> str:
         """Generate tracking pixel URL."""
