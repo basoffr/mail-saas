@@ -146,6 +146,37 @@ class EmailSender:
         alias = get_alias_from_mail_number(mail_number)
         return f"{alias}@{domain}"
     
+    def get_from_name_formatted(self, version: int, mail_number: int) -> str:
+        """
+        Get formatted FROM header with display name and email address.
+        
+        Args:
+            version: Template version (1-4)
+            mail_number: Mail number (1-4)
+            
+        Returns:
+            Formatted FROM header (e.g., "Christian - Punthelder Marketing <christian@punthelder-marketing.nl>")
+        """
+        domain = self.get_domain_for_version(version)
+        alias = get_alias_from_mail_number(mail_number)
+        email = f"{alias}@{domain}"
+        
+        # Get display name from alias (capitalize)
+        display_name = alias.capitalize()
+        
+        # Get company name from domain
+        domain_to_company = {
+            "punthelder-vindbaarheid.nl": "Punthelder Vindbaarheid",
+            "punthelder-marketing.nl": "Punthelder Marketing",
+            "punthelder-seo.nl": "Punthelder SEO",
+            "punthelder-zoekmachine.nl": "Punthelder Zoekmachine"
+        }
+        
+        company_name = domain_to_company.get(domain, "Punthelder Marketing")
+        
+        # Format: "Christian - Punthelder Marketing <christian@punthelder-marketing.nl>"
+        return f"{display_name} - {company_name} <{email}>"
+    
     async def send_email(
         self,
         to_email: str,
@@ -180,15 +211,29 @@ class EmailSender:
             Dict with success status and optional error message
         """
         try:
-            # Get FROM address
+            # Get FROM address (for SMTP)
             mail_from = self.get_from_address(version, mail_number)
+            # Get formatted FROM name (for display)
+            mail_from_formatted = self.get_from_name_formatted(version, mail_number)
             domain = self.get_domain_for_version(version)
             alias = get_alias_from_mail_number(mail_number)
             
-            logger.info(f"📧 Preparing email to {to_email} from {mail_from} (V{version}M{mail_number})")
+            logger.info(f"📧 Preparing email to {to_email} from {mail_from_formatted} (V{version}M{mail_number})")
+            
+            # Check if we need screenshot inline (M1/M2)
+            should_attach_screenshot = (
+                (version in [1, 2, 3] and mail_number == 1) or
+                (version in [2, 3, 4] and mail_number == 2)
+            )
+            
+            # Inject screenshot CID if needed
+            html_with_assets = html_body
+            if should_attach_screenshot and image_key:
+                cid_name = f"dashboard_{domain.replace('.', '_').replace('-', '_')}"
+                html_with_assets = self._inject_screenshot_cid(html_body, cid_name)
             
             # Inject signature into HTML body
-            html_with_signature = inject_signature_cid(html_body, alias)
+            html_with_signature = inject_signature_cid(html_with_assets, alias)
             
             # Optionally inject tracking pixel
             if enable_tracking and message_id and self.config.tracking_pixel_enabled:
@@ -212,7 +257,7 @@ class EmailSender:
             
             # Set headers
             msg['Subject'] = subject
-            msg['From'] = mail_from
+            msg['From'] = mail_from_formatted  # Display name format
             msg['To'] = to_email
             
             # Add text and HTML to alternative part
@@ -370,6 +415,30 @@ class EmailSender:
         msg['List-Unsubscribe'] = f'<{unsub_url}>'
         msg['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click'
         logger.debug(f"Added unsubscribe headers for message {message_id}")
+    
+    def _inject_screenshot_cid(self, html: str, cid_name: str) -> str:
+        """
+        Inject screenshot CID reference into HTML.
+        Replaces {{SCREENSHOT_CID}} placeholder with actual CID reference.
+        """
+        screenshot_html = f'<img src="cid:{cid_name}" alt="Dashboard Screenshot" style="max-width: 100%; height: auto; display: block; margin: 20px 0;" />'
+        
+        # Replace placeholder if exists
+        if '{{SCREENSHOT_CID}}' in html:
+            return html.replace('{{SCREENSHOT_CID}}', screenshot_html)
+        else:
+            # If no placeholder, inject before signature/end of content
+            # Find a good injection point (before signature or before </body>)
+            import re
+            # Try to inject before signature div
+            pattern = r'(<div[^>]*margin-top:\s*50px[^>]*>)'
+            if re.search(pattern, html):
+                return re.sub(pattern, f'{screenshot_html}\\1', html, count=1)
+            # Fallback: inject before </body>
+            elif '</body>' in html.lower():
+                return re.sub(r'</body>', f'{screenshot_html}</body>', html, count=1, flags=re.IGNORECASE)
+            else:
+                return html + screenshot_html
     
     def _generate_tracking_url(self, message_id: str) -> str:
         """Generate tracking pixel URL."""
