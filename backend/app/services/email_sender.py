@@ -187,12 +187,6 @@ class EmailSender:
             
             logger.info(f"📧 Preparing email to {to_email} from {mail_from} (V{version}M{mail_number})")
             
-            # Create MIME message
-            msg = MIMEMultipart('related')
-            msg['Subject'] = subject
-            msg['From'] = mail_from
-            msg['To'] = to_email
-            
             # Inject signature into HTML body
             html_with_signature = inject_signature_cid(html_body, alias)
             
@@ -202,20 +196,49 @@ class EmailSender:
                 html_with_signature = self._inject_tracking_pixel(html_with_signature, tracking_url)
                 logger.debug(f"Injected tracking pixel for message {message_id}")
             
-            # Attach text and HTML parts
-            msg.attach(MIMEText(text_body, 'plain'))
-            msg.attach(MIMEText(html_with_signature, 'html'))
+            # Check if we need PDF attachment (M3 only)
+            needs_pdf = (mail_number == 3 and report_filename)
             
-            # Attach signature image (CID)
-            self._attach_signature_image(msg, alias)
+            # Create proper MIME structure
+            if needs_pdf:
+                # Structure: mixed > related > alternative
+                msg = MIMEMultipart('mixed')
+                msg_related = MIMEMultipart('related')
+                msg_alternative = MIMEMultipart('alternative')
+            else:
+                # Structure: related > alternative (no attachments)
+                msg = MIMEMultipart('related')
+                msg_alternative = MIMEMultipart('alternative')
             
-            # Attach dashboard screenshot (M1/M2 only)
-            if image_key:
-                self._attach_screenshot(msg, image_key, version, mail_number, domain)
+            # Set headers
+            msg['Subject'] = subject
+            msg['From'] = mail_from
+            msg['To'] = to_email
             
-            # Attach PDF report (M3 only)
-            if report_filename:
+            # Add text and HTML to alternative part
+            msg_alternative.attach(MIMEText(text_body, 'plain'))
+            msg_alternative.attach(MIMEText(html_with_signature, 'html'))
+            
+            if needs_pdf:
+                # Build: related (alternative + inline images)
+                msg_related.attach(msg_alternative)
+                self._attach_signature_image(msg_related, alias)
+                
+                # Attach dashboard screenshot (M1/M2 only)
+                if image_key:
+                    self._attach_screenshot(msg_related, image_key, version, mail_number, domain)
+                
+                # Build: mixed (related + pdf attachment)
+                msg.attach(msg_related)
                 self._attach_pdf_report(msg, report_filename, version, mail_number)
+            else:
+                # Build: related (alternative + inline images)
+                msg.attach(msg_alternative)
+                self._attach_signature_image(msg, alias)
+                
+                # Attach dashboard screenshot (M1/M2 only)
+                if image_key:
+                    self._attach_screenshot(msg, image_key, version, mail_number, domain)
             
             # Add unsubscribe headers if message_id is provided
             if message_id and lead_id:

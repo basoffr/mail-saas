@@ -69,9 +69,10 @@ def inject_signature_cid(html: str, alias: str) -> str:
         alt_text = "Christian Handtekening"
     
     # Create signature HTML with CID reference (no alt text to avoid visual text)
+    # Proper spacing: more top margin, clear visual separation
     signature_html = f'''
-<div style="margin-top: 30px; margin-bottom: 20px;">
-    <img src="cid:{cid}" alt="" style="max-width: 450px; height: auto; display: block;" />
+<div style="margin-top: 50px; margin-bottom: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+    <img src="cid:{cid}" alt="" style="max-width: 450px; height: auto; display: block; margin: 0;" />
 </div>
 '''
     
