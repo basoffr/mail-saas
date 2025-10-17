@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo
 from loguru import logger
 
 from app.services.campaign_scheduler import campaign_scheduler, DOMAINS
-from app.services.message_sender import MessageSender
+from app.services.email_sender import email_sender  # Use unified email sender
 from app.services.store_factory import leads_store
 from app.services.template_renderer import TemplateRenderer
 
@@ -23,7 +23,7 @@ class CampaignWorker:
     """Background worker for sending campaign messages using dual-lane queue."""
     
     def __init__(self):
-        self.sender = MessageSender()
+        self.email_sender = email_sender  # Use unified email sender (handles HTML, images, PDFs, signatures)
         self.renderer = TemplateRenderer()
         self.running = False
     
@@ -167,19 +167,49 @@ class CampaignWorker:
                 logger.info(f"Campaign {campaign.id} is {campaign.status}, skipping message {message.id}")
                 return False
             
-            # Render template
-            from app.services.template_store import template_store
-            template = template_store.get(campaign.template_id)
+            # V2.2: Get template from MESSAGE (not campaign!)
+            # Each message has its own template_id (e.g., v1m1, v1m2, v1m3, v1m4)
+            # Use SAME template source as testsend (hybrid_template_service)
+            from app.services.hybrid_template_service import hybrid_template_service
+            from app.core.template_id_normalizer import normalize_template_id
+            
+            # Normalize template_id: v1m1 -> v1_mail1 (same as testsend!)
+            normalized_id = normalize_template_id(message.template_id)
+            
+            template = hybrid_template_service.get_template(normalized_id)
             if not template:
-                logger.error(f"Template {campaign.template_id} not found")
+                logger.error(f"Template {message.template_id} (normalized: {normalized_id}) not found for message {message.id} (mail #{message.mail_number})")
                 return False
             
-            rendered_content = self.renderer.render(template.body, lead)
+            logger.debug(f"Using template {normalized_id} for message {message.id}")
             
-            # Send via MessageSender
-            success = await self.sender.send_message(message, lead, rendered_content)
+            # Render template with lead variables (HardCodedTemplate has .body and .subject, not _template)
+            html_body = self.renderer.render(template.body, lead)
+            text_body = template.body  # Plain text fallback
+            subject = self.renderer.render(template.subject, lead)
             
-            return success
+            # Get lead assets (screenshot + report)
+            image_key = lead.image_key if hasattr(lead, 'image_key') else None
+            report_filename = None
+            if hasattr(lead, 'vars') and isinstance(lead.vars, dict):
+                report_filename = lead.vars.get('report_filename')
+            
+            # Send via unified email_sender (same as testsend - with HTML, images, PDFs, signatures!)
+            result = await self.email_sender.send_email(
+                to_email=lead.email,
+                subject=subject,
+                html_body=html_body,
+                text_body=text_body,
+                version=message.template_version,
+                mail_number=message.mail_number,
+                lead_id=lead.id,
+                message_id=message.id,
+                image_key=image_key,
+                report_filename=report_filename,
+                enable_tracking=True  # Enable tracking pixel + unsubscribe headers
+            )
+            
+            return result.get('success', False)
             
         except Exception as e:
             logger.error(f"Error sending message {message.id}: {str(e)}")
