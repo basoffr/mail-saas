@@ -404,13 +404,24 @@ async def get_campaign_messages(
         
         messages, total = campaign_store.list_messages(query)
         
-        # Enrich messages with lead info
+        # Enrich messages with lead info (BATCH LOOKUP for performance)
+        # Get all unique lead IDs
+        lead_ids = list(set(m.lead_id for m in messages))
+        
+        # Fetch all leads in one go
+        leads_map = {}
+        for lead_id in lead_ids:
+            lead = leads_store.get_by_id(lead_id)
+            if lead:
+                leads_map[lead_id] = lead
+        
+        # Enrich each message
         enriched_items = []
         for m in messages:
             message_dict = m.__dict__.copy()
             
-            # Get lead info
-            lead = leads_store.get_by_id(m.lead_id)
+            # Get lead from map (fast lookup)
+            lead = leads_map.get(m.lead_id)
             if lead:
                 message_dict['leadEmail'] = lead.email
                 message_dict['leadCompany'] = lead.company
