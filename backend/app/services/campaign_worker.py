@@ -284,14 +284,35 @@ class CampaignWorker:
             HTML string with <br> tags for line breaks
         """
         import html
+        import re
         
-        # Escape HTML special characters
-        escaped = html.escape(text)
+        # STEP 1: Replace image placeholders BEFORE escaping
+        # Template uses: {{image.cid 'dashboard'}}
+        # Replace with: <img alt="Dashboard Analytics"> (email_sender will inject CID)
+        text = re.sub(
+            r'\{\{image\.cid\s+[\'"]dashboard[\'"]\}\}',
+            '<img alt="Dashboard Analytics" style="max-width: 100%; height: auto; display: block; margin: 20px 0;">',
+            text
+        )
         
-        # Convert newlines to <br> tags
+        # STEP 2: Escape HTML special characters (but not our img tag)
+        # Split on img tags, escape parts, then rejoin
+        parts = re.split(r'(<img[^>]*>)', text)
+        escaped_parts = []
+        for i, part in enumerate(parts):
+            if part.startswith('<img'):
+                # Don't escape img tags
+                escaped_parts.append(part)
+            else:
+                # Escape everything else
+                escaped_parts.append(html.escape(part))
+        
+        escaped = ''.join(escaped_parts)
+        
+        # STEP 3: Convert newlines to <br> tags
         html_text = escaped.replace('\n', '<br>\n')
         
-        # Wrap in basic HTML structure for better email client compatibility
+        # STEP 4: Wrap in basic HTML structure for better email client compatibility
         html_body = f"""<!DOCTYPE html>
 <html>
 <head>
