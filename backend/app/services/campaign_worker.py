@@ -137,6 +137,12 @@ class CampaignWorker:
             lead = leads_store.get_by_id(message.lead_id)
             if not lead:
                 logger.error(f"Lead {message.lead_id} not found for message {message.id}")
+                
+                # Mark as failed
+                from app.services.store_factory import campaigns_store
+                from app.models.message import MessageStatus
+                campaigns_store.update_message_status(message.id, MessageStatus.failed, error="Lead not found")
+                
                 return False
             
             # V2.2: Check stop criteria BEFORE sending
@@ -145,12 +151,18 @@ class CampaignWorker:
                 
                 # Cancel all future messages for this lead
                 from app.services.campaign_scheduler import campaign_scheduler
+                from app.models.message import MessageStatus
                 canceled = campaign_scheduler.cancel_future_messages(
                     lead.id, 
                     message.mail_number
                 )
                 
                 logger.info(f"Canceled {canceled} future messages for stopped lead {lead.id}")
+                
+                # Mark THIS message as canceled too
+                from app.services.store_factory import campaigns_store
+                campaigns_store.update_message_status(message.id, MessageStatus.canceled, error="Lead is stopped")
+                
                 return False
             
             # Get campaign to find template
@@ -160,11 +172,21 @@ class CampaignWorker:
             campaign = campaign_store.get_campaign(message.campaign_id)
             if not campaign:
                 logger.error(f"Campaign {message.campaign_id} not found")
+                
+                # Mark as failed
+                from app.models.message import MessageStatus
+                campaigns_store.update_message_status(message.id, MessageStatus.failed, error="Campaign not found")
+                
                 return False
             
             # V2.2: Check campaign status (draft/paused/deleted guard)
             if campaign.status in [CampaignStatus.draft, CampaignStatus.paused, CampaignStatus.deleted]:
                 logger.info(f"Campaign {campaign.id} is {campaign.status}, skipping message {message.id}")
+                
+                # Mark as canceled
+                from app.models.message import MessageStatus
+                campaigns_store.update_message_status(message.id, MessageStatus.canceled, error=f"Campaign is {campaign.status}")
+                
                 return False
             
             # V2.2: Get template from MESSAGE (not campaign!)
@@ -179,6 +201,12 @@ class CampaignWorker:
             template = hybrid_template_service.get_template(normalized_id)
             if not template:
                 logger.error(f"Template {message.template_id} (normalized: {normalized_id}) not found for message {message.id} (mail #{message.mail_number})")
+                
+                # Mark as failed
+                from app.services.store_factory import campaigns_store
+                from app.models.message import MessageStatus
+                campaigns_store.update_message_status(message.id, MessageStatus.failed, error=f"Template {normalized_id} not found")
+                
                 return False
             
             logger.debug(f"Using template {normalized_id} for message {message.id}")
@@ -229,10 +257,23 @@ class CampaignWorker:
                 enable_tracking=True  # Enable tracking pixel + unsubscribe headers
             )
             
+            # CRITICAL: Mark message as sent to prevent re-sending!
+            if result.get('success', False):
+                from app.services.store_factory import campaigns_store
+                from app.models.message import MessageStatus
+                campaigns_store.update_message_status(message.id, MessageStatus.sent)
+                logger.debug(f"✅ Message {message.id} marked as sent")
+            
             return result.get('success', False)
             
         except Exception as e:
             logger.error(f"Error sending message {message.id}: {str(e)}")
+            
+            # CRITICAL: Mark message as failed to prevent infinite retry
+            from app.services.store_factory import campaigns_store
+            from app.models.message import MessageStatus
+            campaigns_store.update_message_status(message.id, MessageStatus.failed, error=str(e))
+            
             return False
     
     async def _activate_scheduled_campaigns(self, current_time: datetime) -> int:
