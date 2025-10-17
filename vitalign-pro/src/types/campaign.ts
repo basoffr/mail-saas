@@ -106,13 +106,30 @@ export interface CampaignDetail extends Campaign {
       backoffHours: number;
     };
   };
-  stats: {
+  stats?: {
     totalMessages: number;
     sentToday: number;
     scheduledCount: number;
     followUpCount: number;
     sentByDay: { date: string; sent: number }[];
   };
+  
+  // V2.2: Backend response format
+  kpis?: {
+    totalPlanned: number;
+    totalSent: number;
+    totalOpened: number;
+    totalFailed: number;
+    openRate: number;
+    avgTempoPerHour: number;
+  };
+  timeline?: Array<{
+    date: string;
+    sent: number;
+    opened: number;
+  }>;
+  domainsUsed?: string[];
+  audienceCount?: number;
 }
 
 export interface CampaignMessage {

@@ -393,6 +393,8 @@ async def get_campaign_messages(
 ):
     """Get messages for a specific campaign."""
     try:
+        from app.services.store_factory import leads_store
+        
         query = MessageQuery(
             page=page,
             page_size=page_size,
@@ -402,8 +404,24 @@ async def get_campaign_messages(
         
         messages, total = campaign_store.list_messages(query)
         
+        # Enrich messages with lead info
+        enriched_items = []
+        for m in messages:
+            message_dict = m.__dict__.copy()
+            
+            # Get lead info
+            lead = leads_store.get_by_id(m.lead_id)
+            if lead:
+                message_dict['leadEmail'] = lead.email
+                message_dict['leadCompany'] = lead.company
+            else:
+                message_dict['leadEmail'] = 'Unknown'
+                message_dict['leadCompany'] = None
+            
+            enriched_items.append(MessageOut.model_validate(message_dict))
+        
         response = MessagesResponse(
-            items=[MessageOut.model_validate(m.__dict__) for m in messages],
+            items=enriched_items,
             total=total
         )
         

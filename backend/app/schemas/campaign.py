@@ -35,6 +35,8 @@ class MessageOut(BaseModel):
     id: str
     campaign_id: str = Field(alias='campaignId')
     lead_id: str = Field(alias='leadId')
+    lead_email: Optional[str] = Field(None, alias='leadEmail')  # Enriched from lead
+    lead_company: Optional[str] = Field(None, alias='leadCompany')  # Enriched from lead
     domain_used: str = Field(alias='domainUsed')
     mail_number: int = Field(alias='mailNumber')
     template_id: str = Field(alias='templateId')  # V2.2: e.g., v2m3

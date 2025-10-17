@@ -126,17 +126,21 @@ export default function CampaignDetail() {
     if (!campaign || (campaign.status !== CampaignStatus.ACTIVE && campaign.status !== CampaignStatus.RUNNING)) return;
 
     const interval = setInterval(() => {
-      fetchCampaignDetail();
+      fetchCampaignDetail(true); // Silent update (no loading spinner)
       fetchMessages(); // Also refresh messages during polling
     }, 10000); // Poll every 10 seconds
 
     return () => clearInterval(interval);
   }, [campaign?.status, messagesPage]);
 
-  const fetchCampaignDetail = async () => {
+  const fetchCampaignDetail = async (silent = false) => {
     if (!id) return;
     
-    setLoading(true);
+    // Only show loading on initial fetch, not on polling updates
+    if (!silent) {
+      setLoading(true);
+    }
+    
     try {
       const data = await campaignsService.getCampaign(id);
       setCampaign(data);
@@ -147,7 +151,9 @@ export default function CampaignDetail() {
         variant: 'destructive'
       });
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
@@ -414,7 +420,7 @@ export default function CampaignDetail() {
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={campaign.stats?.sentByDay || []}>
+              <LineChart data={campaign.timeline || []}>
                 <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                 <XAxis 
                   dataKey="date" 
