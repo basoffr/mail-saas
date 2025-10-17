@@ -122,7 +122,8 @@ export default function CampaignDetail() {
 
   // Polling for live updates
   useEffect(() => {
-    if (!campaign || campaign.status !== CampaignStatus.RUNNING) return;
+    // Poll for ACTIVE or RUNNING campaigns (backend uses 'active')
+    if (!campaign || (campaign.status !== CampaignStatus.ACTIVE && campaign.status !== CampaignStatus.RUNNING)) return;
 
     const interval = setInterval(() => {
       fetchCampaignDetail();
