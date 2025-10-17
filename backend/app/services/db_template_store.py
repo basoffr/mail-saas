@@ -43,20 +43,9 @@ class DBTemplateStore:
             logger.error(f"Error fetching templates: {e}")
             return []
     
-    def get_by_id(self, template_id: str) -> Optional[Dict[str, Any]]:
-        """Get template by ID from database."""
-        if not self.supabase:
-            logger.warning("Supabase not initialized")
-            return None
-        
-        try:
-            response = self.supabase.table('templates').select('*').eq('id', template_id).execute()
-            if response.data and len(response.data) > 0:
-                return response.data[0]
-            return None
-        except Exception as e:
-            logger.error(f"Error fetching template {template_id}: {e}")
-            return None
+    def get(self, template_id: str) -> Optional[Dict[str, Any]]:
+        """Alias for get_by_id for backwards compatibility."""
+        return self.get_by_id(template_id)
     
     def get_templates_summary(self) -> List[Dict[str, Any]]:
         """Get summary of all templates for UI."""

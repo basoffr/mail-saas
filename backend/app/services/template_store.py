@@ -15,9 +15,9 @@ class TemplateStore:
         """Get all templates"""
         return list(self.templates.values())
     
-    def get_by_id(self, template_id: str) -> Optional[Template]:
-        """Get template by ID"""
-        return self.templates.get(template_id)
+    def get(self, template_id: str) -> Optional[Template]:
+        """Alias for get_by_id for backwards compatibility."""
+        return self.get_by_id(template_id)
     
     def extract_variables(self, template: Template) -> List[TemplateVarItem]:
         """Extract variable information from template"""
