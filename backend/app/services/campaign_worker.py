@@ -223,9 +223,12 @@ class CampaignWorker:
             }
             
             # renderer.render() returns (rendered_text, warnings)
-            html_body, body_warnings = self.renderer.render(template.body, context)
-            text_body = template.body  # Plain text fallback
+            rendered_body, body_warnings = self.renderer.render(template.body, context)
             subject, subject_warnings = self.renderer.render(template.subject, context)
+            
+            # Convert plain text to HTML (preserve line breaks)
+            html_body = self._plain_text_to_html(rendered_body)
+            text_body = rendered_body  # Plain text fallback
             
             if body_warnings:
                 logger.warning(f"Template rendering warnings: {body_warnings}")
@@ -269,6 +272,38 @@ class CampaignWorker:
             campaigns_store.update_message_status(message.id, MessageStatus.failed, error=str(e))
             
             return False
+    
+    def _plain_text_to_html(self, text: str) -> str:
+        """
+        Convert plain text to HTML with proper line break formatting.
+        
+        Args:
+            text: Plain text string with newlines
+            
+        Returns:
+            HTML string with <br> tags for line breaks
+        """
+        import html
+        
+        # Escape HTML special characters
+        escaped = html.escape(text)
+        
+        # Convert newlines to <br> tags
+        html_text = escaped.replace('\n', '<br>\n')
+        
+        # Wrap in basic HTML structure for better email client compatibility
+        html_body = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333;">
+    {html_text}
+</body>
+</html>"""
+        
+        return html_body
     
     async def _activate_scheduled_campaigns(self, current_time: datetime) -> int:
         """
