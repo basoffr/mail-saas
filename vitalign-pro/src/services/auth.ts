@@ -20,7 +20,8 @@ class AuthService {
 
   constructor() {
     this.baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
-    this.timeout = parseInt(import.meta.env.VITE_API_TIMEOUT || '30000');
+    // Increased timeout for large message lists (8400+ messages can take 10-15s to enrich)
+    this.timeout = parseInt(import.meta.env.VITE_API_TIMEOUT || '60000'); // 60 seconds
     
     console.log('Auth Service initialized:', {
       baseUrl: this.baseUrl,
