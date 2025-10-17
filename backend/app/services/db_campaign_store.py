@@ -324,8 +324,17 @@ class DBCampaignStore:
             logger.error(f"Error listing campaigns: {e}")
             return [], 0
     
-    def update_campaign_status(self, campaign_id: str, status: CampaignStatus) -> bool:
-        """Update campaign status."""
+    def update_campaign_status(self, campaign_id: str, status: CampaignStatus, reason: str = None) -> bool:
+        """Update campaign status.
+        
+        Args:
+            campaign_id: Campaign UUID
+            status: New campaign status
+            reason: Optional reason for status change (for logging)
+            
+        Returns:
+            True if successful
+        """
         if not self.supabase:
             return False
         
@@ -338,7 +347,10 @@ class DBCampaignStore:
                 .eq("id", campaign_id)\
                 .execute()
             
-            logger.info(f"Updated campaign {campaign_id} status to {status}")
+            log_msg = f"Updated campaign {campaign_id} status to {status}"
+            if reason:
+                log_msg += f" - {reason}"
+            logger.info(log_msg)
             return True
             
         except Exception as e:
