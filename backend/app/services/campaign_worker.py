@@ -134,7 +134,7 @@ class CampaignWorker:
         """
         try:
             # Get lead
-            lead = leads_store.get(message.lead_id)
+            lead = leads_store.get_by_id(message.lead_id)
             if not lead:
                 logger.error(f"Lead {message.lead_id} not found for message {message.id}")
                 return False
