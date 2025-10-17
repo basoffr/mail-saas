@@ -17,6 +17,7 @@ from app.services.campaign_scheduler import campaign_scheduler, DOMAINS
 from app.services.email_sender import email_sender  # Use unified email sender
 from app.services.store_factory import leads_store
 from app.services.template_renderer import TemplateRenderer
+from app.models.campaign import MessageStatus  # For status updates
 
 
 class CampaignWorker:
@@ -140,7 +141,6 @@ class CampaignWorker:
                 
                 # Mark as failed
                 from app.services.store_factory import campaigns_store
-                from app.models.message import MessageStatus
                 campaigns_store.update_message_status(message.id, MessageStatus.failed, error="Lead not found")
                 
                 return False
@@ -151,7 +151,6 @@ class CampaignWorker:
                 
                 # Cancel all future messages for this lead
                 from app.services.campaign_scheduler import campaign_scheduler
-                from app.models.message import MessageStatus
                 canceled = campaign_scheduler.cancel_future_messages(
                     lead.id, 
                     message.mail_number
@@ -174,7 +173,6 @@ class CampaignWorker:
                 logger.error(f"Campaign {message.campaign_id} not found")
                 
                 # Mark as failed
-                from app.models.message import MessageStatus
                 campaigns_store.update_message_status(message.id, MessageStatus.failed, error="Campaign not found")
                 
                 return False
@@ -184,7 +182,6 @@ class CampaignWorker:
                 logger.info(f"Campaign {campaign.id} is {campaign.status}, skipping message {message.id}")
                 
                 # Mark as canceled
-                from app.models.message import MessageStatus
                 campaigns_store.update_message_status(message.id, MessageStatus.canceled, error=f"Campaign is {campaign.status}")
                 
                 return False
@@ -204,7 +201,6 @@ class CampaignWorker:
                 
                 # Mark as failed
                 from app.services.store_factory import campaigns_store
-                from app.models.message import MessageStatus
                 campaigns_store.update_message_status(message.id, MessageStatus.failed, error=f"Template {normalized_id} not found")
                 
                 return False
@@ -260,7 +256,6 @@ class CampaignWorker:
             # CRITICAL: Mark message as sent to prevent re-sending!
             if result.get('success', False):
                 from app.services.store_factory import campaigns_store
-                from app.models.message import MessageStatus
                 campaigns_store.update_message_status(message.id, MessageStatus.sent)
                 logger.debug(f"✅ Message {message.id} marked as sent")
             
@@ -271,7 +266,6 @@ class CampaignWorker:
             
             # CRITICAL: Mark message as failed to prevent infinite retry
             from app.services.store_factory import campaigns_store
-            from app.models.message import MessageStatus
             campaigns_store.update_message_status(message.id, MessageStatus.failed, error=str(e))
             
             return False
