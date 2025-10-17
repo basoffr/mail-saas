@@ -403,7 +403,7 @@ export default function CampaignDetail() {
               </AlertDialog>
             )}
 
-            <Button variant="outline" size="sm" onClick={fetchCampaignDetail}>
+            <Button variant="outline" size="sm" onClick={() => fetchCampaignDetail()}>
               <RefreshCw className="w-4 h-4" />
             </Button>
           </div>
