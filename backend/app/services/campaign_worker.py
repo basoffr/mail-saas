@@ -184,9 +184,29 @@ class CampaignWorker:
             logger.debug(f"Using template {normalized_id} for message {message.id}")
             
             # Render template with lead variables (HardCodedTemplate has .body and .subject, not _template)
-            html_body = self.renderer.render(template.body, lead)
+            # Prepare context (renderer.render() expects dict with 'lead', 'vars', etc.)
+            context = {
+                'lead': {
+                    'id': lead.id,
+                    'email': lead.email,
+                    'company': lead.company,
+                    'url': lead.url,
+                    'image_key': lead.image_key if hasattr(lead, 'image_key') else None
+                },
+                'vars': lead.vars if hasattr(lead, 'vars') else {},
+                'campaign': {'id': campaign.id, 'name': campaign.name},
+                'domain': message.domain_used
+            }
+            
+            # renderer.render() returns (rendered_text, warnings)
+            html_body, body_warnings = self.renderer.render(template.body, context)
             text_body = template.body  # Plain text fallback
-            subject = self.renderer.render(template.subject, lead)
+            subject, subject_warnings = self.renderer.render(template.subject, context)
+            
+            if body_warnings:
+                logger.warning(f"Template rendering warnings: {body_warnings}")
+            if subject_warnings:
+                logger.warning(f"Subject rendering warnings: {subject_warnings}")
             
             # Get lead assets (screenshot + report)
             image_key = lead.image_key if hasattr(lead, 'image_key') else None
