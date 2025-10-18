@@ -203,24 +203,77 @@ class IMAPClient:
     def _extract_text_content(self, msg: email.message.Message) -> str:
         """Extract text content from email message (max 20KB)"""
         try:
+            text = ""
+            
             if msg.is_multipart():
+                # Try to get plain text first
                 for part in msg.walk():
                     if part.get_content_type() == "text/plain":
                         payload = part.get_payload(decode=True)
                         if payload:
                             charset = part.get_content_charset() or 'utf-8'
                             text = payload.decode(charset, errors='replace')
-                            return text[:20480]  # Max 20KB
+                            break
+                
+                # Fallback to HTML if no plain text
+                if not text:
+                    for part in msg.walk():
+                        if part.get_content_type() == "text/html":
+                            payload = part.get_payload(decode=True)
+                            if payload:
+                                charset = part.get_content_charset() or 'utf-8'
+                                html = payload.decode(charset, errors='replace')
+                                text = self._html_to_text(html)
+                                break
             else:
                 payload = msg.get_payload(decode=True)
                 if payload:
                     charset = msg.get_content_charset() or 'utf-8'
-                    text = payload.decode(charset, errors='replace')
-                    return text[:20480]  # Max 20KB
+                    content = payload.decode(charset, errors='replace')
+                    
+                    # Check if HTML
+                    if msg.get_content_type() == "text/html":
+                        text = self._html_to_text(content)
+                    else:
+                        text = content
             
-            return ""
-        except Exception:
+            # Clean up text
+            text = self._clean_text(text)
+            return text[:20480]  # Max 20KB
+            
+        except Exception as e:
+            logger.warning(f"Failed to extract text: {str(e)}")
             return "Content could not be decoded"
+    
+    def _html_to_text(self, html: str) -> str:
+        """Convert HTML to plain text"""
+        import html as html_module
+        
+        # Remove script and style tags
+        html = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
+        html = re.sub(r'<style[^>]*>.*?</style>', '', html, flags=re.DOTALL | re.IGNORECASE)
+        
+        # Remove HTML tags
+        text = re.sub(r'<[^>]+>', ' ', html)
+        
+        # Decode HTML entities
+        text = html_module.unescape(text)
+        
+        return text
+    
+    def _clean_text(self, text: str) -> str:
+        """Clean up extracted text"""
+        # Remove multiple newlines
+        text = re.sub(r'\n\s*\n', '\n\n', text)
+        
+        # Remove multiple spaces
+        text = re.sub(r' +', ' ', text)
+        
+        # Strip whitespace from each line
+        lines = [line.strip() for line in text.split('\n')]
+        text = '\n'.join(lines)
+        
+        return text.strip()
     
     def _normalize_subject(self, subject: str) -> str:
         """Normalize subject by removing Re:, Fwd: prefixes"""

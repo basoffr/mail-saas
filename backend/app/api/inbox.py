@@ -169,6 +169,34 @@ async def mark_message_read(
         raise HTTPException(status_code=500, detail="Failed to mark message as read")
 
 
+@router.delete("/messages/{message_id}", response_model=DataResponse)
+async def delete_message(
+    message_id: str,
+    user: Dict[str, Any] = Depends(require_auth)
+):
+    """
+    Permanently delete a message from the inbox.
+    """
+    try:
+        success = messages_store.delete_message(message_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Message not found")
+        
+        logger.info(f"Message permanently deleted: {message_id}")
+        
+        return DataResponse(
+            data={'ok': True, 'deleted_id': message_id},
+            error=None
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete message: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to delete message")
+
+
 @router.get("/runs", response_model=InboxRunsResponse)
 async def list_fetch_runs(
     account_id: Optional[str] = Query(None),

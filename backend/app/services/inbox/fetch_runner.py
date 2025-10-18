@@ -150,6 +150,18 @@ class MailMessageStore:
             logger.error(f"Failed to mark message as read: {e}")
             return False
     
+    def delete_message(self, message_id: str) -> bool:
+        """Permanently delete message"""
+        if not self.supabase:
+            return False
+        
+        try:
+            result = self.supabase.table('inbox_messages').delete().eq('id', message_id).execute()
+            return True
+        except Exception as e:
+            logger.error(f"Failed to delete message: {e}")
+            return False
+    
     def create_run(self, run_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create fetch run record"""
         if not self.supabase:
@@ -301,10 +313,33 @@ class FetchRunner:
             
             # Process and link messages
             processed_count = 0
+            skipped_count = 0
             max_uid = account.get('last_seen_uid') or 0  # Ensure integer, never None
             
             for msg_data in new_messages:
                 try:
+                    # Skip bounce messages
+                    if self._is_bounce_message(msg_data):
+                        logger.info(f"Skipping bounce message: {msg_data.get('subject', 'No subject')}")
+                        skipped_count += 1
+                        
+                        # Still track UID to mark as processed
+                        msg_uid = msg_data.get('uid')
+                        if msg_uid and isinstance(msg_uid, int) and msg_uid > max_uid:
+                            max_uid = msg_uid
+                        continue
+                    
+                    # Check for duplicates (by UID)
+                    msg_uid = msg_data.get('uid')
+                    if msg_uid and self._message_exists(account_id, msg_uid):
+                        logger.info(f"Skipping duplicate message UID {msg_uid}")
+                        skipped_count += 1
+                        
+                        # Still track UID
+                        if msg_uid > max_uid:
+                            max_uid = msg_uid
+                        continue
+                    
                     # Add account info
                     msg_data['account_id'] = account_id
                     msg_data['folder'] = 'INBOX'
@@ -319,7 +354,6 @@ class FetchRunner:
                         processed_count += 1
                     
                     # Track max UID (ensure both are integers)
-                    msg_uid = msg_data.get('uid')
                     if msg_uid and isinstance(msg_uid, int) and msg_uid > max_uid:
                         max_uid = msg_uid
                         
@@ -336,7 +370,7 @@ class FetchRunner:
                 'new_count': processed_count
             })
             
-            logger.info(f"Fetch completed for {account['label']}: {processed_count} new messages")
+            logger.info(f"Fetch completed for {account['label']}: {processed_count} new, {skipped_count} skipped (bounce/duplicate)")
             
             return {
                 'account_id': account_id,
@@ -359,3 +393,47 @@ class FetchRunner:
                 'success': False,
                 'error': error_msg
             }
+    
+    def _is_bounce_message(self, msg_data: Dict[str, Any]) -> bool:
+        """Detect if message is a bounce/error report"""
+        subject = (msg_data.get('subject') or '').lower()
+        snippet = (msg_data.get('snippet') or '').lower()
+        from_email = (msg_data.get('from_email') or '').lower()
+        
+        # Bounce indicators
+        bounce_patterns = [
+            'mail delivery failed',
+            'delivery status notification',
+            'undelivered mail returned to sender',
+            'this is the mail system at host',
+            'mime-encapsulated',
+            'returned mail:',
+            'mail delivery system',
+            'delivery failure',
+            'undeliverable:',
+            'postmaster@',
+            'mailer-daemon@',
+        ]
+        
+        # Check subject, snippet, and from email
+        for pattern in bounce_patterns:
+            if pattern in subject or pattern in snippet or pattern in from_email:
+                return True
+        
+        return False
+    
+    def _message_exists(self, account_id: str, uid: int) -> bool:
+        """Check if message with this UID already exists in database"""
+        try:
+            # Check via Supabase
+            result = self.supabase.table('inbox_messages') \
+                .select('id') \
+                .eq('account_id', account_id) \
+                .eq('uid', uid) \
+                .limit(1) \
+                .execute()
+            
+            return len(result.data) > 0
+        except Exception as e:
+            logger.warning(f"Failed to check for duplicate: {str(e)}")
+            return False  # Allow insert if check fails
