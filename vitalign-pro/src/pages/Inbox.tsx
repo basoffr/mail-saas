@@ -2,43 +2,32 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Checkbox } from '@/components/ui/checkbox';
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { 
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
-import { 
-  Search, 
-  Filter, 
-  RefreshCw, 
-  CheckCheck, 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Mail,
+  Search,
+  Filter,
+  RefreshCw,
+  CheckCheck,
   AlertTriangle,
-  Eye,
-  Loader2,
   ChevronLeft,
   ChevronRight,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  Trash2
 } from 'lucide-react';
 import { InboxMessageOut, InboxQuery, MailAccountOut } from '@/types/inbox';
 import { inboxService } from '@/services/inbox';
@@ -416,25 +405,13 @@ export default function Inbox() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Sheet>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          onClick={() => setSelectedMessage(message)}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <SheetContent className="w-[400px] sm:w-[540px]">
-                          <SheetHeader>
-                            <SheetTitle>Bericht Details</SheetTitle>
-                            <SheetDescription>
-                              View message details and headers
-                            </SheetDescription>
-                          </SheetHeader>
-                          {selectedMessage && <MessageDetails message={selectedMessage} />}
-                        </SheetContent>
-                      </Sheet>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedMessage(message)}
+                      >
+                        <Mail className="w-4 h-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))
@@ -442,6 +419,29 @@ export default function Inbox() {
             </TableBody>
           </Table>
         </Card>
+
+        {/* Message Details Sheet */}
+        <Sheet open={!!selectedMessage} onOpenChange={(open) => !open && setSelectedMessage(null)}>
+          <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
+            {selectedMessage && (
+              <>
+                <SheetHeader>
+                  <SheetTitle>Bericht Details</SheetTitle>
+                  <SheetDescription>
+                    Van {selectedMessage.fromName || selectedMessage.fromEmail}
+                  </SheetDescription>
+                </SheetHeader>
+                <MessageDetails 
+                  message={selectedMessage} 
+                  onDelete={() => {
+                    setSelectedMessage(null);
+                    fetchMessages();
+                  }}
+                />
+              </>
+            )}
+          </SheetContent>
+        </Sheet>
 
         {/* Pagination */}
         {total > ITEMS_PER_PAGE && (
@@ -483,9 +483,11 @@ export default function Inbox() {
 }
 
 // Message Details Component
-function MessageDetails({ message }: { message: InboxMessageOut }) {
+function MessageDetails({ message, onDelete }: { message: InboxMessageOut; onDelete: () => void }) {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleMarkAsRead = async () => {
     try {
@@ -609,7 +611,56 @@ function MessageDetails({ message }: { message: InboxMessageOut }) {
           <CheckCheck className="w-4 h-4 mr-2" />
           {message.isRead ? 'Markeer als ongelezen' : 'Markeer als gelezen'}
         </Button>
+        <Button
+          variant="outline"
+          onClick={() => setShowDeleteDialog(true)}
+          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+        >
+          <Trash2 className="w-4 h-4 mr-2" />
+          Verwijder
+        </Button>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bericht permanent verwijderen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deze actie kan niet ongedaan gemaakt worden. Het bericht wordt permanent verwijderd uit de inbox.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Annuleren</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                setIsDeleting(true);
+                try {
+                  await inboxService.deleteMessage(message.id);
+                  toast({
+                    title: 'Bericht verwijderd',
+                    description: 'Het bericht is permanent verwijderd',
+                  });
+                  setShowDeleteDialog(false);
+                  onDelete(); // Close sheet and refresh
+                } catch (error) {
+                  toast({
+                    title: 'Fout',
+                    description: 'Kon bericht niet verwijderen',
+                    variant: 'destructive'
+                  });
+                } finally {
+                  setIsDeleting(false);
+                }
+              }}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? 'Verwijderen...' : 'Verwijder'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

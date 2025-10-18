@@ -36,6 +36,12 @@ export const inboxService = {
     });
   },
 
+  async deleteMessage(messageId: string): Promise<{ ok: boolean; deleted_id: string }> {
+    return await authService.apiCall<{ ok: boolean; deleted_id: string }>(`/inbox/messages/${messageId}`, {
+      method: 'DELETE',
+    });
+  },
+
   async getAccounts(): Promise<MailAccountOut[]> {
     return await authService.apiCall<MailAccountOut[]>('/settings/inbox/accounts');
   },
