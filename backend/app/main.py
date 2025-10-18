@@ -45,8 +45,11 @@ async def global_exception_handler(request: Request, exc: Exception):
     """Handle all other exceptions with consistent {data, error} format"""
     trace_id = id(exc)  # Simple trace ID
     
+    # Avoid f-string formatting issues with error messages containing braces
+    exc_str = str(exc).replace('{', '{{').replace('}', '}}')  # Escape braces for logger
+    
     logger.error(
-        f"Unhandled exception [trace:{trace_id}]: {str(exc)} - {request.method} {request.url}",
+        f"Unhandled exception [trace:{trace_id}]: {exc_str} - {request.method} {request.url}",
         extra={
             "trace_id": trace_id,
             "method": request.method,

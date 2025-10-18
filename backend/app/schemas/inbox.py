@@ -9,7 +9,7 @@ class InboxMessageOut(BaseModel):
     account_id: str
     account_label: str
     folder: str
-    uid: int
+    uid: Optional[int] = None  # Can be None for messages being processed
     message_id: Optional[str] = None
     in_reply_to: Optional[str] = None
     references: Optional[List[str]] = None

@@ -258,9 +258,11 @@ class FetchRunner:
         account_id = account['id']
         
         # Create run record
+        run_id = str(uuid4())
         run_data = {
+            'id': run_id,
             'account_id': account_id,
-            'started_at': datetime.utcnow(),
+            'started_at': datetime.utcnow().isoformat(),  # ISO string for JSON serialization
             'finished_at': None,
             'new_count': 0,
             'error': None
@@ -330,7 +332,7 @@ class FetchRunner:
             
             # Update run record
             self.messages_store.update_run(run_record['id'], {
-                'finished_at': datetime.utcnow(),
+                'finished_at': datetime.utcnow().isoformat(),
                 'new_count': processed_count
             })
             
@@ -348,7 +350,7 @@ class FetchRunner:
             
             # Update run record with error
             self.messages_store.update_run(run_record['id'], {
-                'finished_at': datetime.utcnow(),
+                'finished_at': datetime.utcnow().isoformat(),
                 'error': error_msg
             })
             
