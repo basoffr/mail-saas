@@ -160,8 +160,13 @@ export default function Inbox() {
 
   const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
 
-  const formatDate = (dateString: string) => {
-    return format(new Date(dateString), 'dd/MM/yyyy HH:mm', { locale: nl });
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return '-';
+    try {
+      return format(new Date(dateString), 'dd/MM/yyyy HH:mm', { locale: nl });
+    } catch (e) {
+      return '-';
+    }
   };
 
   const getStatusBadge = (message: InboxMessageOut) => {
@@ -499,8 +504,13 @@ function MessageDetails({ message }: { message: InboxMessageOut }) {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return format(new Date(dateString), 'dd MMMM yyyy \'om\' HH:mm', { locale: nl });
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return '-';
+    try {
+      return format(new Date(dateString), 'dd MMMM yyyy \'om\' HH:mm', { locale: nl });
+    } catch (e) {
+      return '-';
+    }
   };
 
   return (
