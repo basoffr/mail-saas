@@ -89,6 +89,7 @@ const messageStatusColors = {
   [MessageStatus.REPLIED]: 'bg-emerald-100 text-emerald-800',
 };
 
+// v0.0.1 - Fixed timeout issues with message enrichment
 export default function CampaignDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
