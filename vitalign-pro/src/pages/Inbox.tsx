@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,7 +28,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Settings as SettingsIcon,
-  Trash2
+  Trash2,
+  Loader2
 } from 'lucide-react';
 import { InboxMessageOut, InboxQuery, MailAccountOut } from '@/types/inbox';
 import { inboxService } from '@/services/inbox';
