@@ -236,14 +236,15 @@ async def pause_campaign(
     campaign_id: str,
     user: Dict[str, Any] = Depends(require_auth)
 ):
-    """Pause a running campaign."""
+    """Pause a running/active campaign."""
     try:
         campaign = campaign_store.get_campaign(campaign_id)
         if not campaign:
             raise HTTPException(status_code=404, detail="Campaign not found")
         
-        if campaign.status != CampaignStatus.running:
-            raise HTTPException(status_code=400, detail="Can only pause running campaigns")
+        # V2.3: Accept both 'running' and 'active' status (unified in V2.2)
+        if campaign.status not in [CampaignStatus.running, CampaignStatus.active]:
+            raise HTTPException(status_code=400, detail="Can only pause running or active campaigns")
         
         # Update status
         campaign_store.update_campaign_status(campaign_id, CampaignStatus.paused)
