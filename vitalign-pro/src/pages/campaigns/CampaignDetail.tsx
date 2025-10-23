@@ -295,7 +295,7 @@ export default function CampaignDetail() {
           </div>
 
           <div className="flex gap-2">
-            {campaign.status === CampaignStatus.RUNNING && (
+            {(campaign.status === CampaignStatus.RUNNING || campaign.status === CampaignStatus.ACTIVE) && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="outline" size="sm">
@@ -356,7 +356,7 @@ export default function CampaignDetail() {
               </Button>
             )}
 
-            {(campaign.status === CampaignStatus.RUNNING || campaign.status === CampaignStatus.PAUSED) && (
+            {(campaign.status === CampaignStatus.RUNNING || campaign.status === CampaignStatus.ACTIVE || campaign.status === CampaignStatus.PAUSED) && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="outline" size="sm">

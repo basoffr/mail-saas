@@ -363,7 +363,7 @@ export default function Campaigns() {
                             View Details
                           </DropdownMenuItem>
                           
-                          {campaign.status === CampaignStatus.RUNNING && (
+                          {(campaign.status === CampaignStatus.RUNNING || campaign.status === CampaignStatus.ACTIVE) && (
                             <DropdownMenuItem
                               onClick={() => handleAction('pause', campaign.id)}
                             >
@@ -381,7 +381,7 @@ export default function Campaigns() {
                             </DropdownMenuItem>
                           )}
                           
-                          {(campaign.status === CampaignStatus.RUNNING || campaign.status === CampaignStatus.PAUSED) && (
+                          {(campaign.status === CampaignStatus.RUNNING || campaign.status === CampaignStatus.ACTIVE || campaign.status === CampaignStatus.PAUSED) && (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
