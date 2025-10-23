@@ -311,7 +311,24 @@ export default function CampaignDetail() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Pause Campaign</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Are you sure you want to pause this campaign? You can resume it later.
+                      <div className="space-y-3">
+                        <p>Weet je zeker dat je deze campaign wilt pauzeren?</p>
+                        
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                          <p className="text-sm text-yellow-800 font-medium mb-1">
+                            ⚠️ Let op:
+                          </p>
+                          <ul className="text-sm text-yellow-700 space-y-1 list-disc list-inside">
+                            <li>Geplande mails worden niet verzonden tijdens de pause</li>
+                            <li>Bij resume worden gemiste mails automatisch opnieuw ingepland</li>
+                            <li>Lange pauzes kunnen de verzend-timing beïnvloeden</li>
+                          </ul>
+                        </div>
+                        
+                        <p className="text-sm text-muted-foreground">
+                          Je kunt de campaign later hervatten met de Resume knop.
+                        </p>
+                      </div>
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>

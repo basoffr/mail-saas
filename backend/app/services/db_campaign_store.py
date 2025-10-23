@@ -715,12 +715,126 @@ class DBCampaignStore:
             logger.error(f"Error pausing campaign: {e}")
             return False
     
+    def reschedule_missed_messages(self, campaign_id: str) -> Dict[str, Any]:
+        """
+        V2.3: Reschedule missed messages to next available slots.
+        
+        Called after resuming a paused campaign to handle messages
+        that have scheduled_at in the past.
+        
+        Args:
+            campaign_id: Campaign UUID
+            
+        Returns:
+            Dict with rescheduled_count, failed_count, errors
+        """
+        if not self.supabase:
+            return {"rescheduled_count": 0, "failed_count": 0, "errors": []}
+        
+        try:
+            from datetime import timedelta
+            from zoneinfo import ZoneInfo
+            
+            now = datetime.now(ZoneInfo("Europe/Amsterdam"))
+            
+            # Get queued messages with scheduled_at in the past
+            response = self.supabase.table("messages")\
+                .select("id, scheduled_at, domain_used, mail_number, alias")\
+                .eq("campaign_id", campaign_id)\
+                .eq("status", MessageStatus.queued.value)\
+                .lt("scheduled_at", now.isoformat())\
+                .execute()
+            
+            missed_messages = response.data
+            
+            if not missed_messages:
+                logger.info(f"No missed messages to reschedule for campaign {campaign_id}")
+                return {"rescheduled_count": 0, "failed_count": 0, "errors": []}
+            
+            logger.info(f"Found {len(missed_messages)} missed messages to reschedule")
+            
+            # Import scheduler utilities
+            from app.core.stream_calculator import get_stream_for_mail, snap_to_stream_slot
+            from app.core.sending_policy import SENDING_POLICY
+            
+            rescheduled_count = 0
+            failed_count = 0
+            errors = []
+            
+            # Group by domain for efficient slot finding
+            from collections import defaultdict
+            messages_by_domain = defaultdict(list)
+            for msg in missed_messages:
+                messages_by_domain[msg['domain_used']].append(msg)
+            
+            # Track slots per domain to avoid collisions
+            slot_tracker = {}
+            
+            for domain, domain_messages in messages_by_domain.items():
+                # Sort by mail_number priority (M4 > M3 > M2 > M1)
+                domain_messages.sort(key=lambda m: -m['mail_number'])
+                
+                for msg in domain_messages:
+                    try:
+                        # Determine stream
+                        stream = get_stream_for_mail(msg['mail_number'])
+                        
+                        # Find next available slot
+                        current_slot = snap_to_stream_slot(now, stream)
+                        current_slot = SENDING_POLICY.get_next_valid_slot(current_slot)
+                        
+                        # Check slot availability
+                        slot_key = (domain, current_slot.isoformat(), msg['alias'])
+                        while slot_tracker.get(slot_key, 0) >= 1:
+                            # Slot full, move to next
+                            current_slot += timedelta(minutes=20)
+                            current_slot = SENDING_POLICY.get_next_valid_slot(current_slot)
+                            slot_key = (domain, current_slot.isoformat(), msg['alias'])
+                        
+                        # Reserve slot
+                        slot_tracker[slot_key] = 1
+                        
+                        # Update message in database
+                        self.supabase.table("messages")\
+                            .update({"scheduled_at": current_slot.isoformat()})\
+                            .eq("id", msg['id'])\
+                            .execute()
+                        
+                        rescheduled_count += 1
+                        logger.debug(f"Rescheduled message {msg['id']} to {current_slot}")
+                        
+                    except Exception as e:
+                        failed_count += 1
+                        error_msg = f"Failed to reschedule message {msg['id']}: {str(e)}"
+                        errors.append(error_msg)
+                        logger.error(error_msg)
+            
+            logger.info(
+                f"Rescheduling complete for campaign {campaign_id}: "
+                f"{rescheduled_count} success, {failed_count} failed"
+            )
+            
+            return {
+                "rescheduled_count": rescheduled_count,
+                "failed_count": failed_count,
+                "errors": errors
+            }
+            
+        except Exception as e:
+            logger.error(f"Error rescheduling missed messages: {e}")
+            return {
+                "rescheduled_count": 0,
+                "failed_count": 0,
+                "errors": [str(e)]
+            }
+    
     def resume_campaign(self, campaign_id: str) -> bool:
-        """V2.2: Resume paused campaign."""
+        """V2.3: Resume paused campaign and reschedule missed messages."""
         if not self.supabase:
             return False
         
         try:
+            # Update campaign status
             self.supabase.table("campaigns")\
                 .update({
                     "status": CampaignStatus.active.value,
@@ -731,6 +845,22 @@ class DBCampaignStore:
                 .execute()
             
             logger.info(f"Resumed campaign {campaign_id}")
+            
+            # V2.3 FIX: Reschedule missed messages
+            reschedule_result = self.reschedule_missed_messages(campaign_id)
+            
+            if reschedule_result["rescheduled_count"] > 0:
+                logger.info(
+                    f"Rescheduled {reschedule_result['rescheduled_count']} missed messages "
+                    f"for campaign {campaign_id}"
+                )
+            
+            if reschedule_result["failed_count"] > 0:
+                logger.warning(
+                    f"Failed to reschedule {reschedule_result['failed_count']} messages "
+                    f"for campaign {campaign_id}"
+                )
+            
             return True
             
         except Exception as e:
@@ -908,10 +1038,13 @@ class DBCampaignStore:
         self, 
         domain: str, 
         scheduled_at: datetime,
-        limit: int = 100
+        limit: int = 100,
+        grace_period_minutes: int = 30
     ) -> List[Message]:
         """
         Get queued messages for specific domain and time slot.
+        
+        V2.3: Includes grace period to catch slightly delayed messages.
         
         Production-ready implementation:
         - Queries database directly (no in-memory state)
@@ -921,8 +1054,9 @@ class DBCampaignStore:
         
         Args:
             domain: Domain to filter by
-            scheduled_at: Exact scheduled time slot
+            scheduled_at: Target time slot
             limit: Maximum messages to return (default 100)
+            grace_period_minutes: Minutes before scheduled_at to include (default 30)
             
         Returns:
             List of queued messages from ACTIVE campaigns only
@@ -932,7 +1066,12 @@ class DBCampaignStore:
             return []
         
         try:
-            # Query database for queued messages at this exact slot
+            from datetime import timedelta
+            
+            # V2.3 FIX: Calculate grace period window
+            grace_start = scheduled_at - timedelta(minutes=grace_period_minutes)
+            
+            # Query database for queued messages within grace period
             # CRITICAL: Only return messages from active/running campaigns!
             response = (
                 self.supabase
@@ -940,7 +1079,8 @@ class DBCampaignStore:
                 .select("*, campaigns!inner(status)")
                 .eq("domain_used", domain)
                 .eq("status", MessageStatus.queued.value)
-                .eq("scheduled_at", scheduled_at.isoformat())
+                .gte("scheduled_at", grace_start.isoformat())  # ✅ Grace period start
+                .lte("scheduled_at", scheduled_at.isoformat())  # ✅ Current slot
                 .in_("campaigns.status", [
                     CampaignStatus.active.value,
                     CampaignStatus.running.value
@@ -955,7 +1095,7 @@ class DBCampaignStore:
             if messages:
                 logger.debug(
                     f"Found {len(messages)} queued messages for {domain} "
-                    f"at {scheduled_at}"
+                    f"at {scheduled_at} (grace period: {grace_period_minutes}m)"
                 )
             
             return messages

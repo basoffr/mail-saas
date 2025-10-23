@@ -181,7 +181,13 @@ class CampaignWorker:
             if campaign.status in [CampaignStatus.draft, CampaignStatus.paused, CampaignStatus.deleted]:
                 logger.info(f"Campaign {campaign.id} is {campaign.status}, skipping message {message.id}")
                 
-                # Mark as canceled
+                # V2.3 FIX: Don't cancel messages for paused campaigns - they should stay queued!
+                if campaign.status == CampaignStatus.paused:
+                    # Message stays queued, can be sent after resume
+                    logger.debug(f"Message {message.id} remains queued (campaign paused)")
+                    return False
+                
+                # Only cancel for draft/deleted campaigns
                 campaigns_store.update_message_status(message.id, MessageStatus.canceled, error=f"Campaign is {campaign.status}")
                 
                 return False

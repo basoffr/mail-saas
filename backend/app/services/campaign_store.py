@@ -378,8 +378,87 @@ class CampaignStore:
         logger.info(f"Paused campaign {campaign_id}")
         return True
     
+    def reschedule_missed_messages(self, campaign_id: str) -> Dict[str, Any]:
+        """V2.3: Reschedule missed messages to next available slots (in-memory version)."""
+        from datetime import timedelta
+        from zoneinfo import ZoneInfo
+        from app.core.stream_calculator import get_stream_for_mail, snap_to_stream_slot
+        from app.core.sending_policy import SENDING_POLICY
+        from collections import defaultdict
+        
+        now = datetime.now(ZoneInfo("Europe/Amsterdam"))
+        
+        # Get queued messages with scheduled_at in the past
+        missed_messages = [
+            m for m in self.messages.values()
+            if m.campaign_id == campaign_id
+            and m.status == MessageStatus.queued
+            and m.scheduled_at < now
+        ]
+        
+        if not missed_messages:
+            logger.info(f"No missed messages to reschedule for campaign {campaign_id}")
+            return {"rescheduled_count": 0, "failed_count": 0, "errors": []}
+        
+        logger.info(f"Found {len(missed_messages)} missed messages to reschedule")
+        
+        rescheduled_count = 0
+        failed_count = 0
+        errors = []
+        
+        # Group by domain
+        messages_by_domain = defaultdict(list)
+        for msg in missed_messages:
+            messages_by_domain[msg.domain_used].append(msg)
+        
+        # Track slots
+        slot_tracker = {}
+        
+        for domain, domain_messages in messages_by_domain.items():
+            # Sort by priority (M4 > M3 > M2 > M1)
+            domain_messages.sort(key=lambda m: -m.mail_number)
+            
+            for msg in domain_messages:
+                try:
+                    stream = get_stream_for_mail(msg.mail_number)
+                    
+                    # Find next available slot
+                    current_slot = snap_to_stream_slot(now, stream)
+                    current_slot = SENDING_POLICY.get_next_valid_slot(current_slot)
+                    
+                    # Check availability
+                    slot_key = (domain, current_slot, msg.alias)
+                    while slot_tracker.get(slot_key, 0) >= 1:
+                        current_slot += timedelta(minutes=20)
+                        current_slot = SENDING_POLICY.get_next_valid_slot(current_slot)
+                        slot_key = (domain, current_slot, msg.alias)
+                    
+                    # Reserve and update
+                    slot_tracker[slot_key] = 1
+                    msg.scheduled_at = current_slot
+                    
+                    rescheduled_count += 1
+                    logger.debug(f"Rescheduled message {msg.id} to {current_slot}")
+                    
+                except Exception as e:
+                    failed_count += 1
+                    error_msg = f"Failed to reschedule message {msg.id}: {str(e)}"
+                    errors.append(error_msg)
+                    logger.error(error_msg)
+        
+        logger.info(
+            f"Rescheduling complete for campaign {campaign_id}: "
+            f"{rescheduled_count} success, {failed_count} failed"
+        )
+        
+        return {
+            "rescheduled_count": rescheduled_count,
+            "failed_count": failed_count,
+            "errors": errors
+        }
+    
     def resume_campaign(self, campaign_id: str) -> bool:
-        """V2.2: Resume paused campaign."""
+        """V2.3: Resume paused campaign and reschedule missed messages."""
         campaign = self.campaigns.get(campaign_id)
         if not campaign:
             return False
@@ -387,6 +466,15 @@ class CampaignStore:
         if campaign.status == CampaignStatus.paused:
             campaign.status = CampaignStatus.active
             campaign.paused_at = None
+            
+            # V2.3 FIX: Reschedule missed messages
+            reschedule_result = self.reschedule_missed_messages(campaign_id)
+            
+            if reschedule_result["rescheduled_count"] > 0:
+                logger.info(
+                    f"Rescheduled {reschedule_result['rescheduled_count']} missed messages"
+                )
+            
             logger.info(f"Resumed campaign {campaign_id}")
             return True
         
